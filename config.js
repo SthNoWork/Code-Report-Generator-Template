@@ -31,7 +31,7 @@ window.APP_CONFIG = {
       homeHeroTitle: 'Project Folders',
       homeSubtitlePrefix: '//',
       homeSubtitleTemplate: '{count} folder{plural} found in root',
-      footer: 'Open your project root folder - Shows folders, labs, exercises, code files, and output.txt - Chrome & Edge',
+      footer: 'Open your project root folder - Shows folders, labs, exercises, code files, and text outputs - Chrome & Edge',
       sharedUtilsNote: 'Shared utils code is shown at the very bottom of this report (after all exercises), in both HTML and exported PDF.'
     }
   },
@@ -69,7 +69,7 @@ window.APP_CONFIG = {
     sectionMarkers: [
       '=== CUT ===',
     ],
-    fileCandidates: ['output.txt']
+    fileCandidates: ['output.txt', '*.txt', '*.json', '*.csv']
   },
 
   // PDF export quality/layout.

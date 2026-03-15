@@ -401,6 +401,76 @@
       content: '○'
     }
 
+    .card-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 2;
+    }
+
+    .card-btn {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+
+    .card-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .card-btn.project {
+      color: var(--accent3);
+      border-color: rgba(247, 129, 102, .35);
+    }
+
+    .card-btn.project:hover {
+      border-color: var(--accent3);
+      color: #ffd1c8;
+    }
+
+    .howto-panel {
+      width: min(920px, 100%);
+      margin-top: 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      text-align: left;
+      overflow: hidden;
+    }
+
+    .howto-head {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: linear-gradient(180deg, var(--surface2), var(--surface));
+    }
+
+    .howto-text {
+      margin: 0;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 320px;
+      overflow: auto;
+    }
+
     /* SECTION HEAD */
     .section-head {
       display: flex;
@@ -919,6 +989,10 @@
           <span id="open-project-button-text">Open Project Folder</span>
         </button>
         <div class="compat-note"><span>⚠</span> <span id="browser-support-note">Requires Chrome or Edge - Firefox not supported</span></div>
+        <div class="howto-panel">
+          <div class="howto-head" id="howto-title">How To Use (README.md)</div>
+          <pre class="howto-text" id="howto-content">Loading README.md...</pre>
+        </div>
       </div>
     </div>
 
@@ -958,7 +1032,7 @@
 
   </div>
 
-  <footer id="app-footer">Open your project root folder - Shows folders, labs, exercises, code files, and output.txt -
+  <footer id="app-footer">Open your project root folder - Shows folders, labs, exercises, code files, and text outputs -
     Chrome &amp; Edge
   </footer>
 
@@ -990,7 +1064,7 @@
           homeHeroTitle: 'Project Folders',
           homeSubtitlePrefix: '//',
           homeSubtitleTemplate: '{count} folder{plural} found in root',
-          footer: 'Open your project root folder - Shows folders, labs, exercises, code files, and output.txt - Chrome & Edge',
+          footer: 'Open your project root folder - Shows folders, labs, exercises, code files, and text outputs - Chrome & Edge',
           sharedUtilsNote: 'Shared utils code is shown at the very bottom of this report (after all exercises), in both HTML and exported PDF.'
         }
       },
@@ -1015,7 +1089,7 @@
         sectionMarkers: [
           '=== CUT ==='
         ],
-        fileCandidates: ['output.txt']
+        fileCandidates: ['output.txt', '*.txt', '*.json', '*.csv']
       },
       pdf: {
         contentWidthPx: 900,
@@ -1178,6 +1252,7 @@
       setText('home-hero-title', textCfg.homeHeroTitle);
       setText('app-footer', textCfg.footer);
       setText('shared-utils-note', textCfg.sharedUtilsNote);
+      setText('howto-title', 'How To Use (README.md)');
     }
 
     function renderBreadcrumb(items) {
@@ -1227,6 +1302,8 @@
     async function loadFolderDataFromDirectoryHandle(rootHandle) {
       setLoading(10);
       Object.keys(sharedUtilsCache).forEach(k => delete sharedUtilsCache[k]);
+
+      await loadReadmeHowTo();
 
       const scanned = await scanCategoriesFromDirectoryHandle(rootHandle);
       folderData = scanned;
@@ -1318,7 +1395,7 @@
 
     async function readExerciseFromDirectoryHandle(exerciseHandle) {
       const files = [];
-      const outputSections = [];
+      const outputEntries = [];
 
       for await (const entry of exerciseHandle.values()) {
         if (entry.kind !== 'file') continue;
@@ -1329,7 +1406,9 @@
         if (isOutputArtifact(fileName)) {
           const raw = await readTextFromFileHandle(entry);
           const sections = extractReportOutputSections(raw);
-          outputSections.push(...sections);
+          if (sections.length) {
+            outputEntries.push({ fileName, sections });
+          }
           continue;
         }
 
@@ -1352,7 +1431,7 @@
         name: exerciseHandle.name,
         files,
         images: [],
-        outputSectionsCache: outputSections
+        outputSectionsCache: outputEntries
       };
     }
 
@@ -1415,7 +1494,10 @@
           if (!content || content.includes('\u0000')) continue;
 
           if (isOutputArtifact(fileName)) {
-            outputSectionsCache = extractReportOutputSections(content);
+            const sections = extractReportOutputSections(content);
+            if (sections.length) {
+              outputSectionsCache.push({ fileName, sections });
+            }
             continue;
           }
 
@@ -1522,10 +1604,26 @@
       <h2>${folder.name}</h2>
       <div class="meta">${n} lab${n !== 1 ? 's' : ''}</div>
       <span class="badge${n === 0 ? ' empty' : ''}">${n > 0 ? 'populated' : 'empty'}</span>
+      <div class="card-actions">
+        <button class="card-btn" data-action="exercises">Open as exercises</button>
+        <button class="card-btn project" data-action="project">Open as project</button>
+      </div>
     `;
         card.onclick = () => showCategory(folder.name);
+        card.querySelector('[data-action="exercises"]').onclick = (ev) => {
+          ev.stopPropagation();
+          showCategory(folder.name);
+        };
+        card.querySelector('[data-action="project"]').onclick = (ev) => {
+          ev.stopPropagation();
+          openAsProject(folder.name);
+        };
         grid.appendChild(card);
       });
+    }
+
+    function openAsProject(folderName) {
+      alert(`Project mode for ${folderName} is reserved for future updates. For now, please use Open as exercises.`);
     }
 
     /* ══════════ RENDER CATEGORY ══════════ */
@@ -1647,33 +1745,36 @@
           body.appendChild(cb);
         });
 
-        const outputSections = await fetchExerciseOutputSections(ex);
-        if (!outputSections.length) {
+        const outputEntries = await fetchExerciseOutputSections(ex);
+        if (!outputEntries.length) {
           const ob = document.createElement('div');
           ob.className = 'output-block';
           ob.innerHTML = `
         <div class="out-header">
           <div class="out-dot"></div>
-          <span class="fname">output.txt</span>
+          <span class="fname">output</span>
           <span class="out-label">${VIEWER_CONFIG.labels.outputLabel}</span>
         </div>
-        <pre class="output-text">No output.txt found for this exercise.</pre>
+        <pre class="output-text">No supported text file found for this exercise (.txt, .json, .csv).</pre>
       `;
           body.appendChild(ob);
         } else {
-          outputSections.forEach((section, index) => {
-            const ob = document.createElement('div');
-            ob.className = 'output-block';
-            ob.innerHTML = `
-          <div class="out-header">
-            <div class="out-dot"></div>
-            <span class="fname">output.txt${outputSections.length > 1 ? ` · section ${index + 1}` : ''}</span>
-            <span class="out-label">${VIEWER_CONFIG.labels.outputLabel}</span>
-          </div>
-          <pre class="output-text"></pre>
-        `;
-            ob.querySelector('.output-text').textContent = section;
-            body.appendChild(ob);
+          outputEntries.forEach(entry => {
+            const sections = entry.sections || [];
+            sections.forEach((section, index) => {
+              const ob = document.createElement('div');
+              ob.className = 'output-block';
+              ob.innerHTML = `
+            <div class="out-header">
+              <div class="out-dot"></div>
+              <span class="fname">${entry.fileName}${sections.length > 1 ? ` · section ${index + 1}` : ''}</span>
+              <span class="out-label">${VIEWER_CONFIG.labels.outputLabel}</span>
+            </div>
+            <pre class="output-text"></pre>
+          `;
+              ob.querySelector('.output-text').textContent = section;
+              body.appendChild(ob);
+            });
           });
         }
 
@@ -1725,25 +1826,75 @@
 
     async function fetchExerciseOutputSections(ex) {
       if (Object.prototype.hasOwnProperty.call(ex, 'outputSectionsCache')) {
-        return ex.outputSectionsCache;
+        return normalizeOutputEntries(ex.outputSectionsCache);
       }
 
       const baseDir = `${selectedCategory}/${selectedLab}/${ex.name}/`;
-      for (const fileName of VIEWER_CONFIG.output.fileCandidates) {
-        const path = `${baseDir}${encodeURIComponent(fileName)}`;
+      try {
+        const dirRes = await fetch(baseDir, { cache: 'no-store' });
+        if (dirRes.ok) {
+          const html = await dirRes.text();
+          const fileNames = parseDirectoryListingFileNames(html);
+          const matchedNames = fileNames.filter(name => isOutputArtifact(name));
+          const entries = [];
+
+          for (const fileName of matchedNames) {
+            try {
+              const path = `${baseDir}${encodeURIComponent(fileName)}`;
+              const res = await fetch(path, { cache: 'no-store' });
+              if (!res.ok) continue;
+              const raw = await res.text();
+              const sections = extractReportOutputSections(raw);
+              if (sections.length) entries.push({ fileName, sections });
+            } catch (_) {
+              // Ignore per-file failures and keep scanning.
+            }
+          }
+
+          ex.outputSectionsCache = entries;
+          return entries;
+        }
+      } catch (_) {
+        // Fall back to direct file candidate probing when listing is unavailable.
+      }
+
+      const fallbackEntries = [];
+      for (const candidate of VIEWER_CONFIG.output.fileCandidates) {
+        if (String(candidate).includes('*')) continue;
+        const path = `${baseDir}${encodeURIComponent(candidate)}`;
         try {
           const res = await fetch(path, { cache: 'no-store' });
           if (!res.ok) continue;
           const raw = await res.text();
-          ex.outputSectionsCache = extractReportOutputSections(raw);
-          return ex.outputSectionsCache;
+          const sections = extractReportOutputSections(raw);
+          if (sections.length) {
+            fallbackEntries.push({ fileName: String(candidate), sections });
+          }
         } catch (_) {
           // Try the next candidate.
         }
       }
 
-      ex.outputSectionsCache = [];
-      return ex.outputSectionsCache;
+      ex.outputSectionsCache = fallbackEntries;
+      return fallbackEntries;
+    }
+
+    function normalizeOutputEntries(entries) {
+      if (!Array.isArray(entries)) return [];
+      if (!entries.length) return [];
+
+      const first = entries[0];
+      if (typeof first === 'string') {
+        return [{ fileName: 'output.txt', sections: entries.filter(Boolean) }];
+      }
+
+      return entries
+        .filter(entry => entry && typeof entry.fileName === 'string' && Array.isArray(entry.sections))
+        .map(entry => ({
+          fileName: entry.fileName,
+          sections: entry.sections.filter(Boolean)
+        }))
+        .filter(entry => entry.sections.length > 0);
     }
 
     function extractReportOutputSections(rawText) {
@@ -1872,10 +2023,17 @@
     }
 
     function isOutputArtifact(fileName) {
-      const candidates = (VIEWER_CONFIG.output.fileCandidates || ['output.txt'])
+      const patterns = (VIEWER_CONFIG.output.fileCandidates || ['output.txt'])
         .filter(Boolean)
         .map(n => String(n).toLowerCase());
-      return candidates.some(n => n === String(fileName).toLowerCase());
+      const lower = String(fileName || '').toLowerCase();
+
+      return patterns.some(pattern => {
+        if (!pattern.includes('*')) return pattern === lower;
+        const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        const regex = new RegExp(`^${escaped}$`, 'i');
+        return regex.test(lower);
+      });
     }
 
     function isLikelyBinaryName(fileName) {
@@ -1886,7 +2044,6 @@
     function isCodeSourceFile(fileName) {
       const ext = normalizeExtension(fileName);
       if (!ext) return false;
-      if (ext === 'txt') return false;
       if (isOutputArtifact(fileName)) return false;
       if (isLikelyBinaryName(fileName)) return false;
       return true;
@@ -2119,6 +2276,48 @@
       }
     }
 
+    async function loadReadmeHowTo() {
+      const box = document.getElementById('howto-content');
+      if (!box) return;
+
+      box.textContent = 'Loading README.md...';
+      const readmeText = selectedRootHandle
+        ? await readReadmeFromDirectoryHandle(selectedRootHandle)
+        : await fetchReadmeFromHttp();
+
+      if (!readmeText) {
+        box.textContent = 'README.md not found in this root. Add one to show project usage instructions here.';
+        return;
+      }
+
+      box.textContent = readmeText;
+    }
+
+    async function readReadmeFromDirectoryHandle(rootHandle) {
+      if (!rootHandle) return '';
+      const candidates = ['README.md', 'readme.md', 'Readme.md'];
+
+      for (const name of candidates) {
+        try {
+          const handle = await rootHandle.getFileHandle(name);
+          return await readTextFromFileHandle(handle);
+        } catch (_) {
+          // Try next filename.
+        }
+      }
+
+      return '';
+    }
+
+    async function fetchReadmeFromHttp() {
+      const candidates = ['README.md', 'readme.md', 'Readme.md'];
+      for (const name of candidates) {
+        const text = await fetchTextFromHttp(name);
+        if (text) return text;
+      }
+      return '';
+    }
+
     function getCurrentLab() {
       if (!selectedCategory || !selectedLab) return null;
       const folder = folderData.find(f => f.name === selectedCategory);
@@ -2309,6 +2508,7 @@
       initializeSubtitle();
       updateStaticUiText();
       updateTopbarTitle();
+      await loadReadmeHowTo();
       showLanding();
     });
   </script>
