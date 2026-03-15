@@ -2,9 +2,25 @@
 
 Simple web viewer for lab reports with automatic folder detection.
 
-## Spliting Sections in output.txt
+https://sthnowork.github.io/Code-Report-Generator-Template/
 
+## Splitting Sections in output.txt
+
+Use this exact marker in `output.txt`:
+
+```text
 === CUT ===
+```
+
+## Exercise Description for Main.\* Only
+
+Put this block comment at the top of `Main.*`:
+
+```text
+/*
+any text here will be inside the description list
+*/
+```
 
 ## What It Does
 
@@ -146,3 +162,4 @@ Open `http://localhost:5500/index.html`.
 
 - Full guide: `PROJECT_STRUCTURE.md`
 - Settings: `config.js`
+- Example export: `example.pdf`

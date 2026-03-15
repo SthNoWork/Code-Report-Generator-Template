@@ -852,9 +852,15 @@
     }
 
     .output-table-wrap {
-      overflow-x: auto;
+      max-height: 360px;
+      overflow: auto;
       background: var(--dr-bg);
       padding: 12px;
+    }
+
+    body.exporting-pdf .output-table-wrap {
+      max-height: none !important;
+      overflow: visible !important;
     }
 
     .output-table {
@@ -1074,6 +1080,11 @@
       <div class="lab-utils" id="lab-utils"></div>
     </div>
 
+    <div class="howto-panel" id="global-howto-panel" style="display:none; margin-top: 22px;">
+      <div class="howto-head" id="global-howto-title">How To Use (README.md)</div>
+      <pre class="howto-text" id="global-howto-content">Loading README.md...</pre>
+    </div>
+
   </div>
 
   <footer id="app-footer">Open your project root folder - Shows folders, labs, exercises, code files, and text outputs -
@@ -1090,7 +1101,7 @@
         topbar: {
           useRootFolderName: true,
           staticPrefixSegments: [],
-          useActiveCategoryAsTail: true,
+          useActiveCategoryAsTail: false,
           tailLabel: '',
           separator: ' > '
         },
@@ -1215,6 +1226,7 @@
     let selectedRootHandle = null;
     let selectedRootName = '';
     let activeSubtitle = '';
+    let readmeHowToContent = '';
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -1297,6 +1309,20 @@
       setText('app-footer', textCfg.footer);
       setText('shared-utils-note', textCfg.sharedUtilsNote);
       setText('howto-title', 'How To Use (README.md)');
+      setText('global-howto-title', 'How To Use (README.md)');
+    }
+
+    function setGlobalHowToVisibility(show) {
+      const panel = document.getElementById('global-howto-panel');
+      if (!panel) return;
+      panel.style.display = show ? '' : 'none';
+    }
+
+    function syncHowToPanels(text) {
+      const landingBox = document.getElementById('howto-content');
+      const globalBox = document.getElementById('global-howto-content');
+      if (landingBox) landingBox.textContent = text;
+      if (globalBox) globalBox.textContent = text;
     }
 
     function renderBreadcrumb(items) {
@@ -1373,6 +1399,7 @@
 
     function showLanding() {
       activate('view-landing');
+      setGlobalHowToVisibility(false);
       document.getElementById('export-pdf-btn').style.display = 'none';
       renderBreadcrumb([
         { label: getHomeCrumbLabel(), active: true }
@@ -1833,6 +1860,7 @@
     /* ══════════ NAVIGATION ══════════ */
     function showHome() {
       activate('view-home');
+      setGlobalHowToVisibility(true);
       document.getElementById('export-pdf-btn').style.display = 'none';
       renderBreadcrumb([
         { label: getHomeCrumbLabel(), active: true }
@@ -1845,6 +1873,7 @@
       selectedLab = null;
       renderCategory(name);
       activate('view-category');
+      setGlobalHowToVisibility(true);
       document.getElementById('export-pdf-btn').style.display = 'none';
       renderBreadcrumb([
         { label: getHomeCrumbLabel(), onClick: 'showHome()', active: false },
@@ -1858,6 +1887,7 @@
       selectedLab = name;
       renderLab(name);
       activate('view-lab');
+      setGlobalHowToVisibility(true);
       document.getElementById('export-pdf-btn').style.display = '';
       renderBreadcrumb([
         { label: getHomeCrumbLabel(), onClick: 'showHome()', active: false },
@@ -2445,20 +2475,18 @@
     }
 
     async function loadReadmeHowTo() {
-      const box = document.getElementById('howto-content');
-      if (!box) return;
-
-      box.textContent = 'Loading README.md...';
-      const readmeText = selectedRootHandle
-        ? await readReadmeFromDirectoryHandle(selectedRootHandle)
-        : await fetchReadmeFromHttp();
+      syncHowToPanels('Loading README.md...');
+      // README is always resolved from the app/server root (next to index.html).
+      const readmeText = await fetchReadmeFromHttp();
 
       if (!readmeText) {
-        box.textContent = 'README.md not found in this root. Add one to show project usage instructions here.';
+        readmeHowToContent = 'README.md not found next to index.html. Add one there to show project usage instructions here.';
+        syncHowToPanels(readmeHowToContent);
         return;
       }
 
-      box.textContent = readmeText;
+      readmeHowToContent = readmeText;
+      syncHowToPanels(readmeHowToContent);
     }
 
     async function readReadmeFromDirectoryHandle(rootHandle) {

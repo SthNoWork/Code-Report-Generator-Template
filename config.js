@@ -10,7 +10,7 @@ window.APP_CONFIG = {
       // Extra segments shown before the final tail label.
       staticPrefixSegments: [],
       // When true, use the currently selected folder/category as the tail segment.
-      useActiveCategoryAsTail: true,
+      useActiveCategoryAsTail: false,
       // Optional fixed tail segment when useActiveCategoryAsTail is false.
       tailLabel: '',
       // Visual separator for topbar path.
