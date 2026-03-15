@@ -1,1026 +1,1591 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Y2-S2 · Data Structures Lab Report</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/base16/dracula.min.css"/>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./config.js"></script>
-<style>
-  :root {
-    --bg:      #0d1117;
-    --surface: #161b22;
-    --surface2:#1c2330;
-    --border:  #30363d;
-    --accent:  #58a6ff;
-    --accent2: #3fb950;
-    --accent3: #f78166;
-    --accent4: #d2a8ff;
-    --text:    #e6edf3;
-    --muted:   #7d8590;
-    --folder:  #e3b341;
-    --mono:    'JetBrains Mono', monospace;
-    --sans:    'Space Grotesk', sans-serif;
-    --dr-bg:   #282a36;
-    --dr-bg-2: #1f2230;
-    --dr-fg:   #f8f8f2;
-    --dr-com:  #6272a4;
-    --dr-cyan: #8be9fd;
-    --dr-green:#50fa7b;
-    --dr-orange:#ffb86c;
-    --dr-pink: #ff79c6;
-    --dr-purple:#bd93f9;
-    --dr-red:  #ff5555;
-    --pdf-content-width: 900px;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Generator</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/base16/dracula.min.css" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="./config.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2330;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --accent3: #f78166;
+      --accent4: #d2a8ff;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --folder: #e3b341;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Space Grotesk', sans-serif;
+      --dr-bg: #282a36;
+      --dr-bg-2: #1f2230;
+      --dr-fg: #f8f8f2;
+      --dr-com: #6272a4;
+      --dr-cyan: #8be9fd;
+      --dr-green: #50fa7b;
+      --dr-orange: #ffb86c;
+      --dr-pink: #ff79c6;
+      --dr-purple: #bd93f9;
+      --dr-red: #ff5555;
+      --pdf-content-width: 900px;
+    }
 
-  /* TOPBAR */
-  .topbar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 0 24px; height: 48px;
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 100;
-  }
-  .dot{width:12px;height:12px;border-radius:50%}
-  .dot.r{background:#ff5f57}.dot.a{background:#febc2e}.dot.g{background:#28c840}
-  .topbar-title{margin-left:12px;font-family:var(--mono);font-size:13px;color:var(--muted)}
-  .topbar-title span{color:var(--accent)}
-  .breadcrumb{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;color:var(--muted)}
-  .crumb{cursor:pointer;transition:color .2s}.crumb:hover{color:var(--accent)}
-  .crumb.active{color:var(--text);pointer-events:none}
-  .sep{color:var(--border)}
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  /* MAIN */
-  .main{max-width:1100px;margin:0 auto;padding:40px 24px 80px}
-  .view{display:none;animation:fadeUp .3s ease both}
-  .view.active{display:block}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+    }
 
-  body.exporting-pdf *, body.exporting-pdf *::before, body.exporting-pdf *::after {
-    animation: none !important;
-    transition: none !important;
-  }
-  body.exporting-pdf {
-    background: #0d1117 !important;
-    color: #e6edf3 !important;
-  }
-  body.exporting-pdf .main {
-    background: #0d1117 !important;
-    max-width: var(--pdf-content-width) !important;
-    width: var(--pdf-content-width) !important;
-    margin: 0 !important;
-    padding: 20px 0 !important;
-  }
-  body.exporting-pdf .view.active {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-  body.exporting-pdf #view-lab {
-    background: #0f1420 !important;
-    border: 1px solid #283247 !important;
-  }
-  body.exporting-pdf #view-lab .section-head h2 {
-    color: #f8f8f2 !important;
-    opacity: 1 !important;
-  }
+    /* TOPBAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px;
+      height: 48px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-  /* LANDING */
-  .landing{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:24px}
-  .landing .label{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase}
-  .landing h1{font-size:clamp(28px,5vw,52px);font-weight:700;letter-spacing:-.02em;background:linear-gradient(135deg,var(--text) 30%,var(--accent4));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-  .landing p{color:var(--muted);font-family:var(--mono);font-size:13px;max-width:460px;line-height:1.7}
-  .open-btn{display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#000;font-family:var(--mono);font-size:13px;font-weight:700;border:none;border-radius:8px;padding:14px 28px;cursor:pointer;transition:opacity .2s,transform .2s;letter-spacing:.03em}
-  .open-btn:hover{opacity:.85;transform:translateY(-2px)}
-  .compat-note{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px}
-  .compat-note span{color:var(--accent3)}
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%
+    }
 
-  /* HOME */
-  .home-hero{text-align:center;padding:40px 0 36px}
-  .home-hero .label{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:10px}
-  .home-hero h1{font-size:clamp(24px,4vw,44px);font-weight:700;letter-spacing:-.02em;background:linear-gradient(135deg,var(--text) 30%,var(--accent4));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-  .home-hero p{margin-top:10px;color:var(--muted);font-family:var(--mono);font-size:12px}
-  .rescan-btn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:12px;border-radius:6px;padding:8px 14px;cursor:pointer;margin-top:16px;transition:color .2s,border-color .2s}
-  .rescan-btn:hover{color:var(--accent);border-color:var(--accent)}
+    .dot.r {
+      background: #ff5f57
+    }
 
-  .lab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:8px}
-  .lab-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:26px 22px 22px;cursor:pointer;transition:border-color .2s,transform .2s,box-shadow .2s;position:relative;overflow:hidden}
-  .lab-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(88,166,255,.07),transparent 60%);opacity:0;transition:opacity .25s}
-  .lab-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 32px rgba(88,166,255,.12)}
-  .lab-card:hover::before{opacity:1}
-  .lab-card .folder-icon{font-size:26px;margin-bottom:12px;display:block}
-  .lab-card h2{font-size:18px;font-weight:700}
-  .lab-card .meta{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--muted)}
-  .badge{margin-top:14px;display:inline-flex;align-items:center;gap:5px;background:rgba(63,185,80,.12);color:var(--accent2);border:1px solid rgba(63,185,80,.25);border-radius:20px;font-family:var(--mono);font-size:10px;padding:3px 10px}
-  .badge::before{content:'●';font-size:7px}
-  .badge.empty{color:var(--muted);border-color:var(--border);background:transparent}
-  .badge.empty::before{content:'○'}
+    .dot.a {
+      background: #febc2e
+    }
 
-  /* SECTION HEAD */
-  .section-head{display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap}
-  .back-btn{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:12px;padding:6px 12px;cursor:pointer;transition:color .2s,border-color .2s}
-  .back-btn:hover{color:var(--accent);border-color:var(--accent)}
-  .report-btn{background:var(--surface2);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-family:var(--mono);font-size:12px;padding:6px 12px;cursor:pointer;transition:opacity .2s}
-  .report-btn:hover{opacity:.85}
-  .section-head h2{font-size:22px;font-weight:700;color:var(--dr-fg)}
-  .section-tag{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:3px 10px;border-radius:20px;margin-left:auto}
+    .dot.g {
+      background: #28c840
+    }
 
-  #view-lab{
-    background:#0f1420;
-    border:1px solid #283247;
-    border-radius:0;
-    padding:18px;
-  }
-  .lab-bottom-note{margin:-10px 0 14px;padding:10px 12px;border:1px dashed rgba(88,166,255,.45);border-radius:8px;background:rgba(88,166,255,.08);font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--muted)}
-  .lab-bottom-note strong{color:var(--accent)}
+    .topbar-title {
+      margin-left: 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted)
+    }
 
-  /* EX ACCORDION */
-  .ex-list{display:flex;flex-direction:column;gap:12px}
-  .ex-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s}
-  .ex-item.open{border-color:var(--accent)}
-  .ex-header{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;user-select:none;transition:background .15s}
-  .ex-header:hover{background:var(--surface2)}
-  .ex-num{width:32px;height:32px;border-radius:8px;flex-shrink:0;background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--accent)}
-  .ex-header h3{font-size:15px;font-weight:600}
-  .ex-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:4px}
-  .ex-chevron{margin-left:auto;color:var(--muted);font-size:13px;transition:transform .25s}
-  .ex-item.open .ex-chevron{transform:rotate(90deg)}
-  .ex-body{display:none;padding:0 20px 20px;flex-direction:column;gap:16px}
-  .ex-item.open .ex-body{display:flex}
+    .topbar-title span {
+      color: var(--accent)
+    }
 
-  /* CODE BLOCK */
-  .code-block{border-radius:12px;overflow:hidden;border:1px solid #44475a;background:var(--dr-bg);box-shadow:0 14px 30px rgba(0,0,0,.28)}
-  .code-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(180deg,var(--dr-bg-2),#1a1c27);border-bottom:1px solid #44475a;font-family:var(--mono);font-size:12px;color:#b7bfdc}
-  .code-dot{width:9px;height:9px;border-radius:50%;background:var(--dr-cyan);flex-shrink:0}
-  .code-dot.main-dot{background:var(--dr-green)}
-  .code-header .fname{color:var(--dr-fg)}
-  .main-tag{margin-left:auto;background:rgba(80,250,123,.12);color:var(--dr-green);border:1px solid rgba(80,250,123,.35);border-radius:4px;font-size:9px;padding:2px 7px;letter-spacing:.06em;text-transform:uppercase}
-  .ext-tag{font-size:10px;color:#94a0ce;padding-left:8px}
-  .code-block pre{background:var(--dr-bg);padding:16px;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--dr-fg);max-height:none;overflow:visible;white-space:pre-wrap;word-break:break-word}
+    .breadcrumb {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted)
+    }
 
-  /* Highlight.js token tuning to match VS Code Dracula-like colors. */
-  .code-block .hljs {
-    background: transparent;
-    color: var(--dr-fg);
-    padding: 0;
-  }
-  .code-block .hljs-keyword,
-  .code-block .hljs-selector-tag,
-  .code-block .hljs-literal,
-  .code-block .hljs-operator,
-  .code-block .hljs-title.class_ {
-    color: var(--dr-pink);
-  }
-  .code-block .hljs-type,
-  .code-block .hljs-built_in,
-  .code-block .hljs-title.function_,
-  .code-block .hljs-function .hljs-title {
-    color: var(--dr-green);
-  }
-  .code-block .hljs-string,
-  .code-block .hljs-meta-string,
-  .code-block .hljs-attr {
-    color: #f1fa8c;
-  }
-  .code-block .hljs-number,
-  .code-block .hljs-symbol,
-  .code-block .hljs-variable,
-  .code-block .hljs-template-variable {
-    color: var(--dr-purple);
-  }
-  .code-block .hljs-comment,
-  .code-block .hljs-quote,
-  .code-block .hljs-doctag {
-    color: var(--dr-com);
-  }
-  .code-block .hljs-meta,
-  .code-block .hljs-preprocessor {
-    color: #ff79c6;
-  }
+    .crumb {
+      cursor: pointer;
+      transition: color .2s
+    }
 
-  .exercise-note{border:1px solid rgba(88,166,255,.35);background:linear-gradient(135deg,rgba(88,166,255,.12),rgba(210,168,255,.08));border-radius:10px;padding:14px 16px}
-  .exercise-note-head{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin-bottom:10px}
-  .exercise-note-text{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;color:var(--text)}
+    .crumb:hover {
+      color: var(--accent)
+    }
 
-  /* syntax */
-  .kw{color:var(--dr-pink)}.ty{color:var(--dr-cyan)}.fn{color:var(--dr-purple)}
-  .st{color:var(--dr-orange)}.cm{color:var(--dr-com);font-style:italic}.nu{color:var(--dr-purple)}.dec{color:var(--dr-red)}
+    .crumb.active {
+      color: var(--text);
+      pointer-events: none
+    }
 
-  /* OUTPUT */
-  .output-block{border-radius:12px;overflow:hidden;border:1px solid #44475a;background:var(--dr-bg);box-shadow:0 14px 30px rgba(0,0,0,.22)}
-  .out-header{display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(180deg,var(--dr-bg-2),#1a1c27);border-bottom:1px solid #44475a;font-family:var(--mono);font-size:12px;color:#b7bfdc}
-  .out-dot{width:8px;height:8px;border-radius:50%;background:var(--accent3);flex-shrink:0}
-  .out-label{margin-left:auto;font-size:10px;color:var(--dr-orange)}
-  .output-text{background:var(--dr-bg);padding:18px;font-family:var(--mono);font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:var(--dr-fg);overflow:visible;max-height:none}
+    .sep {
+      color: var(--border)
+    }
 
-  /* LAB-LEVEL UTILS */
-  .lab-utils{margin-top:18px;display:flex;flex-direction:column;gap:12px}
-  .lab-utils-meta{font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--muted)}
+    /* MAIN */
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px
+    }
 
-  @media print {
-    @page { margin: 8mm; }
-    html, body {
+    .view {
+      display: none;
+      animation: fadeUp .3s ease both
+    }
+
+    .view.active {
+      display: block
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    body.exporting-pdf *,
+    body.exporting-pdf *::before,
+    body.exporting-pdf *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    body.exporting-pdf {
       background: #0d1117 !important;
       color: #e6edf3 !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
     }
-    .topbar, .loading-bar, footer, .back-btn, .report-btn, .rescan-btn { display: none !important; }
-    .main { max-width: none; padding: 0; }
-    .view { display: none !important; }
-    #view-lab { display: block !important; }
-    .ex-body { display: flex !important; }
-    .code-block pre { max-height: none !important; overflow: visible !important; }
-    .ex-item { break-inside: avoid; page-break-inside: avoid; }
-  }
 
-  /* LOADING BAR */
-  .loading-bar{position:fixed;top:48px;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent4));transition:width .3s ease,opacity .3s;z-index:200;opacity:0}
+    body.exporting-pdf .main {
+      background: #0d1117 !important;
+      max-width: var(--pdf-content-width) !important;
+      width: var(--pdf-content-width) !important;
+      margin: 0 !important;
+      padding: 20px 0 !important;
+    }
 
-  /* EMPTY */
-  .empty-card{border:2px dashed var(--border);border-radius:10px;padding:48px 24px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:13px}
-  .empty-card .big{font-size:32px;margin-bottom:12px}
+    body.exporting-pdf .view.active {
+      opacity: 1 !important;
+      transform: none !important;
+    }
 
-  footer{text-align:center;padding:32px;font-family:var(--mono);font-size:11px;color:var(--muted);border-top:1px solid var(--border)}
-</style>
+    body.exporting-pdf #view-lab {
+      background: #0f1420 !important;
+      border: 1px solid #283247 !important;
+    }
+
+    body.exporting-pdf #view-lab .section-head h2 {
+      color: #f8f8f2 !important;
+      opacity: 1 !important;
+    }
+
+    /* LANDING */
+    .landing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+      gap: 24px
+    }
+
+    .landing .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .18em;
+      color: var(--accent);
+      text-transform: uppercase
+    }
+
+    .landing h1 {
+      font-size: clamp(28px, 5vw, 52px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, var(--text) 30%, var(--accent4));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text
+    }
+
+    .landing p {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 13px;
+      max-width: 460px;
+      line-height: 1.7
+    }
+
+    .open-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent);
+      color: #000;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      padding: 14px 28px;
+      cursor: pointer;
+      transition: opacity .2s, transform .2s;
+      letter-spacing: .03em
+    }
+
+    .open-btn:hover {
+      opacity: .85;
+      transform: translateY(-2px)
+    }
+
+    .compat-note {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 16px
+    }
+
+    .compat-note span {
+      color: var(--accent3)
+    }
+
+    /* HOME */
+    .home-hero {
+      text-align: center;
+      padding: 40px 0 36px
+    }
+
+    .home-hero .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .18em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px
+    }
+
+    .home-hero h1 {
+      font-size: clamp(24px, 4vw, 44px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, var(--text) 30%, var(--accent4));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text
+    }
+
+    .home-hero p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px
+    }
+
+    .rescan-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: color .2s, border-color .2s
+    }
+
+    .rescan-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent)
+    }
+
+    .lab-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 8px
+    }
+
+    .lab-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 26px 22px 22px;
+      cursor: pointer;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      position: relative;
+      overflow: hidden
+    }
+
+    .lab-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(88, 166, 255, .07), transparent 60%);
+      opacity: 0;
+      transition: opacity .25s
+    }
+
+    .lab-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(88, 166, 255, .12)
+    }
+
+    .lab-card:hover::before {
+      opacity: 1
+    }
+
+    .lab-card .folder-icon {
+      font-size: 26px;
+      margin-bottom: 12px;
+      display: block
+    }
+
+    .lab-card h2 {
+      font-size: 18px;
+      font-weight: 700
+    }
+
+    .lab-card .meta {
+      margin-top: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .badge {
+      margin-top: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(63, 185, 80, .12);
+      color: var(--accent2);
+      border: 1px solid rgba(63, 185, 80, .25);
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 10px
+    }
+
+    .badge::before {
+      content: '●';
+      font-size: 7px
+    }
+
+    .badge.empty {
+      color: var(--muted);
+      border-color: var(--border);
+      background: transparent
+    }
+
+    .badge.empty::before {
+      content: '○'
+    }
+
+    /* SECTION HEAD */
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      flex-wrap: wrap
+    }
+
+    .back-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: color .2s, border-color .2s
+    }
+
+    .back-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent)
+    }
+
+    .report-btn {
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: opacity .2s
+    }
+
+    .report-btn:hover {
+      opacity: .85
+    }
+
+    .section-head h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--dr-fg)
+    }
+
+    .section-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-left: auto
+    }
+
+    #view-lab {
+      background: #0f1420;
+      border: 1px solid #283247;
+      border-radius: 0;
+      padding: 18px;
+    }
+
+    .lab-bottom-note {
+      margin: -10px 0 14px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(88, 166, 255, .45);
+      border-radius: 8px;
+      background: rgba(88, 166, 255, .08);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--muted)
+    }
+
+    .lab-bottom-note strong {
+      color: var(--accent)
+    }
+
+    /* EX ACCORDION */
+    .ex-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    .ex-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color .2s
+    }
+
+    .ex-item.open {
+      border-color: var(--accent)
+    }
+
+    .ex-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s
+    }
+
+    .ex-header:hover {
+      background: var(--surface2)
+    }
+
+    .ex-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      background: rgba(88, 166, 255, .12);
+      border: 1px solid rgba(88, 166, 255, .2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent)
+    }
+
+    .ex-header h3 {
+      font-size: 15px;
+      font-weight: 600
+    }
+
+    .ex-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-left: 4px
+    }
+
+    .ex-chevron {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 13px;
+      transition: transform .25s
+    }
+
+    .ex-item.open .ex-chevron {
+      transform: rotate(90deg)
+    }
+
+    .ex-body {
+      display: none;
+      padding: 0 20px 20px;
+      flex-direction: column;
+      gap: 16px
+    }
+
+    .ex-item.open .ex-body {
+      display: flex
+    }
+
+    /* CODE BLOCK */
+    .code-block {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #44475a;
+      background: var(--dr-bg);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, .28)
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, var(--dr-bg-2), #1a1c27);
+      border-bottom: 1px solid #44475a;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #b7bfdc
+    }
+
+    .code-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--dr-cyan);
+      flex-shrink: 0
+    }
+
+    .code-dot.main-dot {
+      background: var(--dr-green)
+    }
+
+    .code-header .fname {
+      color: var(--dr-fg)
+    }
+
+    .main-tag {
+      margin-left: auto;
+      background: rgba(80, 250, 123, .12);
+      color: var(--dr-green);
+      border: 1px solid rgba(80, 250, 123, .35);
+      border-radius: 4px;
+      font-size: 9px;
+      padding: 2px 7px;
+      letter-spacing: .06em;
+      text-transform: uppercase
+    }
+
+    .ext-tag {
+      font-size: 10px;
+      color: #94a0ce;
+      padding-left: 8px
+    }
+
+    .code-block pre {
+      background: var(--dr-bg);
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: var(--dr-fg);
+      max-height: none;
+      overflow: visible;
+      white-space: pre-wrap;
+      word-break: break-word
+    }
+
+    /* Highlight.js token tuning to match VS Code Dracula-like colors. */
+    .code-block .hljs {
+      background: transparent;
+      color: var(--dr-fg);
+      padding: 0;
+    }
+
+    .code-block .hljs-keyword,
+    .code-block .hljs-selector-tag,
+    .code-block .hljs-literal,
+    .code-block .hljs-operator,
+    .code-block .hljs-title.class_ {
+      color: var(--dr-pink);
+    }
+
+    .code-block .hljs-type,
+    .code-block .hljs-built_in,
+    .code-block .hljs-title.function_,
+    .code-block .hljs-function .hljs-title {
+      color: var(--dr-green);
+    }
+
+    .code-block .hljs-string,
+    .code-block .hljs-meta-string,
+    .code-block .hljs-attr {
+      color: #f1fa8c;
+    }
+
+    .code-block .hljs-number,
+    .code-block .hljs-symbol,
+    .code-block .hljs-variable,
+    .code-block .hljs-template-variable {
+      color: var(--dr-purple);
+    }
+
+    .code-block .hljs-comment,
+    .code-block .hljs-quote,
+    .code-block .hljs-doctag {
+      color: var(--dr-com);
+    }
+
+    .code-block .hljs-meta,
+    .code-block .hljs-preprocessor {
+      color: #ff79c6;
+    }
+
+    .exercise-note {
+      border: 1px solid rgba(88, 166, 255, .35);
+      background: linear-gradient(135deg, rgba(88, 166, 255, .12), rgba(210, 168, 255, .08));
+      border-radius: 10px;
+      padding: 14px 16px
+    }
+
+    .exercise-note-head {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .08em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px
+    }
+
+    .exercise-note-text {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text)
+    }
+
+    /* syntax */
+    .kw {
+      color: var(--dr-pink)
+    }
+
+    .ty {
+      color: var(--dr-cyan)
+    }
+
+    .fn {
+      color: var(--dr-purple)
+    }
+
+    .st {
+      color: var(--dr-orange)
+    }
+
+    .cm {
+      color: var(--dr-com);
+      font-style: italic
+    }
+
+    .nu {
+      color: var(--dr-purple)
+    }
+
+    .dec {
+      color: var(--dr-red)
+    }
+
+    /* OUTPUT */
+    .output-block {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #44475a;
+      background: var(--dr-bg);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, .22)
+    }
+
+    .out-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, var(--dr-bg-2), #1a1c27);
+      border-bottom: 1px solid #44475a;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #b7bfdc
+    }
+
+    .out-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent3);
+      flex-shrink: 0
+    }
+
+    .out-label {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--dr-orange)
+    }
+
+    .output-text {
+      background: var(--dr-bg);
+      padding: 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--dr-fg);
+      overflow: visible;
+      max-height: none
+    }
+
+    /* LAB-LEVEL UTILS */
+    .lab-utils {
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    .lab-utils-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--muted)
+    }
+
+    @media print {
+      @page {
+        margin: 8mm;
+      }
+
+      html,
+      body {
+        background: #0d1117 !important;
+        color: #e6edf3 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .topbar,
+      .loading-bar,
+      footer,
+      .back-btn,
+      .report-btn,
+      .rescan-btn {
+        display: none !important;
+      }
+
+      .main {
+        max-width: none;
+        padding: 0;
+      }
+
+      .view {
+        display: none !important;
+      }
+
+      #view-lab {
+        display: block !important;
+      }
+
+      .ex-body {
+        display: flex !important;
+      }
+
+      .code-block pre {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+
+      .ex-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+
+    /* LOADING BAR */
+    .loading-bar {
+      position: fixed;
+      top: 48px;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent4));
+      transition: width .3s ease, opacity .3s;
+      z-index: 200;
+      opacity: 0
+    }
+
+    /* EMPTY */
+    .empty-card {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 13px
+    }
+
+    .empty-card .big {
+      font-size: 32px;
+      margin-bottom: 12px
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border)
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="topbar">
-  <div class="dot r"></div><div class="dot a"></div><div class="dot g"></div>
-  <div class="topbar-title"><span>Y2-S2</span> › DATA-STRUCTURES › Lab</div>
-  <button class="report-btn" id="export-pdf-btn" style="display:none;margin-left:auto;margin-right:4px" onclick="exportPdf()">Export PDF</button>
-  <div class="breadcrumb" id="breadcrumb">
-    <span class="crumb active">Home</span>
-  </div>
-</div>
-
-<div class="loading-bar" id="loading-bar" style="width:0"></div>
-
-<div class="main">
-
-  <!-- LANDING -->
-  <div class="view active" id="view-landing">
-    <div class="landing">
-      <div class="label">Year 2 · Semester 2</div>
-      <h1>Data Structures<br/>Lab Report</h1>
-      <p>Click below and select your <strong>project root</strong> folder.<br/>Everything loads automatically — folders, labs, exercises, code files, and output text.</p>
-      <button class="open-btn" id="open-btn" onclick="openLabFolder()">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-        Open Project Folder
-      </button>
-      <div class="compat-note"><span>⚠</span> Requires Chrome or Edge · Firefox not supported</div>
+  <div class="topbar">
+    <div class="dot r"></div>
+    <div class="dot a"></div>
+    <div class="dot g"></div>
+    <div class="topbar-title" id="topbar-title">Project &gt; Lab</div>
+    <button class="back-btn" id="switch-project-btn" style="margin-left:auto;margin-right:4px"
+      onclick="openLabFolder()">Switch Project</button>
+    <button class="report-btn" id="export-pdf-btn" style="display:none;margin-left:0;margin-right:4px"
+      onclick="exportPdf()">Export PDF</button>
+    <div class="breadcrumb" id="breadcrumb">
+      <span class="crumb active">Home</span>
     </div>
   </div>
 
-  <!-- HOME -->
-  <div class="view" id="view-home">
-    <div class="home-hero">
-      <div class="label">Year 2 · Semester 2</div>
-      <h1>Project Folders</h1>
-      <p id="home-sub">// select a folder to explore</p>
-      <button class="rescan-btn" onclick="rescan()">↺ Rescan Folder</button>
+  <div class="loading-bar" id="loading-bar" style="width:0"></div>
+
+  <div class="main">
+
+    <!-- LANDING -->
+    <div class="view active" id="view-landing">
+      <div class="landing">
+        <div class="label" id="landing-label">Code Report Viewer</div>
+        <h1 id="landing-title">Lab Report<br />Generator</h1>
+        <p id="landing-description">Click below and select your <strong>project root</strong> folder.<br />Everything
+          loads automatically - folders, labs, exercises, code files, and output text.</p>
+        <button class="open-btn" id="open-btn" onclick="openLabFolder()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          <span id="open-project-button-text">Open Project Folder</span>
+        </button>
+        <div class="compat-note"><span>⚠</span> <span id="browser-support-note">Requires Chrome or Edge - Firefox not supported</span></div>
+      </div>
     </div>
-    <div class="lab-grid" id="lab-grid"></div>
+
+    <!-- HOME -->
+    <div class="view" id="view-home">
+      <div class="home-hero">
+        <div class="label" id="home-hero-label">Project Explorer</div>
+        <h1 id="home-hero-title">Project Folders</h1>
+        <p id="home-sub">// select a folder to explore</p>
+        <button class="rescan-btn" onclick="rescan()">↺ Rescan Folder</button>
+      </div>
+      <div class="lab-grid" id="lab-grid"></div>
+    </div>
+
+    <!-- CATEGORY -->
+    <div class="view" id="view-category">
+      <div class="section-head">
+        <button class="back-btn" onclick="showHome()">← Home</button>
+        <h2 id="category-title">Folder</h2>
+        <span class="section-tag" id="category-tag"></span>
+      </div>
+      <div class="lab-grid" id="category-lab-grid"></div>
+    </div>
+
+    <!-- LAB -->
+    <div class="view" id="view-lab">
+      <div class="section-head">
+        <button class="back-btn" onclick="showCategory(selectedCategory)">← Back</button>
+        <h2 id="lab-title">Lab</h2>
+        <span class="section-tag" id="lab-tag"></span>
+      </div>
+      <div class="lab-bottom-note"><strong>Note:</strong> <span id="shared-utils-note">Shared utils code is shown at
+          the very bottom of this report (after all exercises), in both HTML and exported PDF.</span></div>
+      <div class="ex-list" id="ex-list"></div>
+      <div class="lab-utils" id="lab-utils"></div>
+    </div>
+
   </div>
 
-  <!-- CATEGORY -->
-  <div class="view" id="view-category">
-    <div class="section-head">
-      <button class="back-btn" onclick="showHome()">← Home</button>
-      <h2 id="category-title">Folder</h2>
-      <span class="section-tag" id="category-tag"></span>
-    </div>
-    <div class="lab-grid" id="category-lab-grid"></div>
-  </div>
+  <footer id="app-footer">Open your project root folder - Shows folders, labs, exercises, code files, and output.txt -
+    Chrome &amp; Edge
+  </footer>
 
-  <!-- LAB -->
-  <div class="view" id="view-lab">
-    <div class="section-head">
-      <h2 id="lab-title">Lab</h2>
-      <span class="section-tag" id="lab-tag"></span>
-    </div>
-    <div class="lab-bottom-note"><strong>Note:</strong> Shared utils code is shown at the very bottom of this report (after all exercises), in both HTML and exported PDF.</div>
-    <div class="ex-list" id="ex-list"></div>
-    <div class="lab-utils" id="lab-utils"></div>
-  </div>
-
-</div>
-
-<footer>Open your project root folder · Shows folders, labs, exercises, code files, and output.txt · Chrome &amp; Edge</footer>
-
-<script>
-/* ══════════ CONFIG ══════════ */
-const DEFAULT_VIEWER_CONFIG = {
-  subtitle: 'Data Structures',
-  debug: false,
-  category: {
-    preferredFolderNames: ['Lab', 'lab']
-  },
-  naming: {
-    labPrefix: 'Lab',
-    labSeparator: '',
-    exercisePrefix: 'Ex',
-    exerciseSeparator: '',
-    showSubtitleInLabTitle: true
-  },
-  paths: {
-    utilsFolderName: 'utils'
-  },
-  labels: {
-    utilsSectionTitle: 'Shared Utilities',
-    outputLabel: 'OUTPUT'
-  },
-  output: {
-    sectionMarkers: [
-      '=== CUT ===',
-      '===cut===',
-      '=== REPORT OUTPUT ===',
-      '=======================cut here'
-    ],
-    fileCandidates: ['output.txt', 'output.log', 'stdout.txt', 'result.txt']
-  },
-  pdf: {
-    contentWidthPx: 900,
-    viewportWidthPx: 960,
-    captureScale: 2,
-    pageWidthMm: 210,
-    imageQuality: 0.95
-  },
-  fileDiscovery: {
-    skipCodeFileExtensions: [
-      'ilk', 'pdb', 'obj', 'exe', 'dll', 'so', 'dylib', 'class', 'jar', 'zip', '7z',
-      'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 'pdf',
-      'mp3', 'wav', 'ogg', 'mp4', 'mov', 'avi'
-    ],
-    preferredMainFileBases: ['main', 'app', 'program', 'index']
-  }
-};
-
-function resolveViewerConfig(userConfig) {
-  const cfg = userConfig || {};
-  return {
-    ...DEFAULT_VIEWER_CONFIG,
-    ...cfg,
-    category: {
-      ...DEFAULT_VIEWER_CONFIG.category,
-      ...(cfg.category || {})
-    },
-    naming: {
-      ...DEFAULT_VIEWER_CONFIG.naming,
-      ...(cfg.naming || {})
-    },
-    paths: {
-      ...DEFAULT_VIEWER_CONFIG.paths,
-      ...(cfg.paths || {})
-    },
-    labels: {
-      ...DEFAULT_VIEWER_CONFIG.labels,
-      ...(cfg.labels || {})
-    },
-    output: {
-      ...DEFAULT_VIEWER_CONFIG.output,
-      ...(cfg.output || {})
-    },
-    pdf: {
-      ...DEFAULT_VIEWER_CONFIG.pdf,
-      ...(cfg.pdf || {})
-    },
-    fileDiscovery: {
-      ...DEFAULT_VIEWER_CONFIG.fileDiscovery,
-      ...(cfg.fileDiscovery || {})
-    }
-  };
-}
-
-const VIEWER_CONFIG = resolveViewerConfig(window.APP_CONFIG);
-
-/* ══════════ STATE ══════════ */
-let folderData = [];
-let selectedCategory = null;
-let selectedLab = null;
-let labUtilsRenderPromise = null;
-const sharedUtilsCache = {};
-
-const EMBEDDED_DATA = [
-  {
-    name: 'Lab',
-    labs: [
-      {
-        name: 'Lab1',
-        exercises: [
-          {
-            name: 'Ex1',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to ask information from a  student such as name,  gender,
-major, age then display the greeting message on screen.  Say he/she is eligible
-to vote the election if the age is at least 18. Hi, Mr. name! your age is age
-year old and you learn major!           : for male (M) Hi, Mrs. name!, you are
-age year old and you are majoring in major  : for female (F)
-
-For either Male or Female:
-You can vote.   If age is at least 18.
-You can not vote  Otherwise.
-*/
-#include "../../utils/input.cpp"
-#include <iostream>
-
-using namespace std;
-struct Student {
-    string name;
-    char gender;
-    string major;
-    int age;
-};
-
-int main() {
-    Student student;
-    student.name = getString("Enter name: ");
-    student.gender = getGender("Enter gender (M/F): ");
-    student.major = getString("Enter major: ");
-    student.age = getInteger("Enter age: ");
-
-    cout << "Hi, " << ((student.gender == 'M') ? "Mr" : "Mrs") << ". " << student.name
-         << "! your age is " << student.age << " year old and you learn " << student.major << "!"
-         << endl;
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex2',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to check whether an input character is a vowel or a
-consonant. Hint: Use ASCII code to test condition. ▪ Uppercase letters from: 65
-to 90, lowercase letters from 97 to 122 ▪ Vowel and its ASCII code: a = 97, e =
-101, i = 105, o = 111, u = 117
-*/
-
-#include "../../utils/input.cpp"
-#include <cctype>
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    char input = getChar("Enter a character: ");
-
-    input = tolower(input);
-
-    bool isVowel = (input == 97 || input == 101 || input == 105 || input == 111 || input == 117);
-
-    if (isVowel) {
-        cout << "Vowel." << endl;
-    } else {
-        cout << "Not a vowel." << endl;
-    }
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex3',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to compute tax salary of a person. The program asks for name, gender and salary
-of a person and tell him/her how much tax he/she is required to pay. The tax is computed based on
-the rules below:
-▪ For males
-  • Salary more than 1000 USD, pay tax 9.5%
-  • Salary 500 – 1000 USD, pay tax 7%
-  • Salary 300 – 500 USD, pay tax 5%
-  • Salary less than 300, no need to pay tax
-▪ For females
-  • Salary more than 1000 USD, pay tax 8%
-  • Salary 500 – 1000 USD, pay tax 6.5%
-  • Salary 300 – 500 USD, pay tax 3.5%
-  • Salary less than 300, no need to pay tax
-*/
-
-#include "../../utils/input.cpp"
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    string name = getString("Enter name: ");
-    char gender = getGender("Enter gender (M/F): ");
-    double salary = getDouble("Enter salary: ");
-
-    double taxRate = 0; // default to 0 (no tax)
-
-    // tax rules differ by gender
-    if (gender == 'M') {
-        if (salary > 1000) taxRate = 0.095;     // 9.5%
-        else if (salary >= 500) taxRate = 0.07; // 7%
-        else if (salary >= 300) taxRate = 0.05; // 5%
-        // below 300: taxRate stays 0
-    } else {
-        if (salary > 1000) taxRate = 0.08;       // 8%
-        else if (salary >= 500) taxRate = 0.065; // 6.5%
-        else if (salary >= 300) taxRate = 0.035; // 3.5%
-        // below 300: taxRate stays 0
-    }
-
-    double tax = salary * taxRate; // compute tax amount
-
-    cout << "\nName: " << name << endl;
-    cout << "Salary: $" << salary << endl;
-
-    if (tax == 0) {
-        cout << "No tax required." << endl;
-    } else {
-        cout << "Tax rate: " << (taxRate * 100) << "%" << endl;
-        cout << "Tax to pay: $" << tax << endl;
-    }
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex4',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to compute tax salary of a person. The program asks for name, gender and salary
-of a person and tell him/her how much tax he/she is required to pay. The tax is computed based on
-the rules below:
-▪ For males
-  • Salary more than 1000 USD, pay tax 9.5%
-  • Salary 500 – 1000 USD, pay tax 7%
-  • Salary 300 – 500 USD, pay tax 5%
-  • Salary less than 300, no need to pay tax
-▪ For females
-  • Salary more than 1000 USD, pay tax 8%
-  • Salary 500 – 1000 USD, pay tax 6.5%
-  • Salary 300 – 500 USD, pay tax 3.5%
-  • Salary less than 300, no need to pay tax
-*/
-
-#include "../../utils/input.cpp"
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    string name = getString("Enter name: ");
-    char gender = getGender("Enter gender (M/F): ");
-    double salary = getDouble("Enter salary: ");
-
-    double taxRate = 0; // default to 0 (no tax)
-
-    // tax rules differ by gender
-    if (gender == 'M') {
-        if (salary > 1000) taxRate = 0.095;     // 9.5%
-        else if (salary >= 500) taxRate = 0.07; // 7%
-        else if (salary >= 300) taxRate = 0.05; // 5%
-        // below 300: taxRate stays 0
-    } else {
-        if (salary > 1000) taxRate = 0.08;       // 8%
-        else if (salary >= 500) taxRate = 0.065; // 6.5%
-        else if (salary >= 300) taxRate = 0.035; // 3.5%
-        // below 300: taxRate stays 0
-    }
-
-    double tax = salary * taxRate; // compute tax amount
-
-    cout << "\nName: " << name << endl;
-    cout << "Salary: $" << salary << endl;
-
-    if (tax == 0) {
-        cout << "No tax required." << endl;
-    } else {
-        cout << "Tax rate: " << (taxRate * 100) << "%" << endl;
-        cout << "Tax to pay: $" << tax << endl;
-    }
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex5',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to convert a minute to a time format which consists of hour, minute, and
-second (h:m:s). A user is required to input a minute.
-▪ Hours = minutes / 60
-▪ Remainderminutes = minutes % 60
-▪ Seconds = remainderminutes * 60
-*/
-
-#include "../../utils/input.cpp"
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    int minutes = getInteger("Enter minutes: ");
-
-    int hours = minutes / 60;            // get hours
-    int remainderMinutes = minutes % 60; // get remaining minutes
-    int seconds = remainderMinutes * 60; // convert remaining minutes to seconds
-
-    cout << hours << "h : " << remainderMinutes << "m : " << seconds << "s" << endl;
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex6',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to find the summation of numbers from 1 to n except number 10 and 30,
-where n is a number input by a user and n should be greater than 50.
-*/
-
-#include "../../utils/input.cpp"
-#include <iostream>
-
-using namespace std;
-
-int main() {
-    int n;
-
-    // keep asking until n is greater than 50
-    while (true) {
-        n = getInteger("Enter a number greater than 50: ");
-        if (n > 50) break;
-        cout << "Invalid input. Please enter a number greater than 50." << endl;
-    }
-
-    int sum = 0;
-    for (int i = 1; i <= n; i++) {
-        if (i == 10 || i == 30) continue; // skip 10 and 30
-        sum += i;
-    }
-
-    cout << "Summation from 1 to " << n << " (except 10 and 30) = " << sum << endl;
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex7',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Write a C++ program to create a new data structure for storing info of book (book ID, book ISBN,
-book title, published year, author names and price ($)). Each book could have more than one
-author. To do:
-▪ Create an array that can store 5 books' info.
-▪ Create a function to display a book info based on ISBN.
-  void displayBookByISBN(Book books[], int size, string isbn){.... }
-▪ Create a function to display information of all books.
-  void displayAllBooks(Book books[], int size) { ... }
-*/
-
-#include "../../utils/input.cpp"
-#include <iostream>
-
-using namespace std;
-
-struct Book {
-    int id;
-    string isbn;
-    string title;
-    int publishedYear;
-    string authors[5]; // each book can have up to 5 authors
-    int authorCount;
-    double price;
-};
-
-// display a single book's info
-void displayBook(Book book) {
-    cout << "\nID:             " << book.id << endl;
-    cout << "ISBN:           " << book.isbn << endl;
-    cout << "Title:          " << book.title << endl;
-    cout << "Published Year: " << book.publishedYear << endl;
-    cout << "Price:          $" << book.price << endl;
-    cout << "Authors:        ";
-    for (int i = 0; i < book.authorCount; i++) {
-        cout << book.authors[i];
-        if (i < book.authorCount - 1) cout << ", "; // comma between authors
-    }
-    cout << endl;
-}
-
-// display book by ISBN
-void displayBookByISBN(Book books[], int size, string isbn) {
-    for (int i = 0; i < size; i++) {
-        if (books[i].isbn == isbn) {
-            displayBook(books[i]);
-            return;
+  <script>
+    /* ══════════ CONFIG ══════════ */
+    const DEFAULT_VIEWER_CONFIG = {
+      subtitle: '',
+      debug: false,
+      ui: {
+        pageTitle: 'Report Generator',
+        topbar: {
+          useRootFolderName: true,
+          staticPrefixSegments: [],
+          useActiveCategoryAsTail: true,
+          tailLabel: '',
+          separator: ' > '
+        },
+        breadcrumb: {
+          homeLabel: '',
+          separator: ' > '
+        },
+        text: {
+          landingLabel: 'Code Report Viewer',
+          landingTitle: 'Lab Report Generator',
+          landingDescription: 'Click below and select your project root folder. Everything loads automatically - folders, labs, exercises, code files, and output text.',
+          openProjectButton: 'Open Project Folder',
+          browserSupportNote: 'Requires Chrome or Edge - Firefox not supported',
+          homeHeroLabel: 'Project Explorer',
+          homeHeroTitle: 'Project Folders',
+          homeSubtitlePrefix: '//',
+          homeSubtitleTemplate: '{count} folder{plural} found in root',
+          footer: 'Open your project root folder - Shows folders, labs, exercises, code files, and output.txt - Chrome & Edge',
+          sharedUtilsNote: 'Shared utils code is shown at the very bottom of this report (after all exercises), in both HTML and exported PDF.'
         }
-    }
-    cout << "Book with ISBN " << isbn << " not found." << endl;
-}
-
-// display all books
-void displayAllBooks(Book books[], int size) {
-    for (int i = 0; i < size; i++) {
-        displayBook(books[i]);
-    }
-}
-
-int main() {
-    Book books[5] = {
-        {1, "978-0-13-468599-1", "The C++ Programming Language", 2013, {"Bjarne Stroustrup"}, 1, 59.99},
-        {2, "978-0-13-235088-4", "Clean Code", 2008, {"Robert C. Martin"}, 1, 35.99},
-        {3, "978-0-20-163361-0", "The Pragmatic Programmer", 1999, {"Andrew Hunt", "David Thomas"}, 2, 49.99},
-        {4, "978-0-59-651798-1", "JavaScript: The Good Parts", 2008, {"Douglas Crockford"}, 1, 29.99},
-        {5, "978-0-13-110362-7", "The C Programming Language", 1988, {"Brian Kernighan", "Dennis Ritchie"}, 2, 39.99}};
-
-    displayAllBooks(books, 5);
-
-    cout << "\n--- Search by ISBN ---" << endl;
-    string isbn = getString("Enter ISBN: ");
-    displayBookByISBN(books, 5, isbn);
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          },
-          {
-            name: 'Ex8',
-            files: [
-              {
-                name: 'Main.cpp',
-                ext: 'cpp',
-                main: true,
-                content: `/*
-Create 5 functions to:
-i)   convert temperature Celsius to Fahrenheit: Fahrenheit = (Celsius * 9.0
-/ 5.0) + 32 ii)  convert temperature Fahrenheit to Celsius: Celsius =
-(Fahrenheit – 32) * 5.0 / 9.0 iii) find root of quadratic equation ax2+bx+c=0.
-iv)  compute BMI of a person's weight and height and tell whether he/she is
-overweight, underweight and other terms according to BMI list:
-     - bmi = weight / (height * height)
-     - bmi < 18.5, underweight
-     - bmi < 25,   normal weight
-     - bmi < 30,   overweight
-     - else,       obese
-v)   sum numbers from 1 to n except those numbers that are divisible by 3, n is
-a parameter. Design a menu program to demonstrate these 5 functions.
-*/
-
-#include "../../utils/input.cpp"
-#include <cmath> // for sqrt()
-#include <iostream>
-
-using namespace std;
-
-// i) Celsius to Fahrenheit
-void celsiusToFahrenheit() {
-    double celsius = getDouble("Enter Celsius: ");
-    double fahrenheit = (celsius * 9.0 / 5.0) + 32;
-    cout << celsius << "°C = " << fahrenheit << "°F" << endl;
-}
-
-// ii) Fahrenheit to Celsius
-void fahrenheitToCelsius() {
-    double fahrenheit = getDouble("Enter Fahrenheit: ");
-    double celsius = (fahrenheit - 32) * 5.0 / 9.0;
-    cout << fahrenheit << "°F = " << celsius << "°C" << endl;
-}
-
-// iii) Quadratic equation roots
-void quadraticRoots() {
-    double a = getDouble("Enter a: ");
-    double b = getDouble("Enter b: ");
-    double c = getDouble("Enter c: ");
-
-    double discriminant = (b * b) - (4 * a * c);
-
-    if (discriminant > 0) {
-        double root1 = (-b + sqrt(discriminant)) / (2 * a);
-        double root2 = (-b - sqrt(discriminant)) / (2 * a);
-        cout << "Two roots: " << root1 << " and " << root2 << endl;
-    } else if (discriminant == 0) {
-        double root = -b / (2 * a);
-        cout << "One root: " << root << endl;
-    } else {
-        cout << "No real roots." << endl;
-    }
-}
-
-// iv) BMI calculator
-void bmiCalculator() {
-    double weight = getDouble("Enter weight (kg): ");
-    double height = getDouble("Enter height (m): ");
-
-    double bmi = weight / (height * height);
-
-    cout << "BMI: " << bmi << " - ";
-
-    // clang-format off
-    if (bmi < 18.5) cout << "Underweight" << endl;
-    else if (bmi < 25) cout << "Normal weight" << endl;
-    else if (bmi < 30) cout << "Overweight" << endl;
-    else cout << "Obese" << endl;
-    // clang-format on
-}
-
-// v) Sum 1 to n except divisible by 3
-void sumExceptDivisibleBy3() {
-    int n = getInteger("Enter n: ");
-    int sum = 0;
-
-    for (int i = 1; i <= n; i++) {
-        if (i % 3 == 0) continue; // skip numbers divisible by 3
-        sum += i;
-    }
-
-    cout << "Sum from 1 to " << n << " (except divisible by 3) = " << sum << endl;
-}
-
-int main() {
-    while (true) {
-        cout << "\n0. Exit" << endl;
-        cout << "1. Celsius to Fahrenheit" << endl;
-        cout << "2. Fahrenheit to Celsius" << endl;
-        cout << "3. Quadratic Equation Roots" << endl;
-        cout << "4. BMI Calculator" << endl;
-        cout << "5. Sum 1 to n (except divisible by 3)" << endl;
-
-        int option = getOption("Enter option: ", 5);
-
-        if (option == 0) break;
-        else if (option == 1) celsiusToFahrenheit();
-        else if (option == 2) fahrenheitToCelsius();
-        else if (option == 3) quadraticRoots();
-        else if (option == 4) bmiCalculator();
-        else if (option == 5) sumExceptDivisibleBy3();
-    }
-
-    return 0;
-}`
-              }
-            ],
-            images: []
-          }
-        ]
+      },
+      category: {
+        preferredFolderNames: []
+      },
+      naming: {
+        labPrefix: '',
+        labSeparator: '',
+        exercisePrefix: '',
+        exerciseSeparator: '',
+        showSubtitleInLabTitle: true
+      },
+      paths: {
+        utilsFolderName: 'utils'
+      },
+      labels: {
+        utilsSectionTitle: 'Shared Utilities',
+        outputLabel: 'OUTPUT'
+      },
+      output: {
+        sectionMarkers: [
+          '=== CUT ==='
+        ],
+        fileCandidates: ['output.txt']
+      },
+      pdf: {
+        contentWidthPx: 900,
+        viewportWidthPx: 960,
+        captureScale: 2,
+        pageWidthMm: 210,
+        imageQuality: 0.95
+      },
+      fileDiscovery: {
+        skipCodeFileExtensions: [
+          'ilk', 'pdb', 'obj', 'exe', 'dll', 'so', 'dylib', 'class', 'jar', 'zip', '7z',
+          'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 'pdf',
+          'mp3', 'wav', 'ogg', 'mp4', 'mov', 'avi'
+        ],
+        preferredMainFileBases: ['main']
       }
-    ]
-  }
-];
+    };
 
-/* ══════════ AUTO LOAD ══════════ */
-function openLabFolder() {
-  // Kept for button compatibility; now acts as refresh.
-  loadEmbeddedData();
-}
+    function resolveViewerConfig(userConfig) {
+      const cfg = userConfig || {};
+      return {
+        ...DEFAULT_VIEWER_CONFIG,
+        ...cfg,
+        category: {
+          ...DEFAULT_VIEWER_CONFIG.category,
+          ...(cfg.category || {})
+        },
+        naming: {
+          ...DEFAULT_VIEWER_CONFIG.naming,
+          ...(cfg.naming || {})
+        },
+        ui: {
+          ...DEFAULT_VIEWER_CONFIG.ui,
+          ...(cfg.ui || {}),
+          topbar: {
+            ...DEFAULT_VIEWER_CONFIG.ui.topbar,
+            ...((cfg.ui && cfg.ui.topbar) || {})
+          },
+          breadcrumb: {
+            ...DEFAULT_VIEWER_CONFIG.ui.breadcrumb,
+            ...((cfg.ui && cfg.ui.breadcrumb) || {})
+          },
+          text: {
+            ...DEFAULT_VIEWER_CONFIG.ui.text,
+            ...((cfg.ui && cfg.ui.text) || {})
+          }
+        },
+        paths: {
+          ...DEFAULT_VIEWER_CONFIG.paths,
+          ...(cfg.paths || {})
+        },
+        labels: {
+          ...DEFAULT_VIEWER_CONFIG.labels,
+          ...(cfg.labels || {})
+        },
+        output: {
+          ...DEFAULT_VIEWER_CONFIG.output,
+          ...(cfg.output || {})
+        },
+        pdf: {
+          ...DEFAULT_VIEWER_CONFIG.pdf,
+          ...(cfg.pdf || {})
+        },
+        fileDiscovery: {
+          ...DEFAULT_VIEWER_CONFIG.fileDiscovery,
+          ...(cfg.fileDiscovery || {})
+        }
+      };
+    }
 
-function rescan() {
-  loadEmbeddedData();
-}
+    const VIEWER_CONFIG = resolveViewerConfig(window.APP_CONFIG);
 
-function loadEmbeddedData() {
-  setLoading(10);
-  Object.keys(sharedUtilsCache).forEach(k => delete sharedUtilsCache[k]);
-  folderData = JSON.parse(JSON.stringify(EMBEDDED_DATA));
-  setLoading(100);
-  setTimeout(() => setLoading(0), 350);
-  renderHome();
-  const preferredCategory = findPreferredCategoryName(folderData);
-  if (preferredCategory) {
-    showCategory(preferredCategory);
-  } else {
-    showHome();
-  }
-}
+    /* ══════════ STATE ══════════ */
+    let folderData = [];
+    let selectedCategory = null;
+    let selectedLab = null;
+    let labUtilsRenderPromise = null;
+    const sharedUtilsCache = {};
+    let selectedRootHandle = null;
+    let selectedRootName = '';
+    let activeSubtitle = '';
 
-/* ══════════ RENDER HOME ══════════ */
-function renderHome() {
-  const grid = document.getElementById('lab-grid');
-  grid.innerHTML = '';
-  document.getElementById('home-sub').textContent =
-    `// ${folderData.length} folder${folderData.length!==1?'s':''} found in root`;
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
-  folderData.forEach(folder => {
-    const n = folder.labs.length;
-    const card = document.createElement('div');
-    card.className = 'lab-card';
-    card.innerHTML = `
+    function getFallbackRootName() {
+      const trimmed = window.location.pathname.replace(/\/+$/, '');
+      const segment = trimmed.split('/').filter(Boolean).pop();
+      return segment ? decodeURIComponent(segment) : '';
+    }
+
+    function getResolvedRootLabel() {
+      return selectedRootName || getFallbackRootName() || '';
+    }
+
+    function getActiveTopbarTail() {
+      if (VIEWER_CONFIG.ui.topbar.useActiveCategoryAsTail) {
+        return selectedCategory || findPreferredCategoryName(folderData) || '';
+      }
+      return VIEWER_CONFIG.ui.topbar.tailLabel || '';
+    }
+
+    function getHomeCrumbLabel() {
+      return VIEWER_CONFIG.ui.breadcrumb.homeLabel || getResolvedRootLabel() || 'Home';
+    }
+
+    function updateTopbarTitle() {
+      const node = document.getElementById('topbar-title');
+      if (!node) return;
+
+      const parts = [];
+      const staticPrefix = Array.isArray(VIEWER_CONFIG.ui.topbar.staticPrefixSegments)
+        ? VIEWER_CONFIG.ui.topbar.staticPrefixSegments.filter(Boolean)
+        : [];
+
+      parts.push(...staticPrefix);
+      if (VIEWER_CONFIG.ui.topbar.useRootFolderName) {
+        parts.push(getResolvedRootLabel());
+      }
+      parts.push(getActiveTopbarTail());
+
+      node.textContent = parts.filter(Boolean).join(VIEWER_CONFIG.ui.topbar.separator || ' > ');
+    }
+
+    function getConfiguredSubtitle() {
+      return String(VIEWER_CONFIG.subtitle || '').trim();
+    }
+
+    function initializeSubtitle() {
+      activeSubtitle = getConfiguredSubtitle();
+    }
+
+    function updateStaticUiText() {
+      document.title = `${VIEWER_CONFIG.ui.pageTitle || 'Report Generator'}`;
+
+      const textCfg = VIEWER_CONFIG.ui.text;
+      const setText = (id, value) => {
+        const node = document.getElementById(id);
+        if (node && typeof value === 'string') node.textContent = value;
+      };
+
+      setText('landing-label', textCfg.landingLabel);
+
+      const landingTitle = document.getElementById('landing-title');
+      if (landingTitle && typeof textCfg.landingTitle === 'string') {
+        const titleParts = textCfg.landingTitle.split(/\r?\n/);
+        landingTitle.innerHTML = titleParts.map(escapeHtml).join('<br />');
+      }
+
+      setText('landing-description', textCfg.landingDescription);
+      setText('open-project-button-text', textCfg.openProjectButton);
+      setText('browser-support-note', textCfg.browserSupportNote);
+      setText('home-hero-label', textCfg.homeHeroLabel);
+      setText('home-hero-title', textCfg.homeHeroTitle);
+      setText('app-footer', textCfg.footer);
+      setText('shared-utils-note', textCfg.sharedUtilsNote);
+    }
+
+    function renderBreadcrumb(items) {
+      const container = document.getElementById('breadcrumb');
+      const sepText = escapeHtml(VIEWER_CONFIG.ui.breadcrumb.separator || ' > ');
+
+      const html = items.map((item, index) => {
+        const label = escapeHtml(item.label);
+        const crumb = item.active
+          ? `<span class="crumb active">${label}</span>`
+          : `<span class="crumb" onclick="${item.onClick}">${label}</span>`;
+        if (index === 0) return crumb;
+        return `<span class="sep">${sepText}</span>${crumb}`;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    /* ══════════ AUTO LOAD ══════════ */
+    async function openLabFolder() {
+      if (!window.showDirectoryPicker) {
+        alert('This browser does not support folder picker. Use Chrome or Edge over http(s), then click Open Project Folder.');
+        return;
+      }
+
+      try {
+        const handle = await window.showDirectoryPicker();
+        selectedRootHandle = handle;
+        selectedRootName = handle.name || '';
+        updateTopbarTitle();
+        await loadFolderDataFromDirectoryHandle(handle);
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        alert(`Unable to open folder: ${err?.message || 'Unknown error'}`);
+      }
+    }
+
+    async function rescan() {
+      if (selectedRootHandle) {
+        await loadFolderDataFromDirectoryHandle(selectedRootHandle);
+        return;
+      }
+
+      await openLabFolder();
+    }
+
+    async function loadFolderDataFromDirectoryHandle(rootHandle) {
+      setLoading(10);
+      Object.keys(sharedUtilsCache).forEach(k => delete sharedUtilsCache[k]);
+
+      const scanned = await scanCategoriesFromDirectoryHandle(rootHandle);
+      folderData = scanned;
+
+      setLoading(100);
+      setTimeout(() => setLoading(0), 350);
+
+      if (!folderData.length) {
+        alert(`No folder/lab structure found in ${selectedRootName || 'selected folder'}.`);
+        showHome();
+        renderHome();
+        return;
+      }
+
+      renderHome();
+      const preferredCategory = findPreferredCategoryName(folderData);
+      if (preferredCategory) {
+        showCategory(preferredCategory);
+      } else {
+        showHome();
+      }
+    }
+
+    function showLanding() {
+      activate('view-landing');
+      document.getElementById('export-pdf-btn').style.display = 'none';
+      renderBreadcrumb([
+        { label: getHomeCrumbLabel(), active: true }
+      ]);
+      updateTopbarTitle();
+    }
+
+    async function scanCategoriesFromDirectoryHandle(rootHandle) {
+      const categories = [];
+
+      for await (const entry of rootHandle.values()) {
+        if (entry.kind !== 'directory') continue;
+        if (entry.name === '.git') continue;
+
+        const labs = await scanLabsFromDirectoryHandle(entry);
+        categories.push({
+          name: entry.name,
+          labs
+        });
+      }
+
+      categories.sort((a, b) => natSort(a.name, b.name));
+      return categories;
+    }
+
+    async function scanLabsFromDirectoryHandle(categoryHandle) {
+      const labs = [];
+      const preferredPrefix = String(VIEWER_CONFIG.naming.labPrefix || '').toLowerCase();
+      const useNumericAutoDetect = !preferredPrefix;
+
+      for await (const entry of categoryHandle.values()) {
+        if (entry.kind !== 'directory') continue;
+        if (preferredPrefix && !entry.name.toLowerCase().startsWith(preferredPrefix)) continue;
+        if (useNumericAutoDetect && !containsNumber(entry.name)) continue;
+
+        const exercises = await scanExercisesFromDirectoryHandle(entry);
+        labs.push({
+          name: entry.name,
+          exercises
+        });
+      }
+
+      labs.sort(compareByDetectedNumberThenName);
+      return labs;
+    }
+
+    async function scanExercisesFromDirectoryHandle(labHandle) {
+      const exercises = [];
+      const preferredPrefix = String(VIEWER_CONFIG.naming.exercisePrefix || '').toLowerCase();
+      const useNumericAutoDetect = !preferredPrefix;
+
+      for await (const entry of labHandle.values()) {
+        if (entry.kind !== 'directory') continue;
+        if (preferredPrefix && !entry.name.toLowerCase().startsWith(preferredPrefix)) continue;
+        if (useNumericAutoDetect && !containsNumber(entry.name)) continue;
+
+        const ex = await readExerciseFromDirectoryHandle(entry);
+        exercises.push(ex);
+      }
+
+      exercises.sort(compareByDetectedNumberThenName);
+      return exercises;
+    }
+
+    async function readExerciseFromDirectoryHandle(exerciseHandle) {
+      const files = [];
+      const outputSections = [];
+
+      for await (const entry of exerciseHandle.values()) {
+        if (entry.kind !== 'file') continue;
+
+        const fileName = entry.name;
+        const ext = normalizeExtension(fileName);
+
+        if (isOutputArtifact(fileName)) {
+          const raw = await readTextFromFileHandle(entry);
+          const sections = extractReportOutputSections(raw);
+          outputSections.push(...sections);
+          continue;
+        }
+
+        if (!isCodeSourceFile(fileName)) continue;
+
+        const content = await readTextFromFileHandle(entry);
+        if (!content || content.includes('\u0000')) continue;
+
+        files.push({
+          name: fileName,
+          ext,
+          main: isPrimarySourceFileName(fileName),
+          content
+        });
+      }
+
+      files.sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || natSort(a.name, b.name));
+
+      return {
+        name: exerciseHandle.name,
+        files,
+        images: [],
+        outputSectionsCache: outputSections
+      };
+    }
+
+    async function readTextFromFileHandle(fileHandle) {
+      try {
+        const file = await fileHandle.getFile();
+        return await file.text();
+      } catch (_) {
+        return '';
+      }
+    }
+
+    async function scanCategoriesFromHttp(basePath) {
+      const categoryNames = (await listDirectoryNamesFromHttp(basePath))
+        .filter(name => name !== '.git');
+      if (!categoryNames.length) return [];
+
+      const categories = await Promise.all(categoryNames.map(async name => {
+        const labs = await scanLabsFromHttp(`${basePath}/${encodeURIComponent(name)}`);
+        return { name, labs };
+      }));
+
+      categories.sort((a, b) => natSort(a.name, b.name));
+      return categories;
+    }
+
+    async function scanLabsFromHttp(categoryPath) {
+      const dirNames = await listDirectoryNamesFromHttp(categoryPath);
+      const preferredPrefix = String(VIEWER_CONFIG.naming.labPrefix || '').toLowerCase();
+      const labNames = preferredPrefix
+        ? dirNames.filter(name => name.toLowerCase().startsWith(preferredPrefix))
+        : dirNames.filter(containsNumber);
+
+      const labs = await Promise.all(labNames.map(async name => {
+        const exercises = await scanExercisesFromHttp(`${categoryPath}/${encodeURIComponent(name)}`);
+        return { name, exercises };
+      }));
+
+      labs.sort(compareByDetectedNumberThenName);
+      return labs;
+    }
+
+    async function scanExercisesFromHttp(labPath) {
+      const dirNames = await listDirectoryNamesFromHttp(labPath);
+      const preferredPrefix = String(VIEWER_CONFIG.naming.exercisePrefix || '').toLowerCase();
+      const exerciseNames = preferredPrefix
+        ? dirNames.filter(name => name.toLowerCase().startsWith(preferredPrefix))
+        : dirNames.filter(containsNumber);
+
+      const exercises = await Promise.all(exerciseNames.map(async name => {
+        const exercisePath = `${labPath}/${encodeURIComponent(name)}`;
+        const files = await listFilesFromHttp(exercisePath);
+        const hydratedFiles = [];
+        let outputSectionsCache = [];
+
+        for (const fileName of files) {
+          if (!isCodeSourceFile(fileName) && !isOutputArtifact(fileName)) continue;
+
+          const content = await fetchTextFromHttp(`${exercisePath}/${encodeURIComponent(fileName)}`);
+          if (!content || content.includes('\u0000')) continue;
+
+          if (isOutputArtifact(fileName)) {
+            outputSectionsCache = extractReportOutputSections(content);
+            continue;
+          }
+
+          hydratedFiles.push({
+            name: fileName,
+            ext: normalizeExtension(fileName),
+            main: isPrimarySourceFileName(fileName),
+            content
+          });
+        }
+
+        hydratedFiles.sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || natSort(a.name, b.name));
+
+        return {
+          name,
+          files: hydratedFiles,
+          images: [],
+          outputSectionsCache
+        };
+      }));
+
+      exercises.sort(compareByDetectedNumberThenName);
+      return exercises;
+    }
+
+    async function listDirectoryNamesFromHttp(path) {
+      const html = await fetchTextFromHttp(path.endsWith('/') ? path : `${path}/`);
+      if (!html) return [];
+      return parseDirectoryListingNames(html).directories;
+    }
+
+    async function listFilesFromHttp(path) {
+      const html = await fetchTextFromHttp(path.endsWith('/') ? path : `${path}/`);
+      if (!html) return [];
+      return parseDirectoryListingNames(html).files;
+    }
+
+    async function fetchTextFromHttp(path) {
+      try {
+        const res = await fetch(path, { cache: 'no-store' });
+        if (!res.ok) return '';
+        return await res.text();
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function parseDirectoryListingNames(html) {
+      const directories = [];
+      const files = [];
+      const seenDir = new Set();
+      const seenFile = new Set();
+
+      const re = /href\s*=\s*["']([^"']+)["']/gi;
+      let m;
+      while ((m = re.exec(html))) {
+        let href = m[1] || '';
+        if (!href || href === '/' || href.startsWith('?') || href.startsWith('#')) continue;
+
+        href = href.split('#')[0].split('?')[0];
+        try {
+          href = decodeURIComponent(href);
+        } catch (_) { }
+
+        const isDirectory = href.endsWith('/');
+        const base = href.split('/').filter(Boolean).pop();
+        if (!base || base === '.' || base === '..') continue;
+
+        if (isDirectory) {
+          if (!seenDir.has(base)) {
+            seenDir.add(base);
+            directories.push(base);
+          }
+        } else {
+          if (!seenFile.has(base)) {
+            seenFile.add(base);
+            files.push(base);
+          }
+        }
+      }
+
+      directories.sort(natSort);
+      files.sort(natSort);
+      return { directories, files };
+    }
+
+    /* ══════════ RENDER HOME ══════════ */
+    function renderHome() {
+      const grid = document.getElementById('lab-grid');
+      grid.innerHTML = '';
+      const prefix = VIEWER_CONFIG.ui.text.homeSubtitlePrefix || '//';
+      const template = VIEWER_CONFIG.ui.text.homeSubtitleTemplate || '{count} folder{plural} found in root';
+      const details = template
+        .replace('{count}', String(folderData.length))
+        .replace('{plural}', folderData.length !== 1 ? 's' : '');
+      document.getElementById('home-sub').textContent = `${prefix} ${details}`;
+
+      folderData.forEach(folder => {
+        const n = folder.labs.length;
+        const card = document.createElement('div');
+        card.className = 'lab-card';
+        card.innerHTML = `
       <span class="folder-icon">📁</span>
       <h2>${folder.name}</h2>
-      <div class="meta">${n} lab${n!==1?'s':''}</div>
-      <span class="badge${n===0?' empty':''}">${n>0?'populated':'empty'}</span>
+      <div class="meta">${n} lab${n !== 1 ? 's' : ''}</div>
+      <span class="badge${n === 0 ? ' empty' : ''}">${n > 0 ? 'populated' : 'empty'}</span>
     `;
-    card.onclick = () => showCategory(folder.name);
-    grid.appendChild(card);
-  });
-}
+        card.onclick = () => showCategory(folder.name);
+        grid.appendChild(card);
+      });
+    }
 
-/* ══════════ RENDER CATEGORY ══════════ */
-function renderCategory(folderName) {
-  const folder = folderData.find(f => f.name === folderName);
-  if (!folder) return;
+    /* ══════════ RENDER CATEGORY ══════════ */
+    function renderCategory(folderName) {
+      const folder = folderData.find(f => f.name === folderName);
+      if (!folder) return;
 
-  document.getElementById('category-title').textContent = folder.name;
-  document.getElementById('category-tag').textContent   = `${folder.labs.length} labs`;
+      document.getElementById('category-title').textContent = folder.name;
+      document.getElementById('category-tag').textContent = `${folder.labs.length} labs`;
 
-  const grid = document.getElementById('category-lab-grid');
-  grid.innerHTML = '';
+      const grid = document.getElementById('category-lab-grid');
+      grid.innerHTML = '';
 
-  if (!folder.labs.length) {
-    grid.innerHTML = `<div class="empty-card"><div class="big">📂</div>No ${getLabSeriesHint()} folders found in ${folder.name}</div>`;
-    return;
-  }
+      if (!folder.labs.length) {
+        grid.innerHTML = `<div class="empty-card"><div class="big">📂</div>No ${getLabSeriesHint()} folders found in ${folder.name}</div>`;
+        return;
+      }
 
-  folder.labs.forEach(lab => {
-    const n = lab.exercises.length;
-    const card = document.createElement('div');
-    card.className = 'lab-card';
-    card.innerHTML = `
+      folder.labs.forEach(lab => {
+        const n = lab.exercises.length;
+        const card = document.createElement('div');
+        card.className = 'lab-card';
+        card.innerHTML = `
       <span class="folder-icon">🧪</span>
       <h2>${lab.name}</h2>
-      <div class="meta">${n} exercise${n!==1?'s':''}</div>
-      <span class="badge${n===0?' empty':''}">${n>0?'populated':'empty'}</span>
+      <div class="meta">${n} exercise${n !== 1 ? 's' : ''}</div>
+      <span class="badge${n === 0 ? ' empty' : ''}">${n > 0 ? 'populated' : 'empty'}</span>
     `;
-    card.onclick = () => showLab(lab.name);
-    grid.appendChild(card);
-  });
-}
+        card.onclick = () => showLab(lab.name);
+        grid.appendChild(card);
+      });
+    }
 
-/* ══════════ RENDER LAB ══════════ */
-function renderLab(labName) {
-  if (!selectedCategory) return;
-  const folder = folderData.find(f => f.name === selectedCategory);
-  if (!folder) return;
+    /* ══════════ RENDER LAB ══════════ */
+    function renderLab(labName) {
+      if (!selectedCategory) return;
+      const folder = folderData.find(f => f.name === selectedCategory);
+      if (!folder) return;
 
-  const lab = folder.labs.find(l => l.name === labName);
-  if (!lab) return;
+      const lab = folder.labs.find(l => l.name === labName);
+      if (!lab) return;
 
-  document.getElementById('lab-title').textContent = formatLabTitle(lab.name);
-  document.getElementById('lab-tag').textContent   = `${lab.exercises.length} exercises`;
+      document.getElementById('lab-title').textContent = formatLabTitle(lab.name);
+      document.getElementById('lab-tag').textContent = `${lab.exercises.length} exercises`;
 
-  const list = document.getElementById('ex-list');
-  const utilsRoot = document.getElementById('lab-utils');
-  list.innerHTML = '';
-  utilsRoot.innerHTML = '';
+      const list = document.getElementById('ex-list');
+      const utilsRoot = document.getElementById('lab-utils');
+      list.innerHTML = '';
+      utilsRoot.innerHTML = '';
 
-  if (!lab.exercises.length) {
-    list.innerHTML = `<div class="empty-card"><div class="big">📂</div>No supported files found in ${lab.name}</div>`;
-  } else {
-    lab.exercises.forEach(ex => {
-      const num     = ex.name.replace(/\D/g,'');
-      const fileMeta = `${ex.files.length} file${ex.files.length!==1?'s':''}`;
+      if (!lab.exercises.length) {
+        list.innerHTML = `<div class="empty-card"><div class="big">📂</div>No supported files found in ${lab.name}</div>`;
+      } else {
+        lab.exercises.forEach(ex => {
+          const num = ex.name.replace(/\D/g, '');
+          const fileMeta = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
 
-      const item = document.createElement('div');
-      item.className = 'ex-item';
-      item.innerHTML = `
+          const item = document.createElement('div');
+          item.className = 'ex-item';
+          item.innerHTML = `
         <div class="ex-header">
           <div class="ex-num">${num}</div>
           <h3>${ex.name}</h3>
@@ -1029,64 +1594,64 @@ function renderLab(labName) {
         </div>
         <div class="ex-body"></div>
       `;
-      item.querySelector('.ex-header').onclick = () => {
-        item.classList.toggle('open');
-        if (item.classList.contains('open'))
-          populateBody(item.querySelector('.ex-body'), ex);
-      };
-      list.appendChild(item);
-    });
-  }
+          item.querySelector('.ex-header').onclick = () => {
+            item.classList.toggle('open');
+            if (item.classList.contains('open'))
+              populateBody(item.querySelector('.ex-body'), ex);
+          };
+          list.appendChild(item);
+        });
+      }
 
-  labUtilsRenderPromise = renderLabUtilsSection();
-}
+      labUtilsRenderPromise = renderLabUtilsSection();
+    }
 
-function populateBody(body, ex) {
-  if (body.dataset.loaded === '1') return Promise.resolve();
-  if (body._loadPromise) return body._loadPromise;
+    function populateBody(body, ex) {
+      if (body.dataset.loaded === '1') return Promise.resolve();
+      if (body._loadPromise) return body._loadPromise;
 
-  body._loadPromise = (async () => {
-    body.dataset.loading = '1';
+      body._loadPromise = (async () => {
+        body.dataset.loading = '1';
 
-    await hydrateExerciseFiles(ex);
+        await hydrateExerciseFiles(ex);
 
-    const exerciseHeader = extractExerciseHeaderFromMain(ex);
-    if (exerciseHeader) {
-      const note = document.createElement('div');
-      note.className = 'exercise-note';
-      note.innerHTML = `
+        const exerciseHeader = extractExerciseHeaderFromMain(ex);
+        if (exerciseHeader) {
+          const note = document.createElement('div');
+          note.className = 'exercise-note';
+          note.innerHTML = `
         <div class="exercise-note-head">Exercise Description</div>
         <pre class="exercise-note-text"></pre>
       `;
-      note.querySelector('.exercise-note-text').textContent = exerciseHeader;
-      body.appendChild(note);
-    }
+          note.querySelector('.exercise-note-text').textContent = exerciseHeader;
+          body.appendChild(note);
+        }
 
-    ex.files.forEach(f => {
-      const displayContent = f.main ? stripLeadingBlockComment(f.content) : f.content;
-      const cb = document.createElement('div');
-      cb.className = 'code-block';
-      cb.innerHTML = `
+        ex.files.forEach(f => {
+          const displayContent = f.main ? stripLeadingBlockComment(f.content) : f.content;
+          const cb = document.createElement('div');
+          cb.className = 'code-block';
+          cb.innerHTML = `
         <div class="code-header">
-          <div class="code-dot${f.main?' main-dot':''}"></div>
+          <div class="code-dot${f.main ? ' main-dot' : ''}"></div>
           <span class="fname">${f.name}</span>
           ${f.main ? '<span class="main-tag">main</span>' : `<span class="ext-tag">.${f.ext}</span>`}
         </div>
         <pre><code class="${languageClassFromExt(f.ext)}"></code></pre>
       `;
-      const codeNode = cb.querySelector('code');
-      codeNode.textContent = displayContent;
-      if (window.hljs) {
-        window.hljs.highlightElement(codeNode);
-      }
-      body.appendChild(cb);
-    });
+          const codeNode = cb.querySelector('code');
+          codeNode.textContent = displayContent;
+          if (window.hljs) {
+            window.hljs.highlightElement(codeNode);
+          }
+          body.appendChild(cb);
+        });
 
-    const outputSections = await fetchExerciseOutputSections(ex);
-    if (!outputSections.length) {
-      const ob = document.createElement('div');
-      ob.className = 'output-block';
-      ob.innerHTML = `
+        const outputSections = await fetchExerciseOutputSections(ex);
+        if (!outputSections.length) {
+          const ob = document.createElement('div');
+          ob.className = 'output-block';
+          ob.innerHTML = `
         <div class="out-header">
           <div class="out-dot"></div>
           <span class="fname">output.txt</span>
@@ -1094,12 +1659,12 @@ function populateBody(body, ex) {
         </div>
         <pre class="output-text">No output.txt found for this exercise.</pre>
       `;
-      body.appendChild(ob);
-    } else {
-      outputSections.forEach((section, index) => {
-        const ob = document.createElement('div');
-        ob.className = 'output-block';
-        ob.innerHTML = `
+          body.appendChild(ob);
+        } else {
+          outputSections.forEach((section, index) => {
+            const ob = document.createElement('div');
+            ob.className = 'output-block';
+            ob.innerHTML = `
           <div class="out-header">
             <div class="out-dot"></div>
             <span class="fname">output.txt${outputSections.length > 1 ? ` · section ${index + 1}` : ''}</span>
@@ -1107,225 +1672,237 @@ function populateBody(body, ex) {
           </div>
           <pre class="output-text"></pre>
         `;
-        ob.querySelector('.output-text').textContent = section;
-        body.appendChild(ob);
-      });
+            ob.querySelector('.output-text').textContent = section;
+            body.appendChild(ob);
+          });
+        }
+
+        body.dataset.loaded = '1';
+        delete body.dataset.loading;
+        body._loadPromise = null;
+      })();
+
+      return body._loadPromise;
     }
 
-    body.dataset.loaded = '1';
-    delete body.dataset.loading;
-    body._loadPromise = null;
-  })();
-
-  return body._loadPromise;
-}
-
-/* ══════════ NAVIGATION ══════════ */
-function showHome() {
-  activate('view-home');
-  document.getElementById('export-pdf-btn').style.display = 'none';
-  document.getElementById('breadcrumb').innerHTML =
-    `<span class="crumb active">Home</span>`;
-}
-
-function showCategory(name) {
-  selectedCategory = name;
-  renderCategory(name);
-  activate('view-category');
-  document.getElementById('export-pdf-btn').style.display = 'none';
-  document.getElementById('breadcrumb').innerHTML = `
-    <span class="crumb" onclick="showHome()">Home</span>
-    <span class="sep">/</span>
-    <span class="crumb active">${name}</span>
-  `;
-  window.scrollTo({ top:0, behavior:'smooth' });
-}
-
-function showLab(name) {
-  selectedLab = name;
-  renderLab(name);
-  activate('view-lab');
-  document.getElementById('export-pdf-btn').style.display = '';
-  document.getElementById('breadcrumb').innerHTML = `
-    <span class="crumb" onclick="showHome()">Home</span>
-    <span class="sep">/</span>
-    <span class="crumb" onclick="showCategory('${selectedCategory.replace(/'/g, "\\'")}')">${selectedCategory}</span>
-    <span class="sep">/</span>
-    <span class="crumb active">${name}</span>
-  `;
-  window.scrollTo({ top:0, behavior:'smooth' });
-}
-
-async function fetchExerciseOutputSections(ex) {
-  if (Object.prototype.hasOwnProperty.call(ex, 'outputSectionsCache')) {
-    return ex.outputSectionsCache;
-  }
-
-  const baseDir = `${selectedCategory}/${selectedLab}/${ex.name}/`;
-  for (const fileName of VIEWER_CONFIG.output.fileCandidates) {
-    const path = `${baseDir}${encodeURIComponent(fileName)}`;
-    try {
-      const res = await fetch(path, { cache: 'no-store' });
-      if (!res.ok) continue;
-      const raw = await res.text();
-      ex.outputSectionsCache = extractReportOutputSections(raw);
-      return ex.outputSectionsCache;
-    } catch (_) {
-      // Try the next candidate.
-    }
-  }
-
-  ex.outputSectionsCache = [];
-  return ex.outputSectionsCache;
-}
-
-function extractReportOutputSections(rawText) {
-  if (!rawText) return [];
-
-  const markers = VIEWER_CONFIG.output.sectionMarkers || [];
-  const escapedMarkers = markers
-    .filter(Boolean)
-    .map(marker => marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-
-  if (!escapedMarkers.length) {
-    const cleaned = stripTerminalNoise(rawText);
-    return cleaned ? [cleaned] : [];
-  }
-
-  const markerRegex = new RegExp(`(?:^|\\r?\\n)(?:${escapedMarkers.join('|')})(?=\\r?\\n|$)`, 'g');
-  const rawSections = rawText.split(markerRegex);
-  const sections = rawSections
-    .map(section => stripTerminalNoise(section))
-    .filter(Boolean);
-
-  return sections;
-}
-
-function stripTerminalNoise(text) {
-  const lines = text.split(/\r?\n/);
-  const filtered = lines.filter(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return true;
-    if (/^[A-Za-z]:\\.*\.exe\s+\(process\s+\d+\)\s+exited\s+with\s+code/i.test(trimmed)) return false;
-    if (/^Press any key to close this window/i.test(trimmed)) return false;
-    return true;
-  });
-
-  return filtered.join('\n').replace(/^\s+|\s+$/g, '');
-}
-
-async function hydrateExerciseFiles(ex) {
-  if (ex._fileDiscoveryDone) return;
-
-  const dirPath = `${selectedCategory}/${selectedLab}/${ex.name}/`;
-
-  try {
-    const res = await fetch(dirPath, { cache: 'no-store' });
-    if (!res.ok) {
-      ex._fileDiscoveryDone = true;
-      return;
+    /* ══════════ NAVIGATION ══════════ */
+    function showHome() {
+      activate('view-home');
+      document.getElementById('export-pdf-btn').style.display = 'none';
+      renderBreadcrumb([
+        { label: getHomeCrumbLabel(), active: true }
+      ]);
+      updateTopbarTitle();
     }
 
-    const html = await res.text();
-    const fileNames = parseDirectoryListingFileNames(html);
-    if (!fileNames.length) {
-      ex._fileDiscoveryDone = true;
-      return;
+    function showCategory(name) {
+      selectedCategory = name;
+      selectedLab = null;
+      renderCategory(name);
+      activate('view-category');
+      document.getElementById('export-pdf-btn').style.display = 'none';
+      renderBreadcrumb([
+        { label: getHomeCrumbLabel(), onClick: 'showHome()', active: false },
+        { label: name, active: true }
+      ]);
+      updateTopbarTitle();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    const candidates = fileNames.filter(name => {
-      if (isOutputArtifact(name)) return false;
-      if (isLikelyBinaryName(name)) return false;
-      return true;
-    });
+    function showLab(name) {
+      selectedLab = name;
+      renderLab(name);
+      activate('view-lab');
+      document.getElementById('export-pdf-btn').style.display = '';
+      renderBreadcrumb([
+        { label: getHomeCrumbLabel(), onClick: 'showHome()', active: false },
+        { label: selectedCategory, onClick: `showCategory('${selectedCategory.replace(/'/g, "\\'")}')`, active: false },
+        { label: name, active: true }
+      ]);
+      updateTopbarTitle();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-    const discoveredEntries = await Promise.all(candidates.map(async name => {
-      try {
-        const fileRes = await fetch(`${dirPath}${encodeURIComponent(name)}`, { cache: 'no-store' });
-        if (!fileRes.ok) return null;
-
-        const content = await fileRes.text();
-        if (content.includes('\u0000')) return null;
-
-        const ext = normalizeExtension(name);
-        return {
-          name,
-          ext,
-          main: isPrimarySourceFileName(name),
-          content
-        };
-      } catch (_) {
-        return null;
+    async function fetchExerciseOutputSections(ex) {
+      if (Object.prototype.hasOwnProperty.call(ex, 'outputSectionsCache')) {
+        return ex.outputSectionsCache;
       }
-    }));
 
-    const discovered = discoveredEntries.filter(Boolean);
+      const baseDir = `${selectedCategory}/${selectedLab}/${ex.name}/`;
+      for (const fileName of VIEWER_CONFIG.output.fileCandidates) {
+        const path = `${baseDir}${encodeURIComponent(fileName)}`;
+        try {
+          const res = await fetch(path, { cache: 'no-store' });
+          if (!res.ok) continue;
+          const raw = await res.text();
+          ex.outputSectionsCache = extractReportOutputSections(raw);
+          return ex.outputSectionsCache;
+        } catch (_) {
+          // Try the next candidate.
+        }
+      }
 
-    discovered.sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || a.name.localeCompare(b.name));
-    if (discovered.length) {
-      ex.files = discovered;
+      ex.outputSectionsCache = [];
+      return ex.outputSectionsCache;
     }
-  } catch (_) {
-    // Keep embedded files as fallback when directory listing is unavailable.
-  }
 
-  ex._fileDiscoveryDone = true;
-}
+    function extractReportOutputSections(rawText) {
+      if (!rawText) return [];
 
-function parseDirectoryListingFileNames(html) {
-  const out = [];
-  const seen = new Set();
-  const re = /href\s*=\s*["']([^"']+)["']/gi;
-  let m;
+      const markers = VIEWER_CONFIG.output.sectionMarkers || [];
+      const escapedMarkers = markers
+        .filter(Boolean)
+        .map(marker => marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
-  while ((m = re.exec(html))) {
-    let href = m[1] || '';
-    if (!href || href === '/' || href.startsWith('?') || href.startsWith('#')) continue;
+      if (!escapedMarkers.length) {
+        const cleaned = stripTerminalNoise(rawText);
+        return cleaned ? [cleaned] : [];
+      }
 
-    href = href.split('#')[0].split('?')[0];
-    try {
-      href = decodeURIComponent(href);
-    } catch (_) {}
+      const markerRegex = new RegExp(`(?:^|\\r?\\n)(?:${escapedMarkers.join('|')})(?=\\r?\\n|$)`, 'g');
+      const rawSections = rawText.split(markerRegex);
+      const sections = rawSections
+        .map(section => stripTerminalNoise(section))
+        .filter(Boolean);
 
-    if (href.endsWith('/')) continue;
-    const base = href.split('/').pop();
-    if (!base || base === '.' || base === '..') continue;
-
-    if (!seen.has(base)) {
-      seen.add(base);
-      out.push(base);
+      return sections;
     }
-  }
 
-  return out;
-}
+    function stripTerminalNoise(text) {
+      const lines = text.split(/\r?\n/);
+      const filtered = lines.filter(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return true;
+        if (/^[A-Za-z]:\\.*\.exe\s+\(process\s+\d+\)\s+exited\s+with\s+code/i.test(trimmed)) return false;
+        if (/^Press any key to close this window/i.test(trimmed)) return false;
+        return true;
+      });
 
-function normalizeExtension(fileName) {
-  const idx = fileName.lastIndexOf('.');
-  if (idx < 0 || idx === fileName.length - 1) return '';
-  return fileName.slice(idx + 1).toLowerCase();
-}
+      return filtered.join('\n').replace(/^\s+|\s+$/g, '');
+    }
 
-function isOutputArtifact(fileName) {
-  return VIEWER_CONFIG.output.fileCandidates.some(n => n.toLowerCase() === fileName.toLowerCase());
-}
+    async function hydrateExerciseFiles(ex) {
+      if (ex._fileDiscoveryDone) return;
 
-function isLikelyBinaryName(fileName) {
-  const ext = normalizeExtension(fileName);
-  return VIEWER_CONFIG.fileDiscovery.skipCodeFileExtensions.includes(ext);
-}
+      const dirPath = `${selectedCategory}/${selectedLab}/${ex.name}/`;
 
-function isPrimarySourceFileName(fileName) {
-  const dotIndex = fileName.indexOf('.');
-  const base = (dotIndex > -1 ? fileName.slice(0, dotIndex) : fileName).toLowerCase();
-  return VIEWER_CONFIG.fileDiscovery.preferredMainFileBases.includes(base);
-}
+      try {
+        const res = await fetch(dirPath, { cache: 'no-store' });
+        if (!res.ok) {
+          ex._fileDiscoveryDone = true;
+          return;
+        }
 
-function appendHighlightedCodeBlock(parent, file, isMainFile) {
-  const displayContent = isMainFile ? stripLeadingBlockComment(file.content) : file.content;
-  const cb = document.createElement('div');
-  cb.className = 'code-block';
-  cb.innerHTML = `
+        const html = await res.text();
+        const fileNames = parseDirectoryListingFileNames(html);
+        if (!fileNames.length) {
+          ex._fileDiscoveryDone = true;
+          return;
+        }
+
+        const candidates = fileNames.filter(name => {
+          return isCodeSourceFile(name);
+        });
+
+        const discoveredEntries = await Promise.all(candidates.map(async name => {
+          try {
+            const fileRes = await fetch(`${dirPath}${encodeURIComponent(name)}`, { cache: 'no-store' });
+            if (!fileRes.ok) return null;
+
+            const content = await fileRes.text();
+            if (content.includes('\u0000')) return null;
+
+            const ext = normalizeExtension(name);
+            return {
+              name,
+              ext,
+              main: isPrimarySourceFileName(name),
+              content
+            };
+          } catch (_) {
+            return null;
+          }
+        }));
+
+        const discovered = discoveredEntries.filter(Boolean);
+
+        discovered.sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || a.name.localeCompare(b.name));
+        if (discovered.length) {
+          ex.files = discovered;
+        }
+      } catch (_) {
+        // Keep embedded files as fallback when directory listing is unavailable.
+      }
+
+      ex._fileDiscoveryDone = true;
+    }
+
+    function parseDirectoryListingFileNames(html) {
+      const out = [];
+      const seen = new Set();
+      const re = /href\s*=\s*["']([^"']+)["']/gi;
+      let m;
+
+      while ((m = re.exec(html))) {
+        let href = m[1] || '';
+        if (!href || href === '/' || href.startsWith('?') || href.startsWith('#')) continue;
+
+        href = href.split('#')[0].split('?')[0];
+        try {
+          href = decodeURIComponent(href);
+        } catch (_) { }
+
+        if (href.endsWith('/')) continue;
+        const base = href.split('/').pop();
+        if (!base || base === '.' || base === '..') continue;
+
+        if (!seen.has(base)) {
+          seen.add(base);
+          out.push(base);
+        }
+      }
+
+      return out;
+    }
+
+    function normalizeExtension(fileName) {
+      const idx = fileName.lastIndexOf('.');
+      if (idx < 0 || idx === fileName.length - 1) return '';
+      return fileName.slice(idx + 1).toLowerCase();
+    }
+
+    function isOutputArtifact(fileName) {
+      const candidates = (VIEWER_CONFIG.output.fileCandidates || ['output.txt'])
+        .filter(Boolean)
+        .map(n => String(n).toLowerCase());
+      return candidates.some(n => n === String(fileName).toLowerCase());
+    }
+
+    function isLikelyBinaryName(fileName) {
+      const ext = normalizeExtension(fileName);
+      return VIEWER_CONFIG.fileDiscovery.skipCodeFileExtensions.includes(ext);
+    }
+
+    function isCodeSourceFile(fileName) {
+      const ext = normalizeExtension(fileName);
+      if (!ext) return false;
+      if (ext === 'txt') return false;
+      if (isOutputArtifact(fileName)) return false;
+      if (isLikelyBinaryName(fileName)) return false;
+      return true;
+    }
+
+    function isPrimarySourceFileName(fileName) {
+      const dotIndex = fileName.indexOf('.');
+      const base = (dotIndex > -1 ? fileName.slice(0, dotIndex) : fileName).toLowerCase();
+      return VIEWER_CONFIG.fileDiscovery.preferredMainFileBases.includes(base);
+    }
+
+    function appendHighlightedCodeBlock(parent, file, isMainFile) {
+      const displayContent = isMainFile ? stripLeadingBlockComment(file.content) : file.content;
+      const cb = document.createElement('div');
+      cb.className = 'code-block';
+      cb.innerHTML = `
     <div class="code-header">
       <div class="code-dot${isMainFile ? ' main-dot' : ''}"></div>
       <span class="fname">${file.name}</span>
@@ -1333,344 +1910,408 @@ function appendHighlightedCodeBlock(parent, file, isMainFile) {
     </div>
     <pre><code class="${languageClassFromExt(file.ext)}"></code></pre>
   `;
-  const codeNode = cb.querySelector('code');
-  codeNode.textContent = displayContent;
-  if (window.hljs) {
-    window.hljs.highlightElement(codeNode);
-  }
-  parent.appendChild(cb);
-}
-
-async function getSharedUtilsFiles() {
-  if (!selectedCategory) return [];
-  if (Object.prototype.hasOwnProperty.call(sharedUtilsCache, selectedCategory)) {
-    return sharedUtilsCache[selectedCategory];
-  }
-
-  const dirPath = `${selectedCategory}/${VIEWER_CONFIG.paths.utilsFolderName}/`;
-
-  try {
-    const res = await fetch(dirPath, { cache: 'no-store' });
-    if (!res.ok) {
-      sharedUtilsCache[selectedCategory] = [];
-      return [];
-    }
-
-    const html = await res.text();
-    const fileNames = parseDirectoryListingFileNames(html);
-    if (!fileNames.length) {
-      sharedUtilsCache[selectedCategory] = [];
-      return [];
-    }
-
-    const candidates = fileNames.filter(name => {
-      if (isOutputArtifact(name)) return false;
-      if (isLikelyBinaryName(name)) return false;
-      return true;
-    });
-
-    const files = (await Promise.all(candidates.map(async name => {
-      try {
-        const fileRes = await fetch(`${dirPath}${encodeURIComponent(name)}`, { cache: 'no-store' });
-        if (!fileRes.ok) return null;
-        const content = await fileRes.text();
-        if (content.includes('\u0000')) return null;
-
-        return {
-          name,
-          ext: normalizeExtension(name),
-          content
-        };
-      } catch (_) {
-        return null;
+      const codeNode = cb.querySelector('code');
+      codeNode.textContent = displayContent;
+      if (window.hljs) {
+        window.hljs.highlightElement(codeNode);
       }
-    }))).filter(Boolean);
+      parent.appendChild(cb);
+    }
 
-    files.sort((a, b) => natSort(a.name, b.name));
-    sharedUtilsCache[selectedCategory] = files;
-    return files;
-  } catch (_) {
-    sharedUtilsCache[selectedCategory] = [];
-    return [];
-  }
-}
+    async function getSharedUtilsFiles() {
+      if (!selectedCategory) return [];
+      if (Object.prototype.hasOwnProperty.call(sharedUtilsCache, selectedCategory)) {
+        return sharedUtilsCache[selectedCategory];
+      }
 
-async function renderLabUtilsSection() {
-  const root = document.getElementById('lab-utils');
-  if (!root) return;
+      if (selectedRootHandle) {
+        const files = await getSharedUtilsFilesFromDirectoryHandle();
+        sharedUtilsCache[selectedCategory] = files;
+        return files;
+      }
 
-  root.innerHTML = `
+      const dirPath = `${selectedCategory}/${VIEWER_CONFIG.paths.utilsFolderName}/`;
+
+      try {
+        const res = await fetch(dirPath, { cache: 'no-store' });
+        if (!res.ok) {
+          sharedUtilsCache[selectedCategory] = [];
+          return [];
+        }
+
+        const html = await res.text();
+        const fileNames = parseDirectoryListingFileNames(html);
+        if (!fileNames.length) {
+          sharedUtilsCache[selectedCategory] = [];
+          return [];
+        }
+
+        const candidates = fileNames.filter(name => {
+          return isCodeSourceFile(name);
+        });
+
+        const files = (await Promise.all(candidates.map(async name => {
+          try {
+            const fileRes = await fetch(`${dirPath}${encodeURIComponent(name)}`, { cache: 'no-store' });
+            if (!fileRes.ok) return null;
+            const content = await fileRes.text();
+            if (content.includes('\u0000')) return null;
+
+            return {
+              name,
+              ext: normalizeExtension(name),
+              content
+            };
+          } catch (_) {
+            return null;
+          }
+        }))).filter(Boolean);
+
+        files.sort((a, b) => natSort(a.name, b.name));
+        sharedUtilsCache[selectedCategory] = files;
+        return files;
+      } catch (_) {
+        sharedUtilsCache[selectedCategory] = [];
+        return [];
+      }
+    }
+
+    async function getSharedUtilsFilesFromDirectoryHandle() {
+      const categoryHandle = await findChildDirectoryHandleByName(selectedRootHandle, selectedCategory);
+      if (!categoryHandle) return [];
+
+      const utilsHandle = await findChildDirectoryHandleByName(categoryHandle, VIEWER_CONFIG.paths.utilsFolderName);
+      if (!utilsHandle) return [];
+
+      const files = [];
+
+      for await (const entry of utilsHandle.values()) {
+        if (entry.kind !== 'file') continue;
+
+        const fileName = entry.name;
+        if (!isCodeSourceFile(fileName)) continue;
+
+        const content = await readTextFromFileHandle(entry);
+        if (!content || content.includes('\u0000')) continue;
+
+        files.push({
+          name: fileName,
+          ext: normalizeExtension(fileName),
+          content
+        });
+      }
+
+      files.sort((a, b) => natSort(a.name, b.name));
+      return files;
+    }
+
+    async function findChildDirectoryHandleByName(parentHandle, targetName) {
+      if (!parentHandle || !targetName) return null;
+      const wanted = String(targetName).toLowerCase();
+
+      for await (const entry of parentHandle.values()) {
+        if (entry.kind !== 'directory') continue;
+        if (entry.name.toLowerCase() === wanted) return entry;
+      }
+
+      return null;
+    }
+
+    async function renderLabUtilsSection() {
+      const root = document.getElementById('lab-utils');
+      if (!root) return;
+
+      root.innerHTML = `
     <div class="exercise-note">
       <div class="exercise-note-head">${VIEWER_CONFIG.labels.utilsSectionTitle}</div>
       <pre class="exercise-note-text">Loading ${selectedCategory}/${VIEWER_CONFIG.paths.utilsFolderName}...</pre>
     </div>
   `;
 
-  const files = await getSharedUtilsFiles();
-  root.innerHTML = `
+      const files = await getSharedUtilsFiles();
+      root.innerHTML = `
     <div class="exercise-note">
       <div class="exercise-note-head">${VIEWER_CONFIG.labels.utilsSectionTitle}</div>
       <div class="lab-utils-meta">Source: ${selectedCategory}/${VIEWER_CONFIG.paths.utilsFolderName}</div>
     </div>
   `;
 
-  if (!files.length) {
-    const noFiles = document.createElement('pre');
-    noFiles.className = 'exercise-note-text';
-    noFiles.textContent = `No code files found in ${selectedCategory}/${VIEWER_CONFIG.paths.utilsFolderName}.`;
-    root.appendChild(noFiles);
-    return;
-  }
+      if (!files.length) {
+        const noFiles = document.createElement('pre');
+        noFiles.className = 'exercise-note-text';
+        noFiles.textContent = `No code files found in ${selectedCategory}/${VIEWER_CONFIG.paths.utilsFolderName}.`;
+        root.appendChild(noFiles);
+        return;
+      }
 
-  files.forEach(file => appendHighlightedCodeBlock(root, file, false));
-}
+      files.forEach(file => appendHighlightedCodeBlock(root, file, false));
+    }
 
-async function exportPdf() {
-  const items = Array.from(document.querySelectorAll('#ex-list .ex-item'));
-  const pending = [];
+    async function exportPdf() {
+      const items = Array.from(document.querySelectorAll('#ex-list .ex-item'));
+      const pending = [];
 
-  items.forEach(item => {
-    item.classList.add('open');
-    const body = item.querySelector('.ex-body');
-    const exName = item.querySelector('h3')?.textContent || '';
-    const lab = getCurrentLab();
-    const ex = lab?.exercises.find(e => e.name === exName);
-    if (ex) pending.push(populateBody(body, ex));
-  });
+      items.forEach(item => {
+        item.classList.add('open');
+        const body = item.querySelector('.ex-body');
+        const exName = item.querySelector('h3')?.textContent || '';
+        const lab = getCurrentLab();
+        const ex = lab?.exercises.find(e => e.name === exName);
+        if (ex) pending.push(populateBody(body, ex));
+      });
 
-  await Promise.all(pending);
-  if (labUtilsRenderPromise) {
-    await labUtilsRenderPromise;
-  }
+      await Promise.all(pending);
+      if (labUtilsRenderPromise) {
+        await labUtilsRenderPromise;
+      }
 
-  if (!window.html2canvas || !window.jspdf) {
-    alert('PDF libraries failed to load. Please refresh and try again.');
-    return;
-  }
+      if (!window.html2canvas || !window.jspdf) {
+        alert('PDF libraries failed to load. Please refresh and try again.');
+        return;
+      }
 
-  const labView = document.getElementById('view-lab');
-  const labName = (selectedLab || 'lab').toLowerCase();
+      const labView = document.getElementById('view-lab');
+      const labName = (selectedLab || 'lab').toLowerCase();
 
-  document.body.classList.add('exporting-pdf');
-  // Hide the topbar export button so it doesn't appear in the capture
-  const exportBtn = document.getElementById('export-pdf-btn');
-  exportBtn.style.visibility = 'hidden';
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      document.body.classList.add('exporting-pdf');
+      // Hide the topbar export button so it doesn't appear in the capture
+      const exportBtn = document.getElementById('export-pdf-btn');
+      exportBtn.style.visibility = 'hidden';
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-  try {
-    // Capture at a fixed 900 px content width (matches the constrained .main above).
-    // windowWidth tells html2canvas how wide to treat the viewport so the layout
-    // reflows to that width before capturing — keeping HTML and PDF in sync.
-    const captureW = labView.offsetWidth;
-    const captureH = labView.scrollHeight;
+      try {
+        // Capture at a fixed 900 px content width (matches the constrained .main above).
+        // windowWidth tells html2canvas how wide to treat the viewport so the layout
+        // reflows to that width before capturing — keeping HTML and PDF in sync.
+        const captureW = labView.offsetWidth;
+        const captureH = labView.scrollHeight;
 
-    const canvas = await window.html2canvas(labView, {
-      scale: VIEWER_CONFIG.pdf.captureScale,
-      backgroundColor: '#0d1117',
-      useCORS: true,
-      logging: false,
-      width: captureW,
-      height: captureH,
-      windowWidth: VIEWER_CONFIG.pdf.viewportWidthPx,
-      windowHeight: captureH
+        const canvas = await window.html2canvas(labView, {
+          scale: VIEWER_CONFIG.pdf.captureScale,
+          backgroundColor: '#0d1117',
+          useCORS: true,
+          logging: false,
+          width: captureW,
+          height: captureH,
+          windowWidth: VIEWER_CONFIG.pdf.viewportWidthPx,
+          windowHeight: captureH
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', VIEWER_CONFIG.pdf.imageQuality);
+        const { jsPDF } = window.jspdf;
+
+        // A4 portrait width; height is proportional so the full content fits on one
+        // continuous page — no arbitrary page splits.
+        const PAGE_W_MM = VIEWER_CONFIG.pdf.pageWidthMm;
+        const pageH = PAGE_W_MM * (canvas.height / canvas.width);
+
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: [PAGE_W_MM, pageH]
+        });
+
+        pdf.addImage(imgData, 'JPEG', 0, 0, PAGE_W_MM, pageH);
+        pdf.save(`${labName}-report.pdf`);
+      } finally {
+        document.body.classList.remove('exporting-pdf');
+        exportBtn.style.visibility = '';
+      }
+    }
+
+    function getCurrentLab() {
+      if (!selectedCategory || !selectedLab) return null;
+      const folder = folderData.find(f => f.name === selectedCategory);
+      if (!folder) return null;
+      return folder.labs.find(l => l.name === selectedLab) || null;
+    }
+
+    function extractExerciseHeaderFromMain(ex) {
+      const mainFile = ex.files.find(f => f.main);
+      if (!mainFile || !mainFile.content) return '';
+
+      const m = mainFile.content.match(/\/\*([\s\S]*?)\*\//);
+      if (!m) return '';
+
+      return m[1]
+        .split('\n')
+        .map(line => line.replace(/^\s*\*\s?/, '').trimEnd())
+        .join('\n')
+        .trim();
+    }
+
+    function stripLeadingBlockComment(content) {
+      if (!content) return '';
+      return content.replace(/^\s*\/\*[\s\S]*?\*\/\s*/, '');
+    }
+
+    function languageClassFromExt(ext) {
+      const map = {
+        // C family
+        cpp: 'language-cpp',
+        cc: 'language-cpp',
+        cxx: 'language-cpp',
+        c: 'language-c',
+        h: 'language-cpp',
+        hpp: 'language-cpp',
+        hxx: 'language-cpp',
+
+        // JVM / .NET
+        java: 'language-java',
+        kt: 'language-kotlin',
+        kts: 'language-kotlin',
+        scala: 'language-scala',
+        cs: 'language-csharp',
+
+        // Python / scripting
+        py: 'language-python',
+        rb: 'language-ruby',
+        php: 'language-php',
+        sh: 'language-bash',
+        bash: 'language-bash',
+        ps1: 'language-powershell',
+
+        // Web / JS ecosystem
+        js: 'language-javascript',
+        jsx: 'language-javascript',
+        mjs: 'language-javascript',
+        cjs: 'language-javascript',
+        ts: 'language-typescript',
+        tsx: 'language-typescript',
+        json: 'language-json',
+        html: 'language-xml',
+        htm: 'language-xml',
+        css: 'language-css',
+        scss: 'language-scss',
+        less: 'language-less',
+
+        // Systems / data / config
+        go: 'language-go',
+        rs: 'language-rust',
+        swift: 'language-swift',
+        sql: 'language-sql',
+        r: 'language-r',
+        lua: 'language-lua',
+        yaml: 'language-yaml',
+        yml: 'language-yaml',
+        toml: 'language-ini',
+        ini: 'language-ini',
+        xml: 'language-xml',
+        md: 'language-markdown',
+        txt: 'language-plaintext'
+      };
+      return map[(ext || '').toLowerCase()] || 'language-plaintext';
+    }
+
+    function activate(id) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    /* ══════════ LOADING BAR ══════════ */
+    function setLoading(pct) {
+      const bar = document.getElementById('loading-bar');
+      bar.style.width = pct + '%';
+      bar.style.opacity = (pct > 0 && pct <= 100) ? '1' : '0';
+    }
+
+    function findPreferredCategoryName(folders) {
+      const preferred = VIEWER_CONFIG.category.preferredFolderNames || [];
+      for (const candidate of preferred) {
+        const found = folders.find(f => f.name.toLowerCase() === String(candidate).toLowerCase());
+        if (found) return found.name;
+      }
+      return null;
+    }
+
+    function formatLabTitle(labName) {
+      const subtitle = activeSubtitle || '';
+      if (VIEWER_CONFIG.naming.showSubtitleInLabTitle && subtitle) {
+        return `${labName} · ${subtitle}`;
+      }
+      return labName;
+    }
+
+    function getLabSeriesHint() {
+      return 'numbered lab folders (number can appear anywhere in the name)';
+    }
+
+    function containsNumber(name) {
+      return /\d+/.test(String(name || ''));
+    }
+
+    function extractFirstNumber(name) {
+      const match = String(name || '').match(/\d+/);
+      return match ? parseInt(match[0], 10) : Number.POSITIVE_INFINITY;
+    }
+
+    function compareByDetectedNumberThenName(a, b) {
+      const nameA = typeof a === 'string' ? a : a.name;
+      const nameB = typeof b === 'string' ? b : b.name;
+      const numA = extractFirstNumber(nameA);
+      const numB = extractFirstNumber(nameB);
+      if (numA !== numB) return numA - numB;
+      return natSort(nameA, nameB);
+    }
+
+    /* ══════════ SYNTAX HIGHLIGHT ══════════ */
+    function esc(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function highlight(code, ext) {
+      const s = esc(code);
+      if (['cpp', 'c', 'h'].includes(ext)) return hlCpp(s);
+      if (ext === 'java') return hlJava(s);
+      if (ext === 'py') return hlPy(s);
+      return s;
+    }
+
+    function hlCpp(s) {
+      return s
+        .replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, m => `<span class="cm">${m}</span>`)
+        .replace(/(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')/g, m => `<span class="st">${m}</span>`)
+        .replace(/(#\w+)/g, m => `<span class="dec">${m}</span>`)
+        .replace(/\b(int|float|double|char|bool|void|return|if|else|while|for|do|switch|case|break|continue|class|struct|public|private|protected|new|delete|namespace|using|auto|const|static|nullptr|true|false|endl|string|vector|map|set|queue|stack|pair|size_t|long|short|unsigned|signed|inline|virtual|override|template|typename)\b/g, m => `<span class="kw">${m}</span>`)
+        .replace(/\b(cout|cin|cerr|std)\b/g, m => `<span class="ty">${m}</span>`)
+        .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (_, f) => `<span class="fn">${f}</span>`)
+        .replace(/\b(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fFlLuU]*)\b/g, m => `<span class="nu">${m}</span>`);
+    }
+
+    function hlJava(s) {
+      return s
+        .replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, m => `<span class="cm">${m}</span>`)
+        .replace(/(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')/g, m => `<span class="st">${m}</span>`)
+        .replace(/\b(public|private|protected|class|interface|enum|extends|implements|return|if|else|while|for|do|switch|case|break|continue|new|static|final|void|import|package|try|catch|finally|throw|throws|super|this|null|true|false|abstract|synchronized|volatile|transient|native|instanceof)\b/g, m => `<span class="kw">${m}</span>`)
+        .replace(/\b(int|float|double|char|boolean|byte|short|long|String|Object|List|ArrayList|Map|HashMap|Set|HashSet|Queue|Stack|Iterator|System|Math|Arrays|Collections)\b/g, m => `<span class="ty">${m}</span>`)
+        .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (_, f) => `<span class="fn">${f}</span>`)
+        .replace(/\b(\d+(?:\.\d+)?[fFdDlL]?)\b/g, m => `<span class="nu">${m}</span>`);
+    }
+
+    function hlPy(s) {
+      return s
+        .replace(/(#[^\n]*)/g, m => `<span class="cm">${m}</span>`)
+        .replace(/(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\'|\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')/g, m => `<span class="st">${m}</span>`)
+        .replace(/\b(def|class|import|from|return|if|elif|else|while|for|in|not|and|or|is|None|True|False|break|continue|pass|try|except|finally|raise|with|as|lambda|yield|global|nonlocal|del|assert|async|await)\b/g, m => `<span class="kw">${m}</span>`)
+        .replace(/\b(int|float|str|bool|list|dict|set|tuple|len|range|print|input|type|object|super|self|cls|enumerate|zip|map|filter|sorted|reversed|open|abs|max|min|sum)\b/g, m => `<span class="ty">${m}</span>`)
+        .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (_, f) => `<span class="fn">${f}</span>`)
+        .replace(/\b(\d+(?:\.\d+)?)\b/g, m => `<span class="nu">${m}</span>`);
+    }
+
+    /* ══════════ UTILS ══════════ */
+    function natSort(a, b) {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    /* ══════════ STARTUP ══════════ */
+    window.addEventListener('DOMContentLoaded', async () => {
+      document.documentElement.style.setProperty('--pdf-content-width', `${VIEWER_CONFIG.pdf.contentWidthPx}px`);
+      initializeSubtitle();
+      updateStaticUiText();
+      updateTopbarTitle();
+      showLanding();
     });
-
-    const imgData = canvas.toDataURL('image/jpeg', VIEWER_CONFIG.pdf.imageQuality);
-    const { jsPDF } = window.jspdf;
-
-    // A4 portrait width; height is proportional so the full content fits on one
-    // continuous page — no arbitrary page splits.
-    const PAGE_W_MM = VIEWER_CONFIG.pdf.pageWidthMm;
-    const pageH = PAGE_W_MM * (canvas.height / canvas.width);
-
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [PAGE_W_MM, pageH]
-    });
-
-    pdf.addImage(imgData, 'JPEG', 0, 0, PAGE_W_MM, pageH);
-    pdf.save(`${labName}-report.pdf`);
-  } finally {
-    document.body.classList.remove('exporting-pdf');
-    exportBtn.style.visibility = '';
-  }
-}
-
-function getCurrentLab() {
-  if (!selectedCategory || !selectedLab) return null;
-  const folder = folderData.find(f => f.name === selectedCategory);
-  if (!folder) return null;
-  return folder.labs.find(l => l.name === selectedLab) || null;
-}
-
-function extractExerciseHeaderFromMain(ex) {
-  const mainFile = ex.files.find(f => f.main);
-  if (!mainFile || !mainFile.content) return '';
-
-  const m = mainFile.content.match(/\/\*([\s\S]*?)\*\//);
-  if (!m) return '';
-
-  return m[1]
-    .split('\n')
-    .map(line => line.replace(/^\s*\*\s?/, '').trimEnd())
-    .join('\n')
-    .trim();
-}
-
-function stripLeadingBlockComment(content) {
-  if (!content) return '';
-  return content.replace(/^\s*\/\*[\s\S]*?\*\/\s*/, '');
-}
-
-function languageClassFromExt(ext) {
-  const map = {
-    // C family
-    cpp: 'language-cpp',
-    cc: 'language-cpp',
-    cxx: 'language-cpp',
-    c: 'language-c',
-    h: 'language-cpp',
-    hpp: 'language-cpp',
-    hxx: 'language-cpp',
-
-    // JVM / .NET
-    java: 'language-java',
-    kt: 'language-kotlin',
-    kts: 'language-kotlin',
-    scala: 'language-scala',
-    cs: 'language-csharp',
-
-    // Python / scripting
-    py: 'language-python',
-    rb: 'language-ruby',
-    php: 'language-php',
-    sh: 'language-bash',
-    bash: 'language-bash',
-    ps1: 'language-powershell',
-
-    // Web / JS ecosystem
-    js: 'language-javascript',
-    jsx: 'language-javascript',
-    mjs: 'language-javascript',
-    cjs: 'language-javascript',
-    ts: 'language-typescript',
-    tsx: 'language-typescript',
-    json: 'language-json',
-    html: 'language-xml',
-    htm: 'language-xml',
-    css: 'language-css',
-    scss: 'language-scss',
-    less: 'language-less',
-
-    // Systems / data / config
-    go: 'language-go',
-    rs: 'language-rust',
-    swift: 'language-swift',
-    sql: 'language-sql',
-    r: 'language-r',
-    lua: 'language-lua',
-    yaml: 'language-yaml',
-    yml: 'language-yaml',
-    toml: 'language-ini',
-    ini: 'language-ini',
-    xml: 'language-xml',
-    md: 'language-markdown',
-    txt: 'language-plaintext'
-  };
-  return map[(ext || '').toLowerCase()] || 'language-plaintext';
-}
-
-function activate(id) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-/* ══════════ LOADING BAR ══════════ */
-function setLoading(pct) {
-  const bar = document.getElementById('loading-bar');
-  bar.style.width   = pct + '%';
-  bar.style.opacity = (pct > 0 && pct <= 100) ? '1' : '0';
-}
-
-function findPreferredCategoryName(folders) {
-  const preferred = VIEWER_CONFIG.category.preferredFolderNames || [];
-  for (const candidate of preferred) {
-    const found = folders.find(f => f.name.toLowerCase() === String(candidate).toLowerCase());
-    if (found) return found.name;
-  }
-  return folders[0]?.name || null;
-}
-
-function formatLabTitle(labName) {
-  const subtitle = VIEWER_CONFIG.subtitle || '';
-  if (VIEWER_CONFIG.naming.showSubtitleInLabTitle && subtitle) {
-    return `${labName} · ${subtitle}`;
-  }
-  return labName;
-}
-
-function getLabSeriesHint() {
-  const prefix = VIEWER_CONFIG.naming.labPrefix || 'Lab';
-  const sep = VIEWER_CONFIG.naming.labSeparator || '';
-  return `${prefix}${sep}1/${prefix}${sep}2/...`;
-}
-
-/* ══════════ SYNTAX HIGHLIGHT ══════════ */
-function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function highlight(code, ext) {
-  const s = esc(code);
-  if (['cpp','c','h'].includes(ext)) return hlCpp(s);
-  if (ext === 'java')  return hlJava(s);
-  if (ext === 'py')    return hlPy(s);
-  return s;
-}
-
-function hlCpp(s) {
-  return s
-    .replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, m=>`<span class="cm">${m}</span>`)
-    .replace(/(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')/g, m=>`<span class="st">${m}</span>`)
-    .replace(/(#\w+)/g, m=>`<span class="dec">${m}</span>`)
-    .replace(/\b(int|float|double|char|bool|void|return|if|else|while|for|do|switch|case|break|continue|class|struct|public|private|protected|new|delete|namespace|using|auto|const|static|nullptr|true|false|endl|string|vector|map|set|queue|stack|pair|size_t|long|short|unsigned|signed|inline|virtual|override|template|typename)\b/g, m=>`<span class="kw">${m}</span>`)
-    .replace(/\b(cout|cin|cerr|std)\b/g, m=>`<span class="ty">${m}</span>`)
-    .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (_,f)=>`<span class="fn">${f}</span>`)
-    .replace(/\b(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fFlLuU]*)\b/g, m=>`<span class="nu">${m}</span>`);
-}
-
-function hlJava(s) {
-  return s
-    .replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, m=>`<span class="cm">${m}</span>`)
-    .replace(/(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')/g, m=>`<span class="st">${m}</span>`)
-    .replace(/\b(public|private|protected|class|interface|enum|extends|implements|return|if|else|while|for|do|switch|case|break|continue|new|static|final|void|import|package|try|catch|finally|throw|throws|super|this|null|true|false|abstract|synchronized|volatile|transient|native|instanceof)\b/g, m=>`<span class="kw">${m}</span>`)
-    .replace(/\b(int|float|double|char|boolean|byte|short|long|String|Object|List|ArrayList|Map|HashMap|Set|HashSet|Queue|Stack|Iterator|System|Math|Arrays|Collections)\b/g, m=>`<span class="ty">${m}</span>`)
-    .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (_,f)=>`<span class="fn">${f}</span>`)
-    .replace(/\b(\d+(?:\.\d+)?[fFdDlL]?)\b/g, m=>`<span class="nu">${m}</span>`);
-}
-
-function hlPy(s) {
-  return s
-    .replace(/(#[^\n]*)/g, m=>`<span class="cm">${m}</span>`)
-    .replace(/(\"\"\"[\s\S]*?\"\"\"|\'\'\'[\s\S]*?\'\'\'|\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')/g, m=>`<span class="st">${m}</span>`)
-    .replace(/\b(def|class|import|from|return|if|elif|else|while|for|in|not|and|or|is|None|True|False|break|continue|pass|try|except|finally|raise|with|as|lambda|yield|global|nonlocal|del|assert|async|await)\b/g, m=>`<span class="kw">${m}</span>`)
-    .replace(/\b(int|float|str|bool|list|dict|set|tuple|len|range|print|input|type|object|super|self|cls|enumerate|zip|map|filter|sorted|reversed|open|abs|max|min|sum)\b/g, m=>`<span class="ty">${m}</span>`)
-    .replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (_,f)=>`<span class="fn">${f}</span>`)
-    .replace(/\b(\d+(?:\.\d+)?)\b/g, m=>`<span class="nu">${m}</span>`);
-}
-
-/* ══════════ UTILS ══════════ */
-function natSort(a, b) {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-}
-
-/* ══════════ STARTUP ══════════ */
-window.addEventListener('DOMContentLoaded', () => {
-  document.documentElement.style.setProperty('--pdf-content-width', `${VIEWER_CONFIG.pdf.contentWidthPx}px`);
-  activate('view-home');
-  loadEmbeddedData();
-});
-</script>
+  </script>
 </body>
+
 </html>
