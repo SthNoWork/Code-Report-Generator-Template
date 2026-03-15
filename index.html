@@ -851,6 +851,46 @@
       max-height: none
     }
 
+    .output-table-wrap {
+      overflow-x: auto;
+      background: var(--dr-bg);
+      padding: 12px;
+    }
+
+    .output-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--dr-fg);
+      background: #21222c;
+      border: 1px solid #44475a;
+    }
+
+    .output-table thead th {
+      position: sticky;
+      top: 0;
+      background: #1f2230;
+      color: var(--dr-cyan);
+      font-weight: 600;
+      text-align: left;
+      z-index: 1;
+    }
+
+    .output-table th,
+    .output-table td {
+      border: 1px solid #44475a;
+      padding: 8px 10px;
+      vertical-align: top;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .output-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, .03);
+    }
+
     /* LAB-LEVEL UTILS */
     .lab-utils {
       margin-top: 18px;
@@ -907,6 +947,10 @@
 
       .code-block pre {
         max-height: none !important;
+        overflow: visible !important;
+      }
+
+      .output-table-wrap {
         overflow: visible !important;
       }
 
@@ -1770,9 +1814,9 @@
               <span class="fname">${entry.fileName}${sections.length > 1 ? ` · section ${index + 1}` : ''}</span>
               <span class="out-label">${VIEWER_CONFIG.labels.outputLabel}</span>
             </div>
-            <pre class="output-text"></pre>
+            <div class="output-content"></div>
           `;
-              ob.querySelector('.output-text').textContent = section;
+              renderOutputSectionContent(ob.querySelector('.output-content'), entry.fileName, section);
               body.appendChild(ob);
             });
           });
@@ -1895,6 +1939,130 @@
           sections: entry.sections.filter(Boolean)
         }))
         .filter(entry => entry.sections.length > 0);
+    }
+
+    function renderOutputSectionContent(container, fileName, sectionText) {
+      if (!container) return;
+
+      if (isCsvOutputFile(fileName)) {
+        const rows = parseCsvRows(sectionText);
+        if (rows.length) {
+          const tableWrap = document.createElement('div');
+          tableWrap.className = 'output-table-wrap';
+
+          const table = document.createElement('table');
+          table.className = 'output-table';
+
+          const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
+          const normalizedRows = rows.map(row => {
+            if (row.length >= maxCols) return row;
+            return row.concat(Array(maxCols - row.length).fill(''));
+          });
+
+          const [headerRow, ...bodyRows] = normalizedRows;
+          if (headerRow) {
+            const thead = document.createElement('thead');
+            const tr = document.createElement('tr');
+            headerRow.forEach(value => {
+              const th = document.createElement('th');
+              th.textContent = value;
+              tr.appendChild(th);
+            });
+            thead.appendChild(tr);
+            table.appendChild(thead);
+          }
+
+          const tbody = document.createElement('tbody');
+          bodyRows.forEach(row => {
+            const tr = document.createElement('tr');
+            row.forEach(value => {
+              const td = document.createElement('td');
+              td.textContent = value;
+              tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody);
+
+          tableWrap.appendChild(table);
+          container.appendChild(tableWrap);
+          return;
+        }
+      }
+
+      const pre = document.createElement('pre');
+      pre.className = 'output-text';
+      pre.textContent = sectionText;
+      container.appendChild(pre);
+    }
+
+    function isCsvOutputFile(fileName) {
+      return normalizeExtension(fileName) === 'csv';
+    }
+
+    function parseCsvRows(text) {
+      const source = String(text || '').replace(/^\uFEFF/, '');
+      if (!source.trim()) return [];
+
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let i = 0;
+      let inQuotes = false;
+
+      while (i < source.length) {
+        const ch = source[i];
+
+        if (inQuotes) {
+          if (ch === '"') {
+            if (source[i + 1] === '"') {
+              cell += '"';
+              i += 2;
+              continue;
+            }
+            inQuotes = false;
+            i += 1;
+            continue;
+          }
+
+          cell += ch;
+          i += 1;
+          continue;
+        }
+
+        if (ch === '"') {
+          inQuotes = true;
+          i += 1;
+          continue;
+        }
+
+        if (ch === ',') {
+          row.push(cell);
+          cell = '';
+          i += 1;
+          continue;
+        }
+
+        if (ch === '\n' || ch === '\r') {
+          if (ch === '\r' && source[i + 1] === '\n') i += 1;
+          row.push(cell);
+          const hasContent = row.some(value => String(value).trim().length > 0);
+          if (hasContent) rows.push(row);
+          row = [];
+          cell = '';
+          i += 1;
+          continue;
+        }
+
+        cell += ch;
+        i += 1;
+      }
+
+      row.push(cell);
+      const hasTailContent = row.some(value => String(value).trim().length > 0);
+      if (hasTailContent) rows.push(row);
+
+      return rows;
     }
 
     function extractReportOutputSections(rawText) {

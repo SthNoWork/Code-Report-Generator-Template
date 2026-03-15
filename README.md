@@ -11,6 +11,7 @@ Simple web viewer for lab reports with automatic folder detection.
 - Scans your project folders
 - Detects labs and exercises automatically using numbers in folder names
 - Renders source code and `output.txt`
+- Renders `.csv` output files as HTML tables
 - Loads shared utils from `utils/`
 - Exports lab view to PDF
 
@@ -40,6 +41,7 @@ Root is taken from the folder you choose with Open Project Folder inside the app
 - Main file: `Main.*`
 - Other code files: any `*.*` except `.txt` and known binary/media files
 - Output file: `output.txt`
+- Output files also support patterns from `config.js`, including `.csv`
 
 ## Working Name Examples
 
