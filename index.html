@@ -2185,10 +2185,15 @@
       });
       const imgData = canvas.toDataURL('image/jpeg', VIEWER_CONFIG.pdf.imageQuality);
       const { jsPDF } = window.jspdf;
-      const W = VIEWER_CONFIG.pdf.pageWidthMm;
-      const H = W * (canvas.height / canvas.width);
+      const pad = VIEWER_CONFIG.pdf.pagePaddingMm ?? 8;
+      const W   = VIEWER_CONFIG.pdf.pageWidthMm;
+      const imgW = W - 2 * pad;
+      const imgH = imgW * (canvas.height / canvas.width);
+      const H    = imgH + 2 * pad;
       const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:[W, H] });
-      pdf.addImage(imgData, 'JPEG', 0, 0, W, H);
+      pdf.setFillColor(bgColor);
+      pdf.rect(0, 0, W, H, 'F');
+      pdf.addImage(imgData, 'JPEG', pad, pad, imgW, imgH);
       pdf.save(`${fileName}-report.pdf`);
     } finally {
       document.body.classList.remove('exporting-pdf');

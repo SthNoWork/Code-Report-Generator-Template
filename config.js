@@ -78,6 +78,7 @@ window.APP_CONFIG = {
     viewportWidthPx: 960,
     captureScale: 2,
     pageWidthMm: 210,
+    pagePaddingMm: 8,
     imageQuality: 0.95
   },
 
@@ -86,7 +87,8 @@ window.APP_CONFIG = {
     skipCodeFileExtensions: [
       'ilk', 'pdb', 'obj', 'exe', 'dll', 'so', 'dylib', 'class', 'jar', 'zip', '7z',
       'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico', 'svg', 'pdf',
-      'mp3', 'wav', 'ogg', 'mp4', 'mov', 'avi'
+      'mp3', 'wav', 'ogg', 'mp4', 'mov', 'avi',
+      'html', 'htm', 'css', 'js', 'jsx', 'mjs', 'cjs'
     ],
     preferredMainFileBases: ['main']
   }
