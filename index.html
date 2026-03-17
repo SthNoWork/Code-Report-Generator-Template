@@ -169,6 +169,51 @@
     html.theme-rose .mark-main-btn.is-main { color:#70e880; border-color:rgba(112,232,128,.4); background:rgba(112,232,128,.08); }
 
     /* ════════════════════════════════════════════
+       COVER CARD — theme-specific styling
+    ════════════════════════════════════════════ */
+    html.theme-blossom .cover-card {
+      background:linear-gradient(135deg,#ffe8f3,#fff5f9);
+      border-color:#f7b8d4;
+      box-shadow:0 12px 32px rgba(200,100,140,.12);
+    }
+    html.theme-blossom .cover-logo-slot {
+      background:linear-gradient(135deg,#fff5f9,#ffe8f3);
+      border-color:#f7b8d4;
+      box-shadow:0 8px 20px rgba(200,100,140,.1), inset 0 1px 0 rgba(255,255,255,.2);
+    }
+    html.theme-blossom .cover-foot {
+      border-top-color:rgba(214,51,132,.15);
+    }
+
+    html.theme-navy .cover-card {
+      background:linear-gradient(135deg,#002538,#001c2b);
+      border-color:#004460;
+      box-shadow:0 12px 32px rgba(0,100,150,.2);
+    }
+    html.theme-navy .cover-logo-slot {
+      background:linear-gradient(135deg,#001c2b,#002538);
+      border-color:#004460;
+      box-shadow:0 8px 20px rgba(0,150,200,.15), inset 0 1px 0 rgba(0,200,224,.1);
+    }
+    html.theme-navy .cover-foot {
+      border-top-color:rgba(0,200,224,.15);
+    }
+
+    html.theme-rose .cover-card {
+      background:linear-gradient(135deg,#301420,#240e18);
+      border-color:#601830;
+      box-shadow:0 12px 32px rgba(255,80,144,.12);
+    }
+    html.theme-rose .cover-logo-slot {
+      background:linear-gradient(135deg,#240e18,#301420);
+      border-color:#601830;
+      box-shadow:0 8px 20px rgba(255,80,144,.1), inset 0 1px 0 rgba(255,144,192,.08);
+    }
+    html.theme-rose .cover-foot {
+      border-top-color:rgba(255,80,144,.15);
+    }
+
+    /* ════════════════════════════════════════════
        GLOBAL RESETS
     ════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
@@ -521,11 +566,11 @@
       --cover-title-size:28px;
       width:min(100%, 320px);
       aspect-ratio:210 / 297;
-      background:linear-gradient(165deg,var(--surface2),var(--surface));
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:20px;
-      box-shadow:0 8px 26px rgba(0,0,0,.18);
+      background:linear-gradient(135deg,var(--surface2),var(--surface));
+      border:2px solid var(--border);
+      border-radius:16px;
+      padding:24px 20px;
+      box-shadow:0 12px 32px rgba(0,0,0,.24);
       display:flex;
       flex-direction:column;
       justify-content:space-between;
@@ -535,11 +580,17 @@
     .cover-card::before {
       content:'';
       position:absolute;
-      inset:0;
-      background:
-        radial-gradient(circle at top center, rgba(var(--accent-rgb, 88, 198, 255), 0.12), transparent 34%),
-        linear-gradient(180deg, rgba(var(--accent4-rgb, 88, 198, 255), 0.10), transparent 28%);
-      pointer-events:none;
+      top:0; left:0; right:0;
+      height:3px;
+      background:linear-gradient(90deg, var(--accent), var(--accent4), var(--accent));
+      opacity:0.6;
+    }
+    .cover-card::after {
+      content:'';
+      position:absolute;
+      bottom:0; left:0; right:0;
+      height:1px;
+      background:linear-gradient(90deg, var(--border), transparent);
     }
     .cover-top-row {
       display:flex;
@@ -551,25 +602,28 @@
     }
     .cover-top {
       font-family:var(--mono);
-      font-size:10px;
-      letter-spacing:.08em;
+      font-size:9px;
+      letter-spacing:.1em;
       text-transform:uppercase;
       color:var(--accent);
       text-align:center;
+      font-weight:600;
+      opacity:0.9;
     }
     .cover-logo-slot {
       width:var(--cover-logo-size);
       height:var(--cover-logo-size);
-      border:1px dashed var(--border);
-      border-radius:10px;
-      background:rgba(255,255,255,.04);
+      border:2px solid var(--border);
+      border-radius:12px;
+      background:linear-gradient(135deg, var(--surface), var(--surface2));
       display:flex;
       align-items:center;
       justify-content:center;
       overflow:hidden;
       flex-shrink:0;
-      margin:0 auto 14px;
-      box-shadow:0 10px 24px rgba(0,0,0,.12);
+      margin:0 auto 16px;
+      box-shadow:0 8px 20px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter:blur(4px);
     }
     .cover-logo-slot img {
       width:100%;
@@ -589,19 +643,21 @@
     }
     .cover-mid h3 {
       font-size:var(--cover-title-size);
-      line-height:1.2;
+      line-height:1.3;
       color:var(--text);
-      margin-bottom:10px;
+      margin-bottom:12px;
       text-align:center;
-      letter-spacing:-.02em;
+      letter-spacing:-.01em;
+      font-weight:700;
     }
     .cover-mid p {
       font-family:var(--mono);
-      font-size:12px;
+      font-size:11px;
       color:var(--muted);
-      line-height:1.7;
+      line-height:1.6;
       white-space:pre-wrap;
       text-align:center;
+      font-weight:500;
     }
     .cover-mid {
       display:flex;
@@ -613,28 +669,32 @@
       z-index:1;
     }
     .cover-divider {
-      width:72px;
-      height:2px;
+      width:80px;
+      height:3px;
       border-radius:999px;
-      background:linear-gradient(90deg,var(--accent),var(--accent4));
-      margin:16px auto 18px;
-      opacity:.85;
+      background:linear-gradient(90deg, var(--accent), var(--accent4), var(--accent));
+      margin:18px auto 20px;
+      opacity:0.8;
+      box-shadow:0 2px 8px rgba(0,0,0,.2);
     }
     .cover-foot {
       font-family:var(--mono);
-      font-size:11px;
+      font-size:10px;
       color:var(--muted);
       display:flex;
       flex-direction:column;
-      gap:5px;
+      gap:6px;
       position:relative;
       z-index:1;
       align-items:center;
       text-align:center;
+      padding-top:12px;
+      border-top:1px solid rgba(var(--border-rgb, 200,200,200),0.2);
     }
     .cover-foot-row {
       white-space:pre-wrap;
       word-break:break-word;
+      letter-spacing:0.02em;
     }
 
     /* ════════════════════════════════════════════
