@@ -60,6 +60,20 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
 
   const view = document.getElementById(viewId);
   const button = document.getElementById(buttonId);
+  if (!view) {
+    alert('PDF export failed: content view not found.');
+    return;
+  }
+
+  const safeConfig = {
+    captureScale: Math.max(1, Number(captureConfig?.captureScale) || 2),
+    imageQuality: Math.min(1, Math.max(0.1, Number(captureConfig?.imageQuality) || 0.95)),
+    viewportWidthPx: Number(captureConfig?.viewportWidthPx) || 1100,
+    pagePaddingMm: Number(captureConfig?.pagePaddingMm) || 8,
+    pageWidthMm: Number(captureConfig?.pageWidthMm) || 210,
+    pageHeightMm: Number(captureConfig?.pageHeightMm) || 297
+  };
+
   const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0d1117';
 
   document.body.classList.add('exporting-pdf');
@@ -68,21 +82,21 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
 
   try {
     const canvas = await window.html2canvas(view, {
-      scale: captureConfig.captureScale,
+      scale: safeConfig.captureScale,
       backgroundColor: bgColor,
       useCORS: true,
       logging: false,
       width: view.offsetWidth,
       height: view.scrollHeight,
-      windowWidth: captureConfig.viewportWidthPx,
+      windowWidth: safeConfig.viewportWidthPx,
       windowHeight: view.scrollHeight
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', captureConfig.imageQuality);
+    const imgData = canvas.toDataURL('image/jpeg', safeConfig.imageQuality);
     const { jsPDF } = window.jspdf;
-    const pad = captureConfig.pagePaddingMm ?? 8;
-    const width = captureConfig.pageWidthMm;
-    const coverPageHeight = captureConfig.pageHeightMm ?? 297;
+    const pad = safeConfig.pagePaddingMm;
+    const width = safeConfig.pageWidthMm;
+    const coverPageHeight = safeConfig.pageHeightMm;
     const imgWidth = width - 2 * pad;
     const imgHeight = imgWidth * (canvas.height / canvas.width);
     const height = imgHeight + 2 * pad;
@@ -94,7 +108,7 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
         aspectRatio: await getImageAspectRatio(coverImageDataUrl)
       };
     } else if (coverElementId) {
-      coverSource = await captureElementToImage(coverElementId, captureConfig, bgColor);
+      coverSource = await captureElementToImage(coverElementId, safeConfig, bgColor);
     }
 
     const hasCover = Boolean(coverSource?.dataUrl);

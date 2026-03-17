@@ -822,7 +822,7 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
     list.innerHTML = '';
     document.getElementById('general-title').textContent = selectedGeneralRootName || 'Files';
     document.getElementById('general-tag').textContent   = `${generalData.length} item${generalData.length !== 1 ? 's' : ''}`;
-    document.getElementById('export-general-pdf-btn').style.display = '';
+    setElementDisplay('export-general-pdf-btn', '');
 
     if (!generalData.length) {
       list.innerHTML = `<div class="empty-card"><div class="big">📂</div>No code files found in this folder.</div>`;
@@ -1334,11 +1334,16 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
      SECTION 18: NAVIGATION — show/hide views
   ═══════════════════════════════════════════════════════════════════ */
 
+  function setElementDisplay(id, displayValue) {
+    const element = document.getElementById(id);
+    if (element) element.style.display = displayValue;
+  }
+
   function showLanding() {
     activate('view-landing');
     setCoverPanelVisible(false);
     setGlobalHowToVisibility(false);
-    document.getElementById('export-pdf-btn').style.display = 'none';
+    setElementDisplay('export-pdf-btn', 'none');
     renderBreadcrumb([{ label:getHomeCrumbLabel(), active:true }]);
     updateTopbarTitle();
   }
@@ -1346,7 +1351,7 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
     activate('view-home');
     setCoverPanelVisible(false);
     setGlobalHowToVisibility(true);
-    document.getElementById('export-pdf-btn').style.display = 'none';
+    setElementDisplay('export-pdf-btn', 'none');
     renderBreadcrumb([{ label:getHomeCrumbLabel(), active:true }]);
     updateTopbarTitle();
   }
@@ -1356,7 +1361,7 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
     renderCategory(name); activate('view-category');
     setCoverPanelVisible(false);
     setGlobalHowToVisibility(true);
-    document.getElementById('export-pdf-btn').style.display = 'none';
+    setElementDisplay('export-pdf-btn', 'none');
     renderBreadcrumb([
       { label:getHomeCrumbLabel(), onClick:'showHome()', active:false },
       { label:name, active:true }
@@ -1375,7 +1380,7 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
       syncCoverPreview();
     }
     setGlobalHowToVisibility(true);
-    document.getElementById('export-pdf-btn').style.display = '';
+    setElementDisplay('export-pdf-btn', '');
     renderBreadcrumb([
       { label:getHomeCrumbLabel(), onClick:'showHome()', active:false },
       { label:selectedCategory, onClick:`showCategory('${selectedCategory.replace(/'/g,"\\'")}')`, active:false },
@@ -1394,7 +1399,7 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
       syncCoverPreview();
     }
     setGlobalHowToVisibility(false);
-    document.getElementById('export-pdf-btn').style.display = 'none';
+    setElementDisplay('export-pdf-btn', 'none');
     renderBreadcrumb([
       { label:getHomeCrumbLabel(), onClick:'showLanding()', active:false },
       { label:selectedGeneralRootName || 'General', active:true }
@@ -1672,14 +1677,15 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
      SECTION 24: THEME PICKER — saves to localStorage
   ═══════════════════════════════════════════════════════════════════ */
 
-  const THEME_CLASSES    = ['theme-blossom','theme-navy','theme-rose'];
+  const THEME_CLASSES    = ['theme-blossom','theme-synthwave','theme-coral'];
   const THEME_STORAGE_KEY= 'reportgen-theme';
 
   function applyTheme(name) {
+    const nextTheme = THEME_CLASSES.includes(name) ? name : '';
     THEME_CLASSES.forEach(c => document.documentElement.classList.remove(c));
-    if (name) document.documentElement.classList.add(name);
-    document.querySelectorAll('.theme-swatch').forEach(sw => sw.classList.toggle('active', (sw.dataset.theme || '') === (name || '')));
-    try { localStorage.setItem(THEME_STORAGE_KEY, name || ''); } catch {}
+    if (nextTheme) document.documentElement.classList.add(nextTheme);
+    document.querySelectorAll('.theme-swatch').forEach(sw => sw.classList.toggle('active', (sw.dataset.theme || '') === nextTheme));
+    try { localStorage.setItem(THEME_STORAGE_KEY, nextTheme); } catch {}
   }
   function initThemePicker() {
     document.querySelectorAll('.theme-swatch').forEach(sw => sw.addEventListener('click', () => applyTheme(sw.dataset.theme || '')));
