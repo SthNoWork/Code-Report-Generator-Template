@@ -245,7 +245,7 @@
       background:var(--bg) !important;
       max-width:var(--pdf-content-width) !important;
       width:var(--pdf-content-width) !important;
-      margin:0 !important; padding:20px 0 !important;
+      margin:0 !important; padding:20px 24px !important;
     }
     body.exporting-pdf .view.active { opacity:1 !important; transform:none !important; }
     body.exporting-pdf #view-lab { background:var(--dr-bg) !important; border:1px solid var(--border) !important; }
@@ -566,6 +566,97 @@
     }
     .copy-btn:hover { color:var(--accent); border-color:var(--accent); }
     .copy-btn.copied { color:var(--accent2); border-color:var(--accent2); }
+    /* ════════════ CODE-WITH-DESC WRAPPER ════════════ */
+    .code-with-desc { display:flex; flex-direction:column; gap:6px; }
+    .code-with-desc.file-dragging { opacity:.35; }
+    .code-with-desc.file-drag-over { outline:2px dashed var(--accent4); outline-offset:3px; border-radius:14px; }
+
+    /* ════════════ DESC TOGGLE ✕ BUTTON ════════════ */
+    .desc-toggle-btn {
+      background:transparent; border:none; color:var(--muted); font-size:11px;
+      cursor:pointer; padding:1px 5px; border-radius:3px; margin-left:6px;
+      opacity:.55; transition:opacity .15s, color .15s; vertical-align:middle;
+    }
+    .desc-toggle-btn:hover { opacity:1; color:var(--accent3); }
+    body.exporting-pdf .desc-toggle-btn { display:none !important; }
+
+    /* ════════════ ADD FILE/IMAGE ROW ════════════ */
+    .ex-add-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; align-items:center; }
+    .add-file-btn, .add-image-btn {
+      display:inline-flex; align-items:center; gap:5px;
+      background:transparent; border:1px dashed var(--border); color:var(--muted);
+      border-radius:7px; font-family:var(--mono); font-size:11px; padding:6px 14px;
+      cursor:pointer; transition:color .15s, border-color .15s, background .15s;
+    }
+    .add-file-btn:hover  { color:var(--accent);  border-color:var(--accent);  background:rgba(88,166,255,.06); }
+    .add-image-btn:hover { color:var(--accent4); border-color:var(--accent4); background:rgba(210,168,255,.06); }
+
+    /* ════════════ NOTES TEXTAREA ════════════ */
+    .ex-notes-row { margin-top:4px; }
+    .ex-notes-area {
+      width:100%; background:rgba(88,166,255,.04); border:1px solid var(--border);
+      border-radius:8px; color:var(--text); font-family:var(--mono); font-size:12px;
+      line-height:1.6; padding:10px 12px; resize:vertical; min-height:52px;
+      transition:border-color .15s; outline:none;
+    }
+    .ex-notes-area:focus { border-color:var(--accent); }
+    .ex-notes-area::placeholder { color:var(--muted); }
+
+    /* ════════════ INLINE RENAME ════════════ */
+    .ex-title-input {
+      background:transparent; border:none; outline:none; font-family:var(--sans);
+      font-size:15px; font-weight:600; color:var(--text); cursor:text;
+      border-bottom:1px solid transparent; transition:border-color .15s; padding:0;
+      max-width:300px; min-width:60px; width:auto;
+    }
+    .ex-title-input:focus { border-bottom-color:var(--accent); color:var(--accent); }
+
+    /* ════════════ DELETE + REMOVE BUTTONS ════════════ */
+    .ex-delete-btn {
+      background:transparent; border:none; color:var(--muted); font-size:15px;
+      cursor:pointer; padding:3px 6px; border-radius:4px; opacity:0;
+      transition:opacity .15s, color .15s; flex-shrink:0; margin-left:auto;
+    }
+    .ex-item:hover .ex-delete-btn { opacity:.5; }
+    .ex-delete-btn:hover { color:var(--accent3) !important; opacity:1 !important; }
+    .remove-block-btn {
+      background:transparent; border:none; color:var(--muted); font-size:12px;
+      cursor:pointer; padding:1px 5px; border-radius:3px; opacity:0;
+      transition:opacity .15s, color .15s; flex-shrink:0; margin-left:3px;
+    }
+    .code-header:hover .remove-block-btn,
+    .out-header:hover .remove-block-btn,
+    .image-header:hover .remove-block-btn { opacity:.5; }
+    .remove-block-btn:hover { color:var(--accent3) !important; opacity:1 !important; }
+
+    /* ════════════ NEW-CARD + RESCAN BUTTONS ════════════ */
+    .new-card-btn {
+      background:transparent; border:1px solid var(--accent2); color:var(--accent2);
+      font-family:var(--mono); font-size:11px; border-radius:6px; padding:6px 12px;
+      cursor:pointer; transition:background .15s;
+    }
+    .new-card-btn:hover { background:rgba(63,185,80,.1); }
+
+    /* ════════════ DROP ZONE ════════════ */
+    #gen-dropzone {
+      border:2px dashed var(--border); border-radius:10px; padding:18px 20px;
+      text-align:center; font-family:var(--mono); font-size:12px; color:var(--muted);
+      margin-bottom:18px; transition:border-color .2s, background .2s, color .2s; cursor:pointer;
+    }
+    #gen-dropzone:hover, #gen-dropzone.drag-over {
+      border-color:var(--accent4); color:var(--accent4); background:rgba(210,168,255,.05);
+    }
+
+    /* ════════════ PDF HIDE QOL CHROME ════════════ */
+    body.exporting-pdf .add-file-btn, body.exporting-pdf .add-image-btn,
+    body.exporting-pdf .ex-add-row,   body.exporting-pdf .ex-delete-btn,
+    body.exporting-pdf .remove-block-btn, body.exporting-pdf #gen-dropzone,
+    body.exporting-pdf .new-card-btn { display:none !important; }
+    /* Show notes that have content during PDF export */
+    body.exporting-pdf .ex-notes-row { display:none !important; }
+    body.exporting-pdf .ex-notes-row.has-notes { display:block !important; }
+    body.exporting-pdf .ex-notes-area { border:none; background:rgba(88,166,255,.06); resize:none; pointer-events:none; }
+
 
     /* ════════════════════════════════════════════
        MARK-AS-MAIN BUTTON (appears in code-header)
@@ -591,10 +682,10 @@
     .code-header:hover .file-drag-handle,
     .out-header:hover .file-drag-handle,
     .image-header:hover .file-drag-handle { opacity:1; }
-    .code-block.file-dragging,
+    .code-with-desc.file-dragging,
     .output-block.file-dragging,
     .image-block.file-dragging { opacity:.35; }
-    .code-block.file-drag-over,
+    .code-with-desc.file-drag-over,
     .output-block.file-drag-over,
     .image-block.file-drag-over { outline:2px dashed var(--accent4); outline-offset:2px; }
 
@@ -830,12 +921,16 @@
             <label class="toggle-switch"><input type="checkbox" id="tog-lab-empty-output" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
-            <div><div>Show exercise description</div><div class="toggle-desc">Block comment extracted from main file</div></div>
+            <div><div>Show exercise descriptions</div><div class="toggle-desc">Block comment from each main-flagged file</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-lab-desc" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
             <div><div>Show shared utils section</div><div class="toggle-desc">Shared utils/ code shown after exercises</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-lab-utils" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div>Show notes field</div><div class="toggle-desc">Editable annotation per exercise</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-lab-notes" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
           </div>
         </div>
       </div>
@@ -857,8 +952,11 @@
       <div class="general-toolbar">
         <button class="collapse-btn" onclick="collapseAll('general-ex-list')">Collapse All</button>
         <button class="collapse-btn" onclick="expandAll('general-ex-list','general')">Expand All</button>
+        <button class="new-card-btn" onclick="addNewGeneralCard()" title="Add a new empty card">＋ New Card</button>
+        <button class="collapse-btn" onclick="rescanGeneral()" title="Re-open folder">↺ Rescan</button>
         <span class="toolbar-label" id="general-toolbar-hint">↕ Drag to reorder</span>
       </div>
+      <div id="gen-dropzone" onclick="addFilesToNewCard()">＋ Drop files here or click to add files</div>
       <!-- settings panel for general mode -->
       <div class="settings-panel" id="general-settings">
         <div class="settings-head" onclick="toggleSettings('general-settings')">
@@ -876,6 +974,14 @@
           <div class="toggle-row">
             <div><div>Show empty output block</div><div class="toggle-desc">Placeholder when no output file found</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-gen-empty-output" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div>Show exercise descriptions</div><div class="toggle-desc">Block comment from each main-flagged file</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-gen-desc" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div>Show notes field</div><div class="toggle-desc">Editable annotation per exercise</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-gen-notes" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
           </div>
         </div>
       </div>
@@ -1059,28 +1165,31 @@
 
   /** Read toggle state and show/hide matching block types in an ex-list */
   function applyToggles(mode) {
-    const prefix   = mode === 'lab' ? 'tog-lab' : 'tog-gen';
-    const listId   = mode === 'lab' ? 'ex-list' : 'general-ex-list';
-    const showOut  = document.getElementById(prefix + '-output')?.checked ?? true;
-    const showImg  = mode === 'lab' ? (document.getElementById('tog-lab-images')?.checked ?? true)
-                                    : (document.getElementById('tog-gen-images')?.checked ?? true);
-    const showEmpty= document.getElementById(prefix + '-empty-output')?.checked ?? true;
-    const showDesc = mode === 'lab' ? (document.getElementById('tog-lab-desc')?.checked ?? true) : true;
-    const showUtils= mode === 'lab' ? (document.getElementById('tog-lab-utils')?.checked ?? true) : true;
+    const prefix    = mode === 'lab' ? 'tog-lab' : 'tog-gen';
+    const listId    = mode === 'lab' ? 'ex-list' : 'general-ex-list';
+    const showOut   = document.getElementById(prefix + '-output')?.checked ?? true;
+    const showImg   = document.getElementById(prefix + '-images')?.checked ?? true;
+    const showEmpty = document.getElementById(prefix + '-empty-output')?.checked ?? true;
+    const showDesc  = document.getElementById(prefix + '-desc')?.checked ?? true;
+    const showNotes = document.getElementById(prefix + '-notes')?.checked ?? true;
+    const showUtils = mode === 'lab' ? (document.getElementById('tog-lab-utils')?.checked ?? true) : true;
 
     const list = document.getElementById(listId);
     if (!list) return;
 
     list.querySelectorAll('.output-block').forEach(ob => {
-      const isEmpty = ob.querySelector('.output-text') && ob.querySelector('.output-text').textContent.startsWith('No supported');
+      const isEmpty = ob.querySelector('.output-text')?.textContent.startsWith('No supported') ?? false;
       ob.style.display = (isEmpty ? showEmpty : showOut) ? '' : 'none';
     });
-    list.querySelectorAll('.image-block').forEach(ib => {
-      ib.style.display = showImg ? '' : 'none';
+    list.querySelectorAll('.image-block').forEach(ib => { ib.style.display = showImg ? '' : 'none'; });
+
+    // Only toggle auto-extracted desc notes; respect per-note user-hidden flag
+    list.querySelectorAll('.exercise-note[data-auto-desc]').forEach(en => {
+      en.style.display = (!showDesc || en.dataset.userHidden === '1') ? 'none' : '';
     });
-    list.querySelectorAll('.exercise-note').forEach(en => {
-      en.style.display = showDesc ? '' : 'none';
-    });
+
+    // Notes textarea rows
+    list.querySelectorAll('.ex-notes-row').forEach(nr => { nr.style.display = showNotes ? '' : 'none'; });
 
     if (mode === 'lab') {
       const utils = document.getElementById('lab-utils');
@@ -1495,7 +1604,7 @@
         const item = buildExerciseItem(ex, idx);
         // lab mode populates body via populateBody (async hydration + fetch)
         item.querySelector('.ex-header').onclick = e => {
-          if (e.target.closest('.drag-handle')) return;
+          if (e.target.closest('.drag-handle,.ex-title-input,.ex-delete-btn')) return;
           item.classList.toggle('open');
           if (item.classList.contains('open')) populateBody(item.querySelector('.ex-body'), ex);
         };
@@ -1520,7 +1629,7 @@
     generalData.forEach((ex, idx) => {
       const item = buildExerciseItem(ex, idx);
       item.querySelector('.ex-header').onclick = e => {
-        if (e.target.closest('.drag-handle')) return;
+        if (e.target.closest('.drag-handle,.ex-title-input,.ex-delete-btn')) return;
         item.classList.toggle('open');
         if (item.classList.contains('open')) populateBodyGeneral(item.querySelector('.ex-body'), ex);
       };
@@ -1544,11 +1653,26 @@
       <div class="ex-header">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         <div class="ex-num">${escapeHtml(num)}</div>
-        <h3>${escapeHtml(ex.name)}</h3>
+        <input class="ex-title-input" type="text" value="${escapeHtml(ex.name)}" title="Click to rename" />
         <span class="ex-meta">${escapeHtml(fileMeta)}</span>
+        <button class="ex-delete-btn" title="Remove this card">✕</button>
         <span class="ex-chevron">▶</span>
       </div>
       <div class="ex-body"></div>`;
+
+    const titleInput = item.querySelector('.ex-title-input');
+    titleInput.addEventListener('click', e => e.stopPropagation());
+    titleInput.addEventListener('keydown', e => { if (e.key === 'Enter') titleInput.blur(); });
+    titleInput.addEventListener('change', () => {
+      const v = titleInput.value.trim();
+      if (v) { ex.name = v; item.dataset.exName = v; } else titleInput.value = ex.name;
+    });
+
+    item.querySelector('.ex-delete-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      if (confirm(`Remove "${ex.name}"?`)) item.remove();
+    });
+
     return item;
   }
 
@@ -1565,16 +1689,7 @@
       body.dataset.loading = '1';
       await hydrateExerciseFiles(ex);
 
-      // Exercise description (extracted from leading block comment of main file)
-      const desc = extractExerciseHeaderFromMain(ex);
-      if (desc) {
-        const note = document.createElement('div');
-        note.className = 'exercise-note';
-        note.innerHTML = `<div class="exercise-note-head">Exercise Description</div><pre class="exercise-note-text"></pre>`;
-        note.querySelector('.exercise-note-text').textContent = desc;
-        body.appendChild(note);
-      }
-
+      // Descriptions are now embedded per-file inside each code-with-desc wrapper.
       const outputEntries = await fetchExerciseOutputSections(ex);
       renderBodyContents(body, ex, outputEntries);
 
@@ -1593,13 +1708,33 @@
     renderBodyContents(body, ex, outputEntries);
   }
 
+  /** Helper: build an auto-extracted description note element */
+  function buildAutoDescNote(desc, userHidden) {
+    const note = document.createElement('div');
+    note.className = 'exercise-note';
+    note.dataset.autoDesc = '1';
+    if (userHidden) { note.dataset.userHidden = '1'; note.style.display = 'none'; }
+    note.innerHTML = '<div class="exercise-note-head">Exercise Description <button class="desc-toggle-btn" title="Hide/show this description">✕</button></div><pre class="exercise-note-text"></pre>';
+    note.querySelector('.exercise-note-text').textContent = desc;
+    note.querySelector('.desc-toggle-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      const hidden = note.dataset.userHidden === '1';
+      note.style.display = hidden ? '' : 'none';
+      note.dataset.userHidden = hidden ? '0' : '1';
+      // Update ✕ label
+      e.target.textContent = hidden ? '✕' : '↩';
+      e.target.title = hidden ? 'Hide this description' : 'Show this description';
+    });
+    return note;
+  }
+
   /**
    * renderBodyContents — the single renderer used by BOTH lab and general mode.
    * Appends: code blocks → output blocks → image blocks
    * Then wires up file-level drag-sort within the body.
    */
   function renderBodyContents(body, ex, outputEntries) {
-    // Code files
+    // Code files — each wrapped in code-with-desc (desc note + code block)
     ex.files.forEach(f => body.appendChild(buildCodeBlock(f, ex)));
 
     // Text/CSV/JSON outputs
@@ -1617,19 +1752,59 @@
     (ex.images || []).forEach(img => body.appendChild(buildImageBlock(img.fileName, img.dataUrl)));
 
     initFileDragSort(body);
+
+    // Notes textarea
+    const notesRow = document.createElement('div');
+    notesRow.className = 'ex-notes-row';
+    const ta = document.createElement('textarea');
+    ta.className = 'ex-notes-area';
+    ta.placeholder = 'Add notes for this exercise (shown in PDF if filled in)…';
+    ta.value = ex._notes || '';
+    ta.addEventListener('input', () => { ex._notes = ta.value; });
+    notesRow.appendChild(ta);
+    body.appendChild(notesRow);
+
+    // Add file / add image buttons
+    const addRow = document.createElement('div');
+    addRow.className = 'ex-add-row';
+    const addFileBtn = document.createElement('button');
+    addFileBtn.className = 'add-file-btn';
+    addFileBtn.innerHTML = '＋ Add File';
+    addFileBtn.title = 'Add code/text files';
+    addFileBtn.onclick = e => { e.stopPropagation(); pickAndAddFiles(body, ex, addRow); };
+    const addImgBtn = document.createElement('button');
+    addImgBtn.className = 'add-image-btn';
+    addImgBtn.innerHTML = '＋ Add Image';
+    addImgBtn.title = 'Add image files';
+    addImgBtn.onclick = e => { e.stopPropagation(); pickAndAddImages(body, ex, addRow); };
+    addRow.appendChild(addFileBtn);
+    addRow.appendChild(addImgBtn);
+    body.appendChild(addRow);
   }
 
   /* ═══════════════════════════════════════════════════════════════════
      SECTION 13: BLOCK BUILDERS — code, output, image
   ═══════════════════════════════════════════════════════════════════ */
 
+  /**
+   * buildCodeBlock — returns a .code-with-desc wrapper:
+   *   [auto-desc note if f.main & has comment]  +  inner .code-block
+   * Both travel together when dragged.
+   */
   function buildCodeBlock(f, ex) {
+    const wrap = document.createElement('div');
+    wrap.className         = 'code-with-desc';
+    wrap.draggable         = true;
+    wrap.dataset.blockType = 'code';
+    wrap.dataset.fileName  = f.name;
+
+    // Desc note above (only for main files that have a block comment)
+    refreshDescNoteInWrap(wrap, f);
+
     const displayContent = f.main ? stripLeadingBlockComment(f.content) : f.content;
     const cb = document.createElement('div');
-    cb.className        = 'code-block';
-    cb.draggable        = true;
-    cb.dataset.blockType= 'code';
-    cb.dataset.fileName = f.name;
+    cb.className    = 'code-block';
+    cb.dataset.codeInner = '1';
     cb.innerHTML = `
       <div class="code-header">
         <span class="file-drag-handle" title="Drag to reorder">⠿</span>
@@ -1638,14 +1813,58 @@
         ${f.main ? '<span class="main-tag" data-maintag>main</span>' : `<span class="ext-tag" data-exttag>.${escapeHtml(f.ext)}</span>`}
       </div>
       <pre><code class="${languageClassFromExt(f.ext)}"></code></pre>`;
+    wrap.appendChild(cb);
 
     const header   = cb.querySelector('.code-header');
     const codeNode = cb.querySelector('code');
     codeNode.textContent = displayContent;
     addCopyButton(header, () => codeNode.textContent);
-    if (ex) addMarkMainButton(header, f, cb, ex);  // null ex = utils section, no mark-main
+    if (ex) addMarkMainButton(header, f, wrap, ex);
+    // Remove-block button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-block-btn';
+    removeBtn.title = 'Remove this file block';
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = e => {
+      e.stopPropagation();
+      if (ex) { const i = ex.files.indexOf(f); if (i > -1) ex.files.splice(i, 1); updateFileCount(wrap, ex); }
+      wrap.remove();
+    };
+    header.appendChild(removeBtn);
     if (window.hljs) window.hljs.highlightElement(codeNode);
-    return cb;
+    return wrap;
+  }
+
+  /** Create/update/remove the auto-desc note inside a code-with-desc wrapper */
+  function refreshDescNoteInWrap(wrap, f) {
+    const existing = wrap.querySelector('.exercise-note[data-auto-desc]');
+    const desc = (f.main && f.content) ? extractDescFromFile(f) : '';
+    if (desc) {
+      if (existing) {
+        existing.querySelector('.exercise-note-text').textContent = desc;
+        if (existing.dataset.userHidden !== '1') existing.style.display = '';
+      } else {
+        wrap.insertBefore(buildAutoDescNote(desc, false), wrap.firstChild);
+      }
+    } else if (existing) {
+      existing.remove();
+    }
+  }
+
+  /** Extract leading block-comment text from a file object */
+  function extractDescFromFile(f) {
+    if (!f?.content) return '';
+    const m = f.content.match(/\/\*([\s\S]*?)\*\//);
+    if (!m) return '';
+    return m[1].split('\n').map(l => l.replace(/^\s*\*\s?/,'').trimEnd()).join('\n').trim();
+  }
+
+  /** Update the file-count meta badge on the exercise header */
+  function updateFileCount(blockEl, ex) {
+    const item = blockEl.closest('.ex-item');
+    if (!item || !ex) return;
+    const meta = item.querySelector('.ex-meta');
+    if (meta) meta.textContent = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
   }
 
   function buildOutputBlock(fileName, section, index, totalSections) {
@@ -1662,6 +1881,7 @@
       </div>
       <div class="output-content"></div>`;
     renderOutputSectionContent(ob.querySelector('.output-content'), fileName, section);
+    addRemoveBlockBtn(ob.querySelector('.out-header'), ob);
     return ob;
   }
 
@@ -1678,6 +1898,7 @@
         <span class="out-label">${VIEWER_CONFIG.labels.outputLabel}</span>
       </div>
       <pre class="output-text">No supported text file found for this exercise (.txt, .json, .csv).</pre>`;
+    addRemoveBlockBtn(ob.querySelector('.out-header'), ob);
     return ob;
   }
 
@@ -1695,7 +1916,18 @@
         <span class="image-label">IMAGE</span>
       </div>
       <div class="image-content"><img src="${dataUrl}" alt="${escapeHtml(fileName)}" loading="lazy" /></div>`;
+    addRemoveBlockBtn(ib.querySelector('.image-header'), ib);
     return ib;
+  }
+
+  function addRemoveBlockBtn(header, blockEl) {
+    if (!header) return;
+    const btn = document.createElement('button');
+    btn.className = 'remove-block-btn';
+    btn.title = 'Remove this block';
+    btn.textContent = '✕';
+    btn.onclick = e => { e.stopPropagation(); blockEl.remove(); };
+    header.appendChild(btn);
   }
 
   function appendHighlightedCodeBlock(parent, file, isMainFile) {
@@ -1727,51 +1959,65 @@
      Lets users override auto-detected main file per exercise.
   ═══════════════════════════════════════════════════════════════════ */
 
-  function addMarkMainButton(header, f, blockEl, ex) {
+  function addMarkMainButton(header, f, wrapEl, ex) {
     const btn = document.createElement('button');
     btn.className   = 'mark-main-btn' + (f.main ? ' is-main' : '');
-    btn.title       = f.main ? 'Currently main — click to unmark' : 'Mark as main file';
+    btn.title       = f.main ? 'Unmark as main' : 'Mark as main file';
     btn.textContent = f.main ? '★ main' : '☆ main';
-
+    // No exclusivity — multiple files can be marked main simultaneously
     btn.onclick = e => {
       e.stopPropagation();
       f.main = !f.main;
-      // If marking as main, unmark all other files in the same exercise
-      if (f.main) {
-        ex.files.forEach(other => {
-          if (other !== f && other.main) {
-            other.main = false;
-            const otherBlock = blockEl.closest('.ex-body')?.querySelector(`.code-block[data-file-name="${CSS.escape(other.name)}"]`);
-            if (otherBlock) syncMainUI(otherBlock, other, false);
-          }
-        });
-      }
-      syncMainUI(blockEl, f, f.main);
+      syncMainUI(wrapEl, f, f.main);
     };
     header.appendChild(btn);
   }
 
-  function syncMainUI(blockEl, f, isMain) {
+  /**
+   * syncMainUI — update one code-with-desc wrapper after its main flag changes.
+   * wrapEl: the .code-with-desc element; f: file data; isMain: new value.
+   */
+  function syncMainUI(wrapEl, f, isMain) {
     f.main = isMain;
-    const dot      = blockEl.querySelector('.code-dot');
-    const btn      = blockEl.querySelector('.mark-main-btn');
-    const mainTag  = blockEl.querySelector('[data-maintag]');
-    const extTag   = blockEl.querySelector('[data-exttag]');
+    const cb      = wrapEl.querySelector('.code-block');
+    const dot     = cb?.querySelector('.code-dot');
+    const btn     = cb?.querySelector('.mark-main-btn');
+    const mainTag = cb?.querySelector('[data-maintag]');
+    const extTag  = cb?.querySelector('[data-exttag]');
 
     if (dot) dot.className = 'code-dot' + (isMain ? ' main-dot' : '');
-    if (btn) { btn.textContent = isMain ? '★ main' : '☆ main'; btn.className = 'mark-main-btn' + (isMain ? ' is-main' : ''); btn.title = isMain ? 'Currently main — click to unmark' : 'Mark as main file'; }
-
+    if (btn) {
+      btn.textContent = isMain ? '★ main' : '☆ main';
+      btn.className   = 'mark-main-btn' + (isMain ? ' is-main' : '');
+      btn.title       = isMain ? 'Unmark as main' : 'Mark as main file';
+    }
     if (isMain && !mainTag && extTag) {
-      extTag.removeAttribute('data-exttag'); extTag.className = 'main-tag'; extTag.setAttribute('data-maintag',''); extTag.textContent = 'main';
+      extTag.removeAttribute('data-exttag'); extTag.className = 'main-tag';
+      extTag.setAttribute('data-maintag',''); extTag.textContent = 'main';
     } else if (!isMain && !extTag && mainTag) {
-      mainTag.removeAttribute('data-maintag'); mainTag.className = 'ext-tag'; mainTag.setAttribute('data-exttag',''); mainTag.textContent = `.${f.ext}`;
+      mainTag.removeAttribute('data-maintag'); mainTag.className = 'ext-tag';
+      mainTag.setAttribute('data-exttag',''); mainTag.textContent = '.' + f.ext;
     }
 
-    const codeNode = blockEl.querySelector('code');
+    const codeNode = cb?.querySelector('code');
     if (codeNode) {
+      // Remove hljs "already highlighted" marker so colours are restored
+      codeNode.removeAttribute('data-highlighted');
       codeNode.textContent = isMain ? stripLeadingBlockComment(f.content) : f.content;
       if (window.hljs) window.hljs.highlightElement(codeNode);
     }
+
+    // Refresh description note inside this wrapper
+    refreshDescNoteInWrap(wrapEl, f);
+
+    // Honour the current global desc toggle
+    const body   = wrapEl.closest('.ex-body');
+    const listEl = body?.closest('#ex-list, #general-ex-list');
+    const mode   = listEl?.id === 'ex-list' ? 'lab' : 'general';
+    const togId  = mode === 'lab' ? 'tog-lab-desc' : 'tog-gen-desc';
+    const showDesc = document.getElementById(togId)?.checked ?? true;
+    const note   = wrapEl.querySelector('.exercise-note[data-auto-desc]');
+    if (note && !showDesc) note.style.display = 'none';
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -1820,37 +2066,38 @@
 
   function initFileDragSort(body) {
     let src = null;
+    const DRAG_SEL  = '.code-with-desc[draggable],.output-block[draggable],.image-block[draggable]';
+    const HOVER_SEL = '.code-with-desc,.output-block,.image-block';
 
     body.addEventListener('dragstart', e => {
-      const block = e.target.closest('.code-block[draggable],.output-block[draggable],.image-block[draggable]');
+      const block = e.target.closest(DRAG_SEL);
       if (!block) return;
       src = block; block.classList.add('file-dragging'); e.dataTransfer.effectAllowed = 'move';
       e.stopPropagation();
     }, true);
     body.addEventListener('dragend', () => {
-      // Always sweep — dragend may fire after src was nulled
       body.querySelectorAll('.file-dragging').forEach(b => b.classList.remove('file-dragging'));
       body.querySelectorAll('.file-drag-over').forEach(b => b.classList.remove('file-drag-over'));
       src = null;
     }, true);
     body.addEventListener('dragover', e => {
       e.preventDefault(); e.stopPropagation();
-      const block = e.target.closest('.code-block,.output-block,.image-block');
+      const block = e.target.closest(HOVER_SEL);
       if (!block || block === src) return;
       body.querySelectorAll('.file-drag-over').forEach(b => b.classList.remove('file-drag-over'));
       block.classList.add('file-drag-over');
     }, true);
     body.addEventListener('dragleave', e => {
-      const block = e.target.closest('.code-block,.output-block,.image-block');
+      const block = e.target.closest(HOVER_SEL);
       if (block) block.classList.remove('file-drag-over');
       e.stopPropagation();
     }, true);
     body.addEventListener('drop', e => {
       e.preventDefault(); e.stopPropagation();
-      const target = e.target.closest('.code-block,.output-block,.image-block');
+      const target = e.target.closest(HOVER_SEL);
       if (!target || target === src || !src) return;
       target.classList.remove('file-drag-over');
-      const blocks = Array.from(body.querySelectorAll('.code-block,.output-block,.image-block,.exercise-note'));
+      const blocks = Array.from(body.querySelectorAll(HOVER_SEL));
       const si = blocks.indexOf(src), ti = blocks.indexOf(target);
       body.insertBefore(src, si < ti ? target.nextSibling : target);
       src = null;
@@ -2150,7 +2397,11 @@
     });
     await Promise.all(pending);
     if (labUtilsRenderPromise) await labUtilsRenderPromise;
+    document.querySelectorAll('#ex-list .ex-notes-area').forEach(ta => {
+      if (ta.value.trim()) ta.closest('.ex-notes-row')?.classList.add('has-notes');
+    });
     await doPdfCapture('view-lab', (selectedLab || 'lab').toLowerCase(), 'export-pdf-btn');
+    document.querySelectorAll('.ex-notes-row.has-notes').forEach(r => r.classList.remove('has-notes'));
   }
 
   async function exportGeneralPdf() {
@@ -2162,8 +2413,13 @@
       const ex     = generalData.find(e => e.name === exName);
       if (ex) populateBodyGeneral(body, ex);
     });
+    // Mark filled notes so they stay visible in PDF
+    document.querySelectorAll('#general-ex-list .ex-notes-area').forEach(ta => {
+      if (ta.value.trim()) ta.closest('.ex-notes-row')?.classList.add('has-notes');
+    });
     await new Promise(r => setTimeout(r, 200));
     await doPdfCapture('view-general', (selectedGeneralRootName || 'general').toLowerCase().replace(/\s+/g,'-'), 'export-general-pdf-btn');
+    document.querySelectorAll('.ex-notes-row.has-notes').forEach(r => r.classList.remove('has-notes'));
   }
 
   async function doPdfCapture(viewId, fileName, btnId) {
@@ -2266,14 +2522,178 @@
     return folderData.find(f => f.name === selectedCategory)?.labs.find(l => l.name === selectedLab) || null;
   }
   function extractExerciseHeaderFromMain(ex) {
-    const main = ex.files.find(f => f.main);
-    if (!main?.content) return '';
-    const m = main.content.match(/\/\*([\s\S]*?)\*\//);
+    const main = (ex.files || []).find(f => f.main);
+    return main ? extractDescFromFile(main) : '';
+  }
+  function extractDescFromFile(f) {
+    if (!f?.content) return '';
+    const m = f.content.match(/\/\*([\s\S]*?)\*\//);
     if (!m) return '';
     return m[1].split('\n').map(l => l.replace(/^\s*\*\s?/,'').trimEnd()).join('\n').trim();
   }
   function stripLeadingBlockComment(content) {
     return content ? content.replace(/^\s*\/\*[\s\S]*?\*\/\s*/,'') : '';
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════════
+     SECTION QOL: ADD FILES/IMAGES, NEW CARD, RESCAN, DROP ZONE
+  ═══════════════════════════════════════════════════════════════════ */
+
+  function pickAndAddFiles(body, ex, addRow) {
+    const input = document.createElement('input');
+    input.type = 'file'; input.multiple = true;
+    input.onchange = async () => {
+      for (const file of Array.from(input.files)) {
+        let content;
+        try { content = await file.text(); } catch { content = '[binary — cannot display]'; }
+        const ext = normalizeExtension(file.name);
+        const fileObj = { name: file.name, ext, main: false, content };
+        ex.files.push(fileObj);
+        const wrap = buildCodeBlock(fileObj, ex);
+        body.insertBefore(wrap, addRow);
+        const cn = wrap.querySelector('code');
+        if (cn && window.hljs) window.hljs.highlightElement(cn);
+        updateFileCount(wrap, ex);
+      }
+      initFileDragSort(body);
+    };
+    input.click();
+  }
+
+  function pickAndAddImages(body, ex, addRow) {
+    const input = document.createElement('input');
+    input.type = 'file'; input.multiple = true; input.accept = 'image/*';
+    input.onchange = async () => {
+      for (const file of Array.from(input.files)) {
+        const dataUrl = await new Promise(res => {
+          const r = new FileReader();
+          r.onload = () => res(r.result); r.onerror = () => res('');
+          r.readAsDataURL(file);
+        });
+        if (!dataUrl) continue;
+        ex.images = ex.images || [];
+        ex.images.push({ fileName: file.name, dataUrl });
+        body.insertBefore(buildImageBlock(file.name, dataUrl), addRow);
+      }
+      initFileDragSort(body);
+    };
+    input.click();
+  }
+
+  function addNewGeneralCard() {
+    const newEx = { name: 'New Card', files: [], images: [], outputSectionsCache: [], _notes: '' };
+    generalData.push(newEx);
+    const list = document.getElementById('general-ex-list');
+    const item = buildExerciseItem(newEx, generalData.length - 1);
+    item.querySelector('.ex-header').onclick = e => {
+      if (e.target.closest('.drag-handle,.ex-title-input,.ex-delete-btn')) return;
+      item.classList.toggle('open');
+      if (item.classList.contains('open')) populateBodyGeneral(item.querySelector('.ex-body'), newEx);
+    };
+    list.appendChild(item);
+    item.classList.add('open');
+    populateBodyGeneral(item.querySelector('.ex-body'), newEx);
+    const ti = item.querySelector('.ex-title-input');
+    if (ti) { ti.select(); setTimeout(() => ti.focus(), 50); }
+    const tag = document.getElementById('general-tag');
+    if (tag) tag.textContent = `${generalData.length} item${generalData.length !== 1 ? 's' : ''}`;
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function addFilesToNewCard() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.multiple = true;
+    input.onchange = async () => {
+      if (!input.files.length) return;
+      const newEx = { name: 'Dropped Files', files: [], images: [], outputSectionsCache: [], _notes: '' };
+      generalData.push(newEx);
+      for (const file of Array.from(input.files)) {
+        if (isImageFile(file.name)) {
+          const dataUrl = await new Promise(res => {
+            const r = new FileReader();
+            r.onload = () => res(r.result); r.onerror = () => res('');
+            r.readAsDataURL(file);
+          });
+          if (dataUrl) newEx.images.push({ fileName: file.name, dataUrl });
+        } else {
+          let content;
+          try { content = await file.text(); } catch { content = '[binary]'; }
+          const ext = normalizeExtension(file.name);
+          newEx.files.push({ name: file.name, ext, main: isPrimarySourceFileName(file.name), content });
+        }
+      }
+      if (newEx.files.length === 1) newEx.name = newEx.files[0].name;
+      else if (newEx.files.length === 0 && newEx.images.length === 1) newEx.name = newEx.images[0].fileName;
+      const list = document.getElementById('general-ex-list');
+      const item = buildExerciseItem(newEx, generalData.length - 1);
+      item.querySelector('.ex-header').onclick = e => {
+        if (e.target.closest('.drag-handle,.ex-title-input,.ex-delete-btn')) return;
+        item.classList.toggle('open');
+        if (item.classList.contains('open')) populateBodyGeneral(item.querySelector('.ex-body'), newEx);
+      };
+      list.appendChild(item);
+      item.classList.add('open');
+      populateBodyGeneral(item.querySelector('.ex-body'), newEx);
+      const tag = document.getElementById('general-tag');
+      if (tag) tag.textContent = `${generalData.length} item${generalData.length !== 1 ? 's' : ''}`;
+      item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    input.click();
+  }
+
+  function rescanGeneral() {
+    if (selectedGeneralHandle) loadGeneralDataFromDirectoryHandle(selectedGeneralHandle);
+    else openGeneralFolder();
+  }
+
+  function initGenDropzone() {
+    const zone = document.getElementById('gen-dropzone');
+    const view = document.getElementById('view-general');
+    if (!zone || !view) return;
+    view.addEventListener('dragover', e => {
+      if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); zone.classList.add('drag-over'); }
+    });
+    view.addEventListener('dragleave', e => {
+      if (!view.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+    });
+    view.addEventListener('drop', async e => {
+      e.preventDefault(); zone.classList.remove('drag-over');
+      const files = Array.from(e.dataTransfer.files);
+      if (!files.length) return;
+      const newEx = { name: 'Dropped Files', files: [], images: [], outputSectionsCache: [], _notes: '' };
+      generalData.push(newEx);
+      for (const file of files) {
+        if (isImageFile(file.name)) {
+          const dataUrl = await new Promise(res => {
+            const r = new FileReader();
+            r.onload = () => res(r.result); r.onerror = () => res('');
+            r.readAsDataURL(file);
+          });
+          if (dataUrl) newEx.images.push({ fileName: file.name, dataUrl });
+        } else {
+          let content;
+          try { content = await file.text(); } catch { content = '[binary]'; }
+          const ext = normalizeExtension(file.name);
+          newEx.files.push({ name: file.name, ext, main: isPrimarySourceFileName(file.name), content });
+        }
+      }
+      if (newEx.files.length === 1) newEx.name = newEx.files[0].name;
+      else if (newEx.files.length === 0 && newEx.images.length === 1) newEx.name = newEx.images[0].fileName;
+      const list = document.getElementById('general-ex-list');
+      const item = buildExerciseItem(newEx, generalData.length - 1);
+      item.querySelector('.ex-header').onclick = e2 => {
+        if (e2.target.closest('.drag-handle,.ex-title-input,.ex-delete-btn')) return;
+        item.classList.toggle('open');
+        if (item.classList.contains('open')) populateBodyGeneral(item.querySelector('.ex-body'), newEx);
+      };
+      list.appendChild(item);
+      item.classList.add('open');
+      populateBodyGeneral(item.querySelector('.ex-body'), newEx);
+      const tag = document.getElementById('general-tag');
+      if (tag) tag.textContent = `${generalData.length} item${generalData.length !== 1 ? 's' : ''}`;
+      item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════
@@ -2286,6 +2706,7 @@
     updateStaticUiText();
     updateTopbarTitle();
     initThemePicker();
+    initGenDropzone();
     await loadReadmeHowTo();
     showLanding();
   });
