@@ -1205,106 +1205,30 @@
     }
     .utils-collapse-btn:hover { background:rgba(210,168,255,.12); }
 
-    /* ═══ UTILS INFO NOTICE (top of view) ═══ */
-    .utils-info-notice {
-      display:flex; align-items:center; gap:10px; margin-bottom:14px;
-      padding:10px 14px; border-radius:8px;
-      background:rgba(210,168,255,.08); border:1px solid rgba(210,168,255,.3);
-      font-family:var(--mono); font-size:11px; color:var(--accent4);
-    }
-    .utils-info-icon { font-size:16px; flex-shrink:0; }
-    .utils-info-text { flex:1; line-height:1.5; }
-    .utils-info-tag {
-      display:inline-block; padding:0px 6px; border-radius:10px;
-      background:rgba(210,168,255,.15); border:1px solid rgba(210,168,255,.35);
-      font-size:10px; vertical-align:middle;
-    }
-    .utils-info-dismiss {
-      background:transparent; border:none; color:var(--muted); font-size:14px;
-      cursor:pointer; padding:0 2px; flex-shrink:0; line-height:1;
-    }
-    .utils-info-dismiss:hover { color:var(--text); }
-
-    /* ═══ UTILS TAG IN EXERCISE HEADER ═══ */
+    /* ═══ UTILS INLINE WARNING (inside each exercise header) ═══ */
     .ex-utils-tag {
-      margin-left:auto;
-      display:inline-flex; align-items:center; gap:4px;
-      border:1px dashed rgba(210,168,255,.45);
-      background:rgba(210,168,255,.08);
-      border-radius:999px;
-      padding:2px 8px;
-      font-family:var(--mono);
-      font-size:10px;
-      color:var(--accent4);
-      line-height:1;
+      font-family:var(--mono); font-size:9px; letter-spacing:.04em;
+      padding:2px 7px; border-radius:20px;
+      background:rgba(210,168,255,.12); color:var(--accent4);
+      border:1px solid rgba(210,168,255,.3); flex-shrink:0;
     }
-    .ex-utils-tag .label { white-space:nowrap; }
-    .ex-utils-tag-remove {
-      background:transparent;
-      border:none;
-      color:var(--muted);
-      cursor:pointer;
-      font-size:12px;
-      line-height:1;
-      padding:0;
-      margin-left:2px;
-    }
-    .ex-utils-tag-remove:hover { color:var(--accent3); }
 
     /* ═══ UTILS FOOTER INSIDE EXERCISE BODY ═══ */
     .ex-utils-footer {
-      margin-top:4px; padding:10px 14px;
+      margin-top:4px; padding:10px 12px;
       border:1px dashed rgba(210,168,255,.4); border-radius:8px;
       background:rgba(210,168,255,.05); font-family:var(--mono); font-size:11px;
+      color:var(--accent4); line-height:1.6;
     }
-    .ex-utils-footer-title {
-      display:flex; align-items:center; gap:8px; margin-bottom:8px;
-      font-size:10px; letter-spacing:.06em; text-transform:uppercase;
-      color:var(--accent4);
-    }
-    .ex-utils-chips { display:flex; flex-wrap:wrap; gap:6px; }
-
-    /* Chip — file name with ✕ */
-    .utils-file-chip {
-      display:inline-flex; align-items:center; gap:4px;
-      padding:2px 6px 2px 8px; border-radius:12px;
+    .ex-utils-footer strong { display:block; margin-bottom:4px; font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+    .ex-utils-footer .utils-file-chip {
+      display:inline-block; margin:2px 4px 2px 0;
+      padding:1px 8px; border-radius:12px;
       background:rgba(210,168,255,.1); border:1px solid rgba(210,168,255,.25);
-      color:var(--text); font-size:10px; font-family:var(--mono);
+      color:var(--text); font-size:10px;
     }
-    .utils-chip-remove {
-      background:transparent; border:none; color:var(--muted); cursor:pointer;
-      font-size:12px; padding:0; line-height:1; transition:color .15s;
-    }
-    .utils-chip-remove:hover { color:var(--accent3); }
-
-    /* ＋ Add button */
-    .utils-chip-add-btn {
-      background:transparent; border:1px solid rgba(210,168,255,.3); color:var(--accent4);
-      border-radius:10px; font-family:var(--mono); font-size:10px;
-      padding:2px 8px; cursor:pointer; transition:background .15s;
-    }
-    .utils-chip-add-btn:hover { background:rgba(210,168,255,.12); }
-
-    /* Chip picker popover */
-    .utils-chip-picker {
-      position:relative; display:flex; flex-wrap:wrap; gap:4px;
-      margin-top:6px; padding:8px;
-      background:var(--surface2); border:1px solid var(--border); border-radius:8px;
-      z-index:10;
-    }
-    .utils-chip-picker-opt {
-      background:var(--surface); border:1px solid var(--border); color:var(--text);
-      border-radius:8px; font-family:var(--mono); font-size:10px; padding:3px 10px;
-      cursor:pointer; transition:border-color .15s, color .15s;
-    }
-    .utils-chip-picker-opt:hover { border-color:var(--accent4); color:var(--accent4); }
-
     body.exporting-pdf .ex-utils-footer { border-style:solid; }
-    body.exporting-pdf .utils-chip-remove,
-    body.exporting-pdf .utils-chip-add-btn,
-    body.exporting-pdf .utils-chip-picker,
-    body.exporting-pdf .utils-collapse-btn,
-    body.exporting-pdf .utils-info-dismiss { display:none !important; }
+    body.exporting-pdf .utils-collapse-btn { display:none !important; }
 
   </style>
 </head>
@@ -1395,7 +1319,7 @@
           <button class="mode-option" id="mode-text-btn" onclick="selectMode('text')">
             <span class="mode-icon">¶</span>
             <span class="mode-label">Text Mode</span>
-            <span class="mode-desc">Report-first: .txt as description, .csv as tables, .json as formatted output.</span>
+            <span class="mode-desc">Text files (.txt, .md) as main content. /* */ becomes description.</span>
           </button>
         </div>
         <div class="landing-btn-row">
@@ -1455,27 +1379,16 @@
             <div><div>Show exercise descriptions</div><div class="toggle-desc">Block comment from each main-flagged file</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-main-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
-          <div class="toggle-row" id="tog-main-txt-row" style="display:none">
-            <div><div>Use .txt as description</div><div class="toggle-desc">Text Mode: on = show .txt as exercise description, off = show raw .txt blocks</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-main-txt-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
-          </div>
           <div class="toggle-row">
             <div><div>Show notes field</div><div class="toggle-desc">Editable annotation per exercise</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-main-notes" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
-          <div class="toggle-row" id="tog-main-utils-row">
+          <div class="toggle-row">
             <div><div>Show utils section</div><div class="toggle-desc">Shared utility files shown below exercises</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-main-utils" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
         </div>
       </div>
-      <!-- Utils info notice — appears automatically when utils folder is loaded -->
-      <div class="utils-info-notice" id="utils-info-notice" style="display:none">
-        <span class="utils-info-icon">📦</span>
-        <span class="utils-info-text">Exercises showing a <span class="utils-info-tag">📦 utils</span> footer use shared helper files from the loaded utils folder below.</span>
-        <button class="utils-info-dismiss" onclick="dismissUtilsNotice()" title="Dismiss">✕</button>
-      </div>
-
       <div class="ex-list" id="general-ex-list"></div>
 
       <!-- Utils banner — shown when a utils folder is loaded -->
