@@ -979,12 +979,20 @@ async function loadReadmeHowTo(handle) {
   const panel = document.getElementById('landing-howto-panel');
   const pre   = document.getElementById('howto-content');
   if (panel) panel.style.display = 'none';
-  if (!handle) return;
   try {
     const raceText = (p) => Promise.race([p, new Promise(r=>setTimeout(()=>r(''),2000))]);
     let text = '';
-    for (const name of ['README.md','readme.md','Readme.md']) {
-      try { const h=await handle.getFileHandle(name); text=await raceText(readTextFromHandle(h)); break; } catch {}
+    if (handle) {
+      for (const name of ['README.md','readme.md','Readme.md']) {
+        try { const h=await handle.getFileHandle(name); text=await raceText(readTextFromHandle(h)); break; } catch {}
+      }
+    } else {
+      for (const name of ['README.md','readme.md','Readme.md']) {
+        try {
+          const t = await raceText(fetch(`./${name}`, { cache:'no-store' }).then(r => r.ok ? r.text() : ''));
+          if (t && String(t).trim()) { text = String(t); break; }
+        } catch {}
+      }
     }
     if (text && text.trim()) {
       if (pre) pre.textContent = text;
