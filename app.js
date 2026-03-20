@@ -7,10 +7,10 @@
 
 import { CODE_MODE, TEXT_MODE, getModeById, ALL_MODES } from './mode-config.js';
 import { scanFolder, scanUtilsFolder, readTextFromHandle, readImageDataUrlFromHandle,
-         extractOutputSections, isImageFile, getExt } from './scanner.js';
+         extractOutputSections, isImageFile, isDescriptionImage, getExt } from './scanner.js';
 import { buildFileBlock, buildOutputBlock, buildEmptyOutputBlock,
          buildImageBlock, renderBodyContents, syncFileBlockUI,
-         buildAutoDescNote, escapeHtml, updateFileCountBadge } from './renderer.js';
+         buildAutoDescNote, buildImageDescNote, escapeHtml, updateFileCountBadge } from './renderer.js';
 
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
@@ -65,6 +65,27 @@ const coverInfo = {
   title:    'Institute Technology of Cambodia',
   subtitle: 'Lab Report',
 };
+
+/** Extract a zero-padded lab number from a folder name.
+ *  "Lab3", "lab_03", "03_lab", "Exercise3", "3" → 3 → "03"
+ *  Returns null if no number found.
+ */
+function extractLabNumber(name) {
+  const m = String(name || '').match(/\d+/);
+  if (!m) return null;
+  const n = parseInt(m[0], 10);
+  return isNaN(n) ? null : String(n).padStart(2, '0');
+}
+
+/** Build the cover subtitle from a folder name.
+ *  Folder "Lab3" → "Lab03 - Report"
+ *  Folder "03"   → "Lab03 - Report"
+ *  No number     → "Lab Report"  (fallback)
+ */
+function buildLabSubtitle(name) {
+  const num = extractLabNumber(name);
+  return num ? `Lab${num} - Report` : 'Lab Report';
+}
 let coverSections = [
   { label:'Course',     value:'Course' },
   { label:'Author',     value:'Author' },
@@ -190,9 +211,14 @@ async function loadFolder(handle) {
     badge.className   = `mode-badge mode-badge--${activeMode.id}`;
   }
 
-  coverInfo.title = folderName || 'Report';
-  const inp = document.getElementById('cover-title-input');
-  if (inp) inp.value = coverInfo.title;
+  // Always reset cover fields on new folder load
+  coverInfo.title    = 'Institute Technology of Cambodia';
+  coverInfo.subtitle = buildLabSubtitle(folderName);
+
+  const titleInp = document.getElementById('cover-title-input');
+  const subInp   = document.getElementById('cover-subtitle-input');
+  if (titleInp) titleInp.value = coverInfo.title;
+  if (subInp)   subInp.value   = coverInfo.subtitle;
   syncCoverPreview();
 
   loadReadmeHowTo(handle);
@@ -431,6 +457,7 @@ function renderExercises() {
   });
   if (utilsFiles.length) injectUtilsTagsIntoCards();
   initDragSort(list);
+  initBlockDragSort(list);
 }
 
 function buildExerciseItem(ex, idx) {
@@ -538,6 +565,7 @@ function applyToggles() {
 
   const showOut   = document.getElementById(p+'-output')?.checked ?? true;
   const showImg   = document.getElementById(p+'-images')?.checked ?? true;
+  const showImgDesc = document.getElementById(p+'-image-desc')?.checked ?? true;
   const showEmpty = document.getElementById(p+'-empty-output')?.checked ?? true;
   const showDesc  = document.getElementById(p+'-desc')?.checked ?? true;
   const showNotes = document.getElementById(p+'-notes')?.checked ?? true;
@@ -548,6 +576,9 @@ function applyToggles() {
     ob.style.display = (isEmpty ? showEmpty : showOut) ? '' : 'none';
   });
   list.querySelectorAll('.image-block').forEach(ib => { ib.style.display = showImg ? '' : 'none'; });
+  list.querySelectorAll('.image-description-note').forEach(en => {
+    en.style.display = (!showImgDesc || en.dataset.userHidden === '1') ? 'none' : '';
+  });
   list.querySelectorAll('.exercise-note[data-auto-desc]').forEach(en => {
     en.style.display = (!showDesc || en.dataset.userHidden === '1') ? 'none' : '';
   });
@@ -599,9 +630,18 @@ function pickAndAddImages(body, ex, addRow) {
         r.readAsDataURL(file);
       });
       if (!dataUrl) continue;
-      ex.images = ex.images || [];
-      ex.images.push({ fileName:file.name, dataUrl });
-      body.insertBefore(buildImageBlock(file.name, dataUrl), addRow);
+      
+      // Classify as description or regular image
+      if (isDescriptionImage(file.name)) {
+        ex.descImages = ex.descImages || [];
+        ex.descImages.push({ fileName: file.name, dataUrl });
+        const imgDescNote = buildImageDescNote(dataUrl, file.name);
+        body.insertBefore(imgDescNote, body.firstChild);
+      } else {
+        ex.images = ex.images || [];
+        ex.images.push({ fileName: file.name, dataUrl });
+        body.insertBefore(buildImageBlock(file.name, dataUrl), addRow);
+      }
     }
     initFileDragSort(body);
   };
@@ -610,7 +650,7 @@ function pickAndAddImages(body, ex, addRow) {
 
 function addNewCard() {
   const mc  = activeMode;
-  const ex  = { name:'New Card', files:[], images:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
+  const ex  = { name:'New Card', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
   exercises.push(ex);
   const list = document.getElementById('general-ex-list');
   const item = buildExerciseItem(ex, exercises.length - 1);
@@ -634,7 +674,7 @@ function addFilesToNewCard() {
   input.onchange = async () => {
     if (!input.files.length) return;
     const mc = activeMode;
-    const ex = { name:'Files', files:[], images:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
+    const ex = { name:'Files', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
     exercises.push(ex);
     for (const file of Array.from(input.files)) {
       if (isImageFile(file.name)) {
@@ -642,7 +682,13 @@ function addFilesToNewCard() {
           const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res('');
           r.readAsDataURL(file);
         });
-        if (dataUrl) ex.images.push({ fileName:file.name, dataUrl });
+        if (dataUrl) {
+          if (isDescriptionImage(file.name)) {
+            ex.descImages.push({ fileName: file.name, dataUrl });
+          } else {
+            ex.images.push({ fileName:file.name, dataUrl });
+          }
+        }
       } else {
         let content; try { content = await file.text(); } catch { content = '[binary]'; }
         const ext = getExt(file.name);
@@ -650,7 +696,9 @@ function addFilesToNewCard() {
       }
     }
     if (ex.files.length === 1) ex.name = ex.files[0].name;
-    else if (!ex.files.length && ex.images.length === 1) ex.name = ex.images[0].fileName;
+    else if (!ex.files.length && (ex.images.length + ex.descImages.length === 1)) {
+      ex.name = (ex.images[0]?.fileName || ex.descImages[0]?.fileName || 'Files');
+    }
     const list = document.getElementById('general-ex-list');
     const item = buildExerciseItem(ex, exercises.length - 1);
     item.querySelector('.ex-header').onclick = e => {
@@ -685,7 +733,7 @@ function initGenDropzone() {
     const files = Array.from(e.dataTransfer.files);
     if (!files.length) return;
     const mc = activeMode;
-    const ex = { name:'Dropped Files', files:[], images:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
+    const ex = { name:'Dropped Files', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
     exercises.push(ex);
     for (const file of files) {
       if (isImageFile(file.name)) {
@@ -693,7 +741,13 @@ function initGenDropzone() {
           const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res('');
           r.readAsDataURL(file);
         });
-        if (dataUrl) ex.images.push({ fileName:file.name, dataUrl });
+        if (dataUrl) {
+          if (isDescriptionImage(file.name)) {
+            ex.descImages.push({ fileName: file.name, dataUrl });
+          } else {
+            ex.images.push({ fileName:file.name, dataUrl });
+          }
+        }
       } else {
         let content; try { content = await file.text(); } catch { content = '[binary]'; }
         const ext = getExt(file.name);
@@ -701,7 +755,9 @@ function initGenDropzone() {
       }
     }
     if (ex.files.length === 1) ex.name = ex.files[0].name;
-    else if (!ex.files.length && ex.images.length === 1) ex.name = ex.images[0].fileName;
+    else if (!ex.files.length && (ex.images.length + ex.descImages.length === 1)) {
+      ex.name = (ex.images[0]?.fileName || ex.descImages[0]?.fileName || 'Dropped Files');
+    }
     const list = document.getElementById('general-ex-list');
     const item = buildExerciseItem(ex, exercises.length - 1);
     item.querySelector('.ex-header').onclick = e2 => {
@@ -794,15 +850,164 @@ function initDragSort(list) {
   list.addEventListener('drop',e=>{e.preventDefault();const t=e.target.closest('.ex-item');if(!t||t===src||!src)return;t.classList.remove('drag-over');const items=Array.from(list.querySelectorAll('.ex-item'));const si=items.indexOf(src),ti=items.indexOf(t);list.insertBefore(src,si<ti?t.nextSibling:t);Array.from(list.querySelectorAll('.ex-item')).forEach((el,i)=>{const b=el.querySelector('.ex-num');if(b)b.textContent=String(i+1);});src=null;});
 }
 
-function initFileDragSort(body) {
-  let src=null;
-  const DS='.code-with-desc[draggable],.output-block[draggable],.image-block[draggable]';
-  const HS='.code-with-desc,.output-block,.image-block';
-  body.addEventListener('dragstart',e=>{const b=e.target.closest(DS);if(!b)return;src=b;b.classList.add('file-dragging');e.dataTransfer.effectAllowed='move';e.stopPropagation();},true);
-  body.addEventListener('dragend',()=>{body.querySelectorAll('.file-dragging,.file-drag-over').forEach(b=>b.classList.remove('file-dragging','file-drag-over'));src=null;},true);
-  body.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();const b=e.target.closest(HS);if(!b||b===src)return;body.querySelectorAll('.file-drag-over').forEach(x=>x.classList.remove('file-drag-over'));b.classList.add('file-drag-over');},true);
-  body.addEventListener('dragleave',e=>{const b=e.target.closest(HS);if(b)b.classList.remove('file-drag-over');e.stopPropagation();},true);
-  body.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();const t=e.target.closest(HS);if(!t||t===src||!src)return;t.classList.remove('file-drag-over');const bl=Array.from(body.querySelectorAll(HS));const si=bl.indexOf(src),ti=bl.indexOf(t);body.insertBefore(src,si<ti?t.nextSibling:t);src=null;},true);
+/**
+ * initBlockDragSort — unified drag for ALL block types within AND across exercises.
+ * Also integrates with storage panel via window.__dragSrc.
+ */
+function initBlockDragSort(list) {
+  const BLOCK_SEL = '.code-with-desc,.output-block,.image-block,.image-description-note';
+  let src = null, srcBody = null;
+
+  list.addEventListener('dragstart', e => {
+    const b = e.target.closest(BLOCK_SEL + '[draggable="true"]');
+    if (!b) return;
+    src = b; srcBody = b.closest('.ex-body');
+    window.__dragSrc = b; window.__dragSrcStorage = null;
+    b.classList.add('file-dragging');
+    e.dataTransfer.effectAllowed = 'move'; e.stopPropagation();
+  }, true);
+
+  list.addEventListener('dragend', () => {
+    list.querySelectorAll('.file-dragging,.file-drag-over,.cross-drag-over')
+      .forEach(el => el.classList.remove('file-dragging','file-drag-over','cross-drag-over'));
+    window.__dragSrc = null;
+    src = null; srcBody = null;
+  }, true);
+
+  list.addEventListener('dragover', e => {
+    if (!src) return;
+    e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
+    const hoverBlock = e.target.closest(BLOCK_SEL);
+    const hoverBody  = e.target.closest('.ex-body');
+    list.querySelectorAll('.file-drag-over,.cross-drag-over')
+      .forEach(el => el.classList.remove('file-drag-over','cross-drag-over'));
+    if (hoverBlock && hoverBlock !== src) hoverBlock.classList.add('file-drag-over');
+    else if (hoverBody && hoverBody !== srcBody) hoverBody.classList.add('cross-drag-over');
+  }, true);
+
+  list.addEventListener('dragleave', e => {
+    const b = e.target.closest(BLOCK_SEL); if (b) b.classList.remove('file-drag-over');
+    const bd = e.target.closest('.ex-body'); if (bd) bd.classList.remove('cross-drag-over');
+  }, true);
+
+  list.addEventListener('drop', e => {
+    if (!src) return;
+    e.preventDefault(); e.stopPropagation();
+    const dropBlock = e.target.closest(BLOCK_SEL);
+    const dropBody  = e.target.closest('.ex-body');
+    if (!dropBody && !dropBlock) return;
+    const targetBody = dropBody || dropBlock?.closest('.ex-body');
+    if (!targetBody) return;
+    targetBody.classList.remove('cross-drag-over');
+
+    // Remove from storage stash if it came from there
+    window.__dragSrcStorage?.remove(); window.__dragSrcStorage = null;
+
+    const isSameBody = targetBody === srcBody;
+
+    if (isSameBody && dropBlock && dropBlock !== src) {
+      // A: Intra-exercise reorder
+      const blocks = Array.from(targetBody.querySelectorAll(BLOCK_SEL));
+      const si = blocks.indexOf(src), ti = blocks.indexOf(dropBlock);
+      targetBody.insertBefore(src, si < ti ? dropBlock.nextSibling : dropBlock);
+    } else if (!isSameBody) {
+      // B: Cross-exercise move
+      const srcItem = srcBody?.closest('.ex-item');
+      const tgtItem = targetBody.closest('.ex-item');
+      if (!srcItem || !tgtItem || srcItem === tgtItem) return;
+      const srcEx = exercises.find(ex => ex.name === srcItem.dataset.exName);
+      const tgtEx = exercises.find(ex => ex.name === tgtItem.dataset.exName);
+      if (!srcEx || !tgtEx) return;
+
+      const blockType = src.dataset.blockType;
+      if (blockType === 'code') {
+        const fname = src.dataset.fileName;
+        const fi = (srcEx.files||[]).findIndex(f => f.name === fname);
+        if (fi > -1) { const [f] = srcEx.files.splice(fi,1); (tgtEx.files=tgtEx.files||[]).push(f); updateFileCountBadge(src,srcEx); updateFileCountBadge(src,tgtEx); }
+      } else if (blockType === 'output') {
+        const fname = src.querySelector('.fname')?.textContent.split('·')[0].trim();
+        const oi = (srcEx.outputSectionsCache||[]).findIndex(o=>o.fileName===fname);
+        if (oi > -1) { const [o]=srcEx.outputSectionsCache.splice(oi,1); (tgtEx.outputSectionsCache=tgtEx.outputSectionsCache||[]).push(o); }
+      } else if (blockType === 'image') {
+        const fname = src.querySelector('.fname')?.textContent;
+        const ii = (srcEx.images||[]).findIndex(img=>img.fileName===fname);
+        if (ii > -1) { const [img]=srcEx.images.splice(ii,1); (tgtEx.images=tgtEx.images||[]).push(img); }
+      } else if (blockType === 'image-desc') {
+        const fname = src.dataset.fileName;
+        const di = (srcEx.descImages||[]).findIndex(img=>img.fileName===fname);
+        if (di > -1) { const [img]=srcEx.descImages.splice(di,1); (tgtEx.descImages=tgtEx.descImages||[]).push(img); }
+      }
+
+      // Place in target: near drop block or before add-row
+      if (dropBlock && dropBlock !== src && dropBlock.closest('.ex-body') === targetBody) {
+        targetBody.insertBefore(src, dropBlock);
+      } else {
+        const anchor = targetBody.querySelector('.ex-add-row,.ex-notes-row');
+        anchor ? targetBody.insertBefore(src, anchor) : targetBody.appendChild(src);
+      }
+    }
+    src.classList.remove('file-dragging'); src = null; srcBody = null;
+  }, true);
+}
+
+// Legacy shim — populateExerciseBody still calls this; unified system is at list level.
+function initFileDragSort(body) {}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SECTION 9b: STORAGE PANEL
+// Floating stash on the right edge. Drop any block in to park it,
+// scroll freely, then drag it back out into any exercise body.
+// ══════════════════════════════════════════════════════════════════════════
+
+function initStoragePanel() {
+  const panel  = document.getElementById('storage-panel');
+  const toggle = document.getElementById('storage-toggle-btn');
+  const drop   = document.getElementById('storage-drop-zone');
+  if (!panel || !drop) return;
+
+  if (toggle) toggle.addEventListener('click', () => {
+    panel.classList.toggle('open');
+    const isOpen = panel.classList.contains('open');
+    const icon = toggle.querySelector('.tab-icon');
+    if (icon) icon.textContent = isOpen ? '▶' : '⬡';
+    toggle.title = isOpen ? 'Close block stash' : 'Open block stash';
+  });
+
+  const BLOCK_SEL = '.code-with-desc,.output-block,.image-block,.image-description-note';
+
+  panel.addEventListener('dragover', e => {
+    if (!window.__dragSrc) return;
+    e.preventDefault(); e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    drop.classList.add('storage-drag-over');
+  });
+  panel.addEventListener('dragleave', e => {
+    if (!panel.contains(e.relatedTarget)) drop.classList.remove('storage-drag-over');
+  });
+  panel.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation();
+    drop.classList.remove('storage-drag-over');
+    const src = window.__dragSrc;
+    if (!src) return;
+
+    const card = document.createElement('div');
+    card.className = 'storage-card';
+    card.draggable = true;
+    card.appendChild(src);
+    drop.appendChild(card);
+
+    card.addEventListener('dragstart', ev => {
+      window.__dragSrc = src;
+      window.__dragSrcStorage = card;
+      src.classList.add('file-dragging');
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.stopPropagation();
+    });
+    card.addEventListener('dragend', () => {
+      src.classList.remove('file-dragging');
+      if (!panel.contains(src)) card.remove();
+    });
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -844,6 +1049,12 @@ function showLanding() {
   activate('view-landing');
   setCoverPanelVisible(false);
   document.getElementById('export-general-pdf-btn')?.style?.setProperty('display','none');
+  // Close stash panel when going back to landing
+  const panel = document.getElementById('storage-panel');
+  if (panel) panel.classList.remove('open');
+  document.getElementById('storage-panel')?.classList.remove('open');
+  const tabIcon = document.querySelector('#storage-toggle-btn .tab-icon');
+  if (tabIcon) tabIcon.textContent = '⬡';
   renderBreadcrumb([{ label:'Home', active:true }]);
 }
 function showMain() {
@@ -966,7 +1177,11 @@ function applyTheme(name) {
 }
 function initThemePicker() {
   document.querySelectorAll('.theme-swatch').forEach(sw=>sw.addEventListener('click',()=>applyTheme(sw.dataset.theme||'')));
-  try{const s=localStorage.getItem('rg-theme');if(s!==null)applyTheme(s);}catch{}
+  // Try both key names so saved preferences migrate from older builds
+  try {
+    const s = localStorage.getItem('rg-theme') ?? localStorage.getItem('reportgen-theme');
+    if (s !== null) applyTheme(s);
+  } catch {}
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1033,6 +1248,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initCoverEditor();
   initThemePicker();
   initGenDropzone();
+  initStoragePanel();
   syncModeUi();
   updateCoverControls();
   showLanding();

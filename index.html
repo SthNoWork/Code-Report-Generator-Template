@@ -1287,6 +1287,176 @@
     body.exporting-pdf .utils-collapse-btn,
     body.exporting-pdf .utils-info-dismiss { display:none !important; }
 
+  
+    /* ═══════════════════════════════════════════════════
+       STORAGE PANEL — fixed right-edge block stash
+    ═══════════════════════════════════════════════════ */
+    /* ─────────────────────────────────────────────────────────────
+       BLOCK STASH
+       Two independent fixed elements:
+         1. .storage-tab   — the always-visible pull tab on the right edge
+         2. .storage-panel — the drawer that slides in from the right
+       They share a CSS variable --stash-w for the open width.
+    ───────────────────────────────────────────────────────────── */
+    :root { --stash-w: 300px; --stash-top: 48px; }
+
+    /* Drawer panel — slides in from right, sits behind the tab */
+    .storage-panel {
+      position:fixed; top:var(--stash-top); right:0;
+      height:calc(100vh - var(--stash-top));
+      width:0; overflow:hidden;
+      background:var(--surface);
+      border-left:1px solid var(--border);
+      box-shadow:-6px 0 24px rgba(0,0,0,.18);
+      z-index:198;
+      transition:width .25s ease;
+      display:flex; flex-direction:column;
+      pointer-events:none;
+    }
+    .storage-panel.open {
+      width:var(--stash-w);
+      pointer-events:auto;
+    }
+    body:not(:has(#view-general.active)) .storage-panel,
+    body:not(:has(#view-general.active)) .storage-tab { display:none; }
+
+    /* Pull tab — fixed, always on the left edge of the drawer */
+    .storage-tab {
+      position:fixed;
+      top:50vh; transform:translateY(-50%);
+      /* right = 0 when closed, stash-w when open */
+      right:0;
+      transition:right .25s ease;
+      z-index:199;
+    }
+    .storage-panel.open ~ .storage-tab,
+    .storage-panel.open + .storage-tab { right:var(--stash-w); }
+
+    .storage-toggle-btn {
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:4px;
+      width:42px; height:84px;
+      border:none; border-radius:10px 0 0 10px;
+      cursor:pointer;
+      /* Closed: vivid accent so users find it */
+      background:var(--accent4); color:#fff;
+      box-shadow:-4px 0 16px rgba(0,0,0,.28);
+      transition:background .15s, box-shadow .15s;
+      animation:stash-pulse 3s ease-in-out infinite;
+    }
+    .storage-toggle-btn:hover {
+      background:var(--accent); color:#fff;
+      box-shadow:-4px 0 22px rgba(88,166,255,.55);
+      animation:none;
+    }
+    /* Open state — muted close button */
+    .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    .storage-panel.open + .storage-tab .storage-toggle-btn {
+      animation:none;
+      background:var(--surface2);
+      color:var(--muted);
+      box-shadow:-2px 0 8px rgba(0,0,0,.1);
+      border-right:1px solid var(--border);
+    }
+    .storage-toggle-btn .tab-icon  { font-size:16px; line-height:1; }
+    .storage-toggle-btn .tab-label {
+      font-family:var(--mono); font-size:8px; letter-spacing:.06em;
+      text-transform:uppercase; writing-mode:vertical-rl;
+      transform:rotate(180deg); opacity:.9;
+    }
+    @keyframes stash-pulse {
+      0%,100% { box-shadow:-4px 0 12px rgba(0,0,0,.22); }
+      50%      { box-shadow:-4px 0 26px rgba(0,0,0,.38); }
+    }
+
+    /* Theme-aware tab colours */
+    html.theme-blossom   .storage-toggle-btn { background:#d63384; }
+    html.theme-synthwave .storage-toggle-btn { background:#b537f2; }
+    html.theme-coral     .storage-toggle-btn { background:#e07028; }
+    /* Open/muted state overrides per theme */
+    html.theme-blossom   .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    html.theme-blossom   .storage-panel.open + .storage-tab .storage-toggle-btn
+      { background:#fce4f0; color:#9a3060; }
+    html.theme-synthwave .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    html.theme-synthwave .storage-panel.open + .storage-tab .storage-toggle-btn
+      { background:#efe7ff; color:#7020b0; }
+    html.theme-coral     .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    html.theme-coral     .storage-panel.open + .storage-tab .storage-toggle-btn
+      { background:#ffe8dd; color:#b05010; }
+
+    /* Panel body theme overrides */
+    html.theme-blossom   .storage-panel.open { background:#fff5f9; border-left-color:#f7b8d4; }
+    html.theme-synthwave .storage-panel.open { background:#faf6ff; border-left-color:#d4c5ff; }
+    html.theme-coral     .storage-panel.open { background:#fffaf7; border-left-color:#ffcbb5; }
+
+    .storage-inner {
+      flex:1; overflow:hidden; display:flex; flex-direction:column;
+      opacity:0; transition:opacity .2s;
+      pointer-events:none;
+    }
+    .storage-panel.open .storage-inner { opacity:1; pointer-events:auto; }
+
+    .storage-header {
+      padding:10px 12px 6px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .storage-title {
+      display:block; font-family:var(--mono); font-size:11px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--accent4);
+    }
+    .storage-hint {
+      display:block; font-family:var(--mono); font-size:10px; color:var(--muted);
+      margin-top:2px; line-height:1.4;
+    }
+
+    .storage-drop-zone {
+      flex:1; overflow-y:auto; padding:8px;
+      display:flex; flex-direction:column; gap:8px;
+      min-height:80px;
+      transition:background .15s;
+    }
+    .storage-drop-zone.storage-drag-over {
+      background:rgba(210,168,255,.08);
+      outline:2px dashed rgba(210,168,255,.5);
+      outline-offset:-4px;
+    }
+    .storage-empty-msg {
+      font-family:var(--mono); font-size:11px; color:var(--muted);
+      text-align:center; padding:20px 8px; align-self:center;
+    }
+    /* Hide empty message when there are cards */
+    .storage-drop-zone:has(.storage-card) .storage-empty-msg { display:none; }
+
+    /* A parked block inside the stash */
+    .storage-card {
+      background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+      overflow:hidden; cursor:grab; flex-shrink:0;
+    }
+    .storage-card:hover { border-color:var(--accent4); }
+    .storage-card:active { cursor:grabbing; }
+    /* Compact the blocks inside the stash */
+    .storage-card .code-block pre,
+    .storage-card .prose-block .prose-content { max-height:80px; overflow:hidden; }
+    .storage-card .image-content img { max-height:80px; width:100%; object-fit:cover; }
+    .storage-card .exercise-note-image img { max-height:60px; object-fit:cover; width:100%; }
+    /* Hide action buttons while in stash (cleaner look) */
+    .storage-card .remove-block-btn,
+    .storage-card .mark-main-btn,
+    .storage-card .block-collapse-btn,
+    .storage-card .copy-btn { display:none; }
+
+    /* Panel overlays content — no layout shift */
+
+    /* PDF: hide the storage panel entirely */
+    body.exporting-pdf .storage-panel { display:none !important; }
+
+    /* Theme overrides for panel body */
+    html.theme-blossom .storage-panel.open   { background:#fff5f9; border-left-color:#f7b8d4; }
+    html.theme-blossom .storage-card         { background:#ffe8f3; border-color:#f7b8d4; }
+    html.theme-synthwave .storage-panel.open { background:#faf6ff; border-left-color:#d4c5ff; }
+    html.theme-coral .storage-panel.open     { background:#fffaf7; border-left-color:#ffcbb5; }
+
   </style>
 </head>
 <body>
@@ -1425,6 +1595,10 @@
             <label class="toggle-switch"><input type="checkbox" id="tog-main-images" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
+            <div><div>Show image descriptions</div><div class="toggle-desc">Use desc/desc1/desc2 images as exercise descriptions</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-image-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row">
             <div><div>Show empty output block</div><div class="toggle-desc">Placeholder when no output file found</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-main-empty-output" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
@@ -1471,6 +1645,29 @@
   </div><!-- /.main -->
 
   <footer id="app-footer">Open your project root folder — folders, labs, exercises, code files, output — Chrome &amp; Edge</footer>
+
+  <!-- ═══════════════════════════════════════════════
+       STORAGE PANEL — block stash on right edge
+  ═══════════════════════════════════════════════ -->
+  <!-- Block stash drawer -->
+  <div class="storage-panel" id="storage-panel">
+    <div class="storage-inner">
+      <div class="storage-header">
+        <span class="storage-title">Block Stash</span>
+        <span class="storage-hint">Drag blocks here, scroll, drag back</span>
+      </div>
+      <div class="storage-drop-zone" id="storage-drop-zone">
+        <span class="storage-empty-msg">Drop a block here to park it</span>
+      </div>
+    </div>
+  </div>
+  <!-- Tab is a separate fixed element so it always sticks to the drawer's left edge -->
+  <div class="storage-tab" id="storage-tab">
+    <button class="storage-toggle-btn" id="storage-toggle-btn" title="Open block stash">
+      <span class="tab-icon">⬡</span>
+      <span class="tab-label">Stash</span>
+    </button>
+  </div>
 
   <script type="module" src="./app.js"></script>
 </body>
