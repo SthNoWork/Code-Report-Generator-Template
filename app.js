@@ -62,7 +62,6 @@ let coverLogoSize     = 120;
 let coverTitleSize    = 28;
 let includeCoverInPdf = true;
 const coverInfo = {
-  topLabel: 'Y2-S2-DATA-STRUCTURE',
   title:    'Institute Technology of Cambodia',
   subtitle: 'Lab Report',
 };
@@ -892,7 +891,6 @@ function toggleCoverPanel() {
 
 function syncCoverPreview() {
   const setText=(id,v,fb='')=>{const n=document.getElementById(id);if(n)n.textContent=String(v||fb);};
-  setText('cover-top-text',    coverInfo.topLabel,  'Report');
   setText('cover-title-text',  coverInfo.title,     'Title');
   setText('cover-subtitle-text',coverInfo.subtitle, 'Subtitle');
   const card=document.getElementById('cover-card-export');
@@ -944,7 +942,7 @@ function updateCoverControls() {
 }
 
 function initCoverEditor() {
-  [['cover-top-input','topLabel'],['cover-title-input','title'],['cover-subtitle-input','subtitle']].forEach(([id,k])=>{
+  [['cover-title-input','title'],['cover-subtitle-input','subtitle']].forEach(([id,k])=>{
     const el=document.getElementById(id);if(!el)return;el.value=coverInfo[k]||'';el.addEventListener('input',()=>{coverInfo[k]=el.value;syncCoverPreview();});
   });
   const lb=document.getElementById('cover-logo-btn');if(lb)lb.onclick=pickCoverLogo;
