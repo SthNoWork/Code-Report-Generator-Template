@@ -33,10 +33,23 @@ export async function readImageDataUrlFromHandle(handle) {
 // ── File classification (all param-driven, no globals) ────────────────────
 
 const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','bmp','webp','svg']);
+const STORAGE_OUTPUT_EXTS = new Set(['txt', 'json', 'csv']);
 
 export function getExt(fileName) {
   const idx = fileName.lastIndexOf('.');
   return (idx > 0 && idx < fileName.length - 1) ? fileName.slice(idx + 1).toLowerCase() : '';
+}
+
+function getBaseName(fileName) {
+  const idx = fileName.lastIndexOf('.');
+  return (idx > 0) ? fileName.slice(0, idx) : fileName;
+}
+
+function extractExerciseNumber(fileName) {
+  const matches = getBaseName(fileName).match(/\d+/g);
+  if (!matches || !matches.length) return null;
+  const value = Number.parseInt(matches[matches.length - 1], 10);
+  return Number.isFinite(value) ? value : null;
 }
 
 export function isImageFile(fileName) {
@@ -188,6 +201,85 @@ async function materialize(fileEntries, imageEntries, outputEntries, modeConfig)
   return { files, images, outputSectionsCache };
 }
 
+/**
+ * Flat root strategy:
+ * If root has direct files and no sub-folders, group numbered files as
+ * pseudo-exercises (Exercise N), pairing code with txt/json/csv by number.
+ * Grouped code files are auto-marked as main.
+ */
+async function buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, modeConfig) {
+  const groups = new Map();
+  const rootFallback = {
+    fileEntries: [],
+    imageEntries: [],
+    outputEntries: [],
+  };
+
+  const ensureGroup = (n) => {
+    if (!groups.has(n)) {
+      groups.set(n, { number: n, fileEntries: [], imageEntries: [], outputEntries: [] });
+    }
+    return groups.get(n);
+  };
+
+  for (const item of fileEntries) {
+    const n = extractExerciseNumber(item.name);
+    const ext = getExt(item.name);
+
+    // Treat txt/json/csv as output artifacts in flat-number grouping mode.
+    if (STORAGE_OUTPUT_EXTS.has(ext)) {
+      if (n !== null) ensureGroup(n).outputEntries.push(item);
+      else rootFallback.outputEntries.push(item);
+      continue;
+    }
+
+    if (n !== null) ensureGroup(n).fileEntries.push(item);
+    else rootFallback.fileEntries.push(item);
+  }
+
+  for (const item of outputEntries) {
+    const n = extractExerciseNumber(item.name);
+    if (n !== null) ensureGroup(n).outputEntries.push(item);
+    else rootFallback.outputEntries.push(item);
+  }
+
+  for (const item of imageEntries) {
+    const n = extractExerciseNumber(item.name);
+    if (n !== null) ensureGroup(n).imageEntries.push(item);
+    else rootFallback.imageEntries.push(item);
+  }
+
+  const cards = [];
+  const ordered = Array.from(groups.values()).sort((a, b) => a.number - b.number);
+
+  for (const g of ordered) {
+    const loaded = await materialize(g.fileEntries, g.imageEntries, g.outputEntries, modeConfig);
+    loaded.files.forEach(f => { f.main = true; });
+    if (loaded.files.length || loaded.images.length || loaded.outputSectionsCache.length) {
+      cards.push({
+        name: `Exercise ${g.number}`,
+        _mode: modeConfig.id,
+        _notes: '',
+        ...loaded,
+      });
+    }
+  }
+
+  if (rootFallback.fileEntries.length || rootFallback.imageEntries.length || rootFallback.outputEntries.length) {
+    const loaded = await materialize(rootFallback.fileEntries, rootFallback.imageEntries, rootFallback.outputEntries, modeConfig);
+    if (loaded.files.length || loaded.images.length || loaded.outputSectionsCache.length) {
+      cards.push({
+        name: 'Misc Files',
+        _mode: modeConfig.id,
+        _notes: '',
+        ...loaded,
+      });
+    }
+  }
+
+  return cards;
+}
+
 // ── Public: scan a folder into exercise cards ─────────────────────────────
 
 /**
@@ -223,6 +315,15 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
   subdirEntries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
   onProgress?.(30);
+
+  // Flat folder: group by numeric filename and pair code/output by number.
+  if (!subdirEntries.length && (fileEntries.length || imageEntries.length || outputEntries.length)) {
+    const grouped = await buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, modeConfig);
+    if (grouped.length) {
+      onProgress?.(100);
+      return grouped;
+    }
+  }
 
   // ── Root card (only if materialize produces real content) ───────────────
   if (fileEntries.length || imageEntries.length || outputEntries.length) {
