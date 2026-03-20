@@ -161,6 +161,45 @@ async function readFilesInDirectory(dirHandle, modeConfig) {
   return { fileEntries, imageEntries, outputEntries };
 }
 
+// ── Recursive file reader (flat-mode deep scan) ────────────────────────────
+
+/**
+ * Recursively read ALL files from dirHandle and all nested subdirectories.
+ * Returns { files, images, outputEntries } aggregated from the entire tree.
+ * Each entry includes { entry, name, path } where path is the relative path.
+ */
+async function readFilesRecursively(dirHandle, modeConfig, basePath = '') {
+  const SKIP = new Set(['.git', 'node_modules', '.DS_Store']);
+  const fileEntries   = [];
+  const imageEntries  = [];
+  const outputEntries = [];
+
+  for await (const entry of dirHandle.values()) {
+    if (SKIP.has(entry.name)) continue;
+
+    const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
+
+    if (entry.kind === 'file') {
+      const name = entry.name;
+      if (isImageFile(name)) {
+        imageEntries.push({ entry, name, path: entryPath });
+      } else if (isOutputArtifact(name, modeConfig)) {
+        outputEntries.push({ entry, name, path: entryPath });
+      } else if (isViewableFile(name, modeConfig)) {
+        fileEntries.push({ entry, name, path: entryPath });
+      }
+    } else if (entry.kind === 'directory') {
+      // Recurse into subdirectory
+      const sub = await readFilesRecursively(entry, modeConfig, entryPath);
+      fileEntries.push(...sub.fileEntries);
+      imageEntries.push(...sub.imageEntries);
+      outputEntries.push(...sub.outputEntries);
+    }
+  }
+
+  return { fileEntries, imageEntries, outputEntries };
+}
+
 /**
  * Materialize raw file handles into loaded data arrays.
  * Each viewable file gets: { name, ext, main, content, proseMode }
@@ -202,18 +241,12 @@ async function materialize(fileEntries, imageEntries, outputEntries, modeConfig)
 }
 
 /**
- * Flat root strategy:
- * If root has direct files and no sub-folders, group numbered files as
- * pseudo-exercises (Exercise N), pairing code with txt/json/csv by number.
- * Grouped code files are auto-marked as main.
+ * Group files by exercise number.
+ * Used for folders with no number in name, or root-level files.
  */
-async function buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, modeConfig) {
+async function groupFilesByNumber(fileEntries, imageEntries, outputEntries, modeConfig) {
   const groups = new Map();
-  const rootFallback = {
-    fileEntries: [],
-    imageEntries: [],
-    outputEntries: [],
-  };
+  const fallback = { fileEntries: [], imageEntries: [], outputEntries: [] };
 
   const ensureGroup = (n) => {
     if (!groups.has(n)) {
@@ -225,28 +258,25 @@ async function buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, 
   for (const item of fileEntries) {
     const n = extractExerciseNumber(item.name);
     const ext = getExt(item.name);
-
-    // Treat txt/json/csv as output artifacts in flat-number grouping mode.
     if (STORAGE_OUTPUT_EXTS.has(ext)) {
       if (n !== null) ensureGroup(n).outputEntries.push(item);
-      else rootFallback.outputEntries.push(item);
-      continue;
+      else fallback.outputEntries.push(item);
+    } else {
+      if (n !== null) ensureGroup(n).fileEntries.push(item);
+      else fallback.fileEntries.push(item);
     }
-
-    if (n !== null) ensureGroup(n).fileEntries.push(item);
-    else rootFallback.fileEntries.push(item);
   }
 
   for (const item of outputEntries) {
     const n = extractExerciseNumber(item.name);
     if (n !== null) ensureGroup(n).outputEntries.push(item);
-    else rootFallback.outputEntries.push(item);
+    else fallback.outputEntries.push(item);
   }
 
   for (const item of imageEntries) {
     const n = extractExerciseNumber(item.name);
     if (n !== null) ensureGroup(n).imageEntries.push(item);
-    else rootFallback.imageEntries.push(item);
+    else fallback.imageEntries.push(item);
   }
 
   const cards = [];
@@ -265,8 +295,8 @@ async function buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, 
     }
   }
 
-  if (rootFallback.fileEntries.length || rootFallback.imageEntries.length || rootFallback.outputEntries.length) {
-    const loaded = await materialize(rootFallback.fileEntries, rootFallback.imageEntries, rootFallback.outputEntries, modeConfig);
+  if (fallback.fileEntries.length || fallback.imageEntries.length || fallback.outputEntries.length) {
+    const loaded = await materialize(fallback.fileEntries, fallback.imageEntries, fallback.outputEntries, modeConfig);
     if (loaded.files.length || loaded.images.length || loaded.outputSectionsCache.length) {
       cards.push({
         name: 'Misc Files',
@@ -283,13 +313,20 @@ async function buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, 
 // ── Public: scan a folder into exercise cards ─────────────────────────────
 
 /**
- * Scan a root DirectoryHandle into exercise card data using modeConfig rules.
+ * Unified scan strategy:
+ * 
+ * 1. If a subfolder name contains a number (e.g., "1_Lab", "Exercise2"):
+ *    - Recursively collect all files from it as a single section
+ *    - Create one exercise card named after the folder
  *
- * Depth rules:
- *   - Files at root + no sub-folders → one card named after root
- *   - Files at root + sub-folders → root card + one card per sub-folder
- *   - No files at root + sub-folders → one card per sub-folder only
- *   - Each sub-folder card only includes that folder's direct files (depth 1)
+ * 2. If a subfolder name has NO number (e.g., "utils", "helpers"):
+ *    - Collect files from it and group by file NAME numbers
+ *    - Create multiple cards by exercise number if found
+ *
+ * 3. If there are no subfolders but files at root:
+ *    - Recursively collect ALL files from nested structure
+ *    - Group by file NAME numbers
+ *    - Create multiple cards by exercise number
  *
  * @param {FileSystemDirectoryHandle} rootHandle
  * @param {string}                    rootName
@@ -300,63 +337,106 @@ async function buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, 
 export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
   const cards   = [];
   const SKIP    = new Set(['.git', 'node_modules', '.DS_Store']);
-  const subdirs = [];
 
   onProgress?.(10);
 
-  // ── Classify root-level entries ─────────────────────────────────────────
-  const { fileEntries, imageEntries, outputEntries } = await readFilesInDirectory(rootHandle, modeConfig);
+  // Collect immediate subdirectories
   const subdirEntries = [];
   for await (const entry of rootHandle.values()) {
     if (entry.kind === 'directory' && !SKIP.has(entry.name)) {
-      subdirEntries.push(entry);
+      subdirEntries.push({ entry, name: entry.name });
     }
   }
   subdirEntries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-  onProgress?.(30);
+  onProgress?.(20);
 
-  // Flat folder: group by numeric filename and pair code/output by number.
-  if (!subdirEntries.length && (fileEntries.length || imageEntries.length || outputEntries.length)) {
-    const grouped = await buildFlatNumberedCards(fileEntries, imageEntries, outputEntries, modeConfig);
-    if (grouped.length) {
-      onProgress?.(100);
-      return grouped;
+  // Separate numbered from unnumbered folders
+  const numFolders = [];
+  const unNumFolders = [];
+  for (const { entry, name } of subdirEntries) {
+    if (extractExerciseNumber(name) !== null) {
+      numFolders.push({ entry, name });
+    } else {
+      unNumFolders.push({ entry, name });
     }
   }
 
-  // ── Root card (only if materialize produces real content) ───────────────
-  if (fileEntries.length || imageEntries.length || outputEntries.length) {
-    const loaded = await materialize(fileEntries, imageEntries, outputEntries, modeConfig);
-    // Only create a card if there's something visible to show
-    if (loaded.files.length || loaded.images.length || loaded.outputSectionsCache.length) {
-      cards.push({
-        name:  rootName || 'Files',
-        _mode: modeConfig.id,
-        _notes:'',
-        ...loaded,
-      });
+  // CASE 1: If there are numbered folders, process them (and ignore unnumbered)
+  if (numFolders.length > 0) {
+    let processed = 0;
+    for (const { entry: dirHandle, name: dirName } of numFolders) {
+      // FOLDER-NUMBER mode: treat entire folder as one section
+      const allFiles = await readFilesRecursively(dirHandle, modeConfig);
+      const loaded = await materialize(
+        allFiles.fileEntries,
+        allFiles.imageEntries,
+        allFiles.outputEntries,
+        modeConfig
+      );
+      // Auto-mark files in numbered folders as main
+      loaded.files.forEach(f => { f.main = true; });
+      if (loaded.files.length || loaded.images.length || loaded.outputSectionsCache.length) {
+        cards.push({
+          name: dirName,
+          _mode: modeConfig.id,
+          _notes: '',
+          ...loaded,
+        });
+      }
+      processed++;
+      onProgress?.(20 + Math.round((processed / numFolders.length) * 70));
     }
-  }
+  } 
+  // CASE 2: If only unnumbered folders exist, treat them all as one pool
+  else if (unNumFolders.length > 0) {
+    // Recursively collect from ALL unnumbered folders + any root files
+    let allCollected = { fileEntries: [], imageEntries: [], outputEntries: [] };
 
-  onProgress?.(50);
+    // Scan root level first
+    const rootFiles = await readFilesInDirectory(rootHandle, modeConfig);
+    allCollected.fileEntries.push(...rootFiles.fileEntries);
+    allCollected.imageEntries.push(...rootFiles.imageEntries);
+    allCollected.outputEntries.push(...rootFiles.outputEntries);
 
-  // ── Sub-folder cards (depth 1, direct files only) ───────────────────────
-  for (let i = 0; i < subdirEntries.length; i++) {
-    const dir = subdirEntries[i];
-    const { fileEntries: sf, imageEntries: si, outputEntries: so } =
-      await readFilesInDirectory(dir, modeConfig);
-
-    if (sf.length || si.length || so.length) {
-      const loaded = await materialize(sf, si, so, modeConfig);
-      cards.push({
-        name:  dir.name,
-        _mode: modeConfig.id,
-        _notes:'',
-        ...loaded,
-      });
+    // Then scan all unnumbered folders recursively
+    for (const { entry: dirHandle } of unNumFolders) {
+      const sub = await readFilesRecursively(dirHandle, modeConfig);
+      allCollected.fileEntries.push(...sub.fileEntries);
+      allCollected.imageEntries.push(...sub.imageEntries);
+      allCollected.outputEntries.push(...sub.outputEntries);
     }
-    onProgress?.(50 + Math.round(((i + 1) / subdirEntries.length) * 45));
+
+    // Group everything by file numbers globally
+    const grouped = await groupFilesByNumber(
+      allCollected.fileEntries,
+      allCollected.imageEntries,
+      allCollected.outputEntries,
+      modeConfig
+    );
+    cards.push(...grouped);
+
+    onProgress?.(90);
+  } 
+  // CASE 3: No subfolders
+  else {
+    // NO SUBFOLDERS: check for root-level files
+    const { fileEntries, imageEntries, outputEntries } = await readFilesInDirectory(rootHandle, modeConfig);
+
+    if (fileEntries.length || imageEntries.length || outputEntries.length) {
+      // Recursively collect all nested files
+      const allFiles = await readFilesRecursively(rootHandle, modeConfig);
+      // Group by file NAME numbers
+      const grouped = await groupFilesByNumber(
+        allFiles.fileEntries,
+        allFiles.imageEntries,
+        allFiles.outputEntries,
+        modeConfig
+      );
+      cards.push(...grouped);
+    }
+
+    onProgress?.(90);
   }
 
   onProgress?.(100);
