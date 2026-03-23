@@ -181,11 +181,29 @@ import { exportExerciseListPdf } from './core/pdf-export.js';
     const p = document.getElementById('global-howto-panel');
     if (p) p.style.display = show ? '' : 'none';
   }
+  function escapeHtmlForReadme(v) {
+    return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function renderReadmeMarkdown(rawText) {
+    const text = String(rawText || '');
+    if (!window.marked || typeof window.marked.parse !== 'function') {
+      return `<pre>${escapeHtmlForReadme(text)}</pre>`;
+    }
+    const html = window.marked.parse(text, { breaks: true, gfm: true, mangle: false, headerIds: false });
+    if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+      return window.DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['style', 'script']
+      });
+    }
+    return html;
+  }
   function syncHowToPanels(text) {
     const a = document.getElementById('howto-content');
     const b = document.getElementById('global-howto-content');
-    if (a) a.textContent = text;
-    if (b) b.textContent = text;
+    const html = renderReadmeMarkdown(text);
+    if (a) a.innerHTML = html;
+    if (b) b.innerHTML = html;
   }
 
   function setCoverPanelVisible(show) {

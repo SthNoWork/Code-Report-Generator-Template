@@ -7,6 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/base16/dracula.min.css" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="./config.js"></script>
@@ -348,7 +350,7 @@
     .compat-note span { color:var(--accent3); }
 
     .howto-panel {
-      width:min(920px,100%); margin-top:8px; border:1px solid var(--border);
+      width:min(1220px,100%); margin-top:8px; border:1px solid var(--border);
       border-radius:10px; background:var(--surface); text-align:left; overflow:hidden;
     }
     .howto-head {
@@ -358,10 +360,27 @@
       background:linear-gradient(180deg,var(--surface2),var(--surface));
     }
     .howto-text {
-      margin:0; padding:14px; font-family:var(--mono); font-size:12px;
-      line-height:1.7; color:var(--text); white-space:pre-wrap;
-      word-break:break-word; max-height:320px; overflow:auto;
+      margin:0; padding:16px; font-family:var(--mono); font-size:13px;
+      line-height:1.7; color:var(--text);
+      word-break:break-word; max-height:560px; overflow:auto;
     }
+    .howto-text h1, .howto-text h2, .howto-text h3, .howto-text h4 { margin:16px 0 10px; line-height:1.35; }
+    .howto-text h1:first-child, .howto-text h2:first-child, .howto-text h3:first-child, .howto-text h4:first-child { margin-top:0; }
+    .howto-text p { margin:0 0 10px; }
+    .howto-text ul, .howto-text ol { margin:0 0 12px; padding-left:18px; }
+    .howto-text li { margin:0 0 4px; }
+    .howto-text pre {
+      margin:10px 0; padding:10px 12px; border:1px solid var(--border);
+      border-radius:8px; background:var(--surface2); overflow:auto;
+      white-space:pre; font-family:var(--mono); font-size:12px;
+    }
+    .howto-text code {
+      font-family:var(--mono); font-size:11px;
+      background:rgba(148,163,184,.14); padding:1px 5px; border-radius:4px;
+    }
+    .howto-text pre code { background:transparent; padding:0; border-radius:0; font-size:12px; }
+    .howto-text img { display:block; max-width:100%; height:auto; margin:10px 0; border:1px solid var(--border); border-radius:8px; }
+    .howto-text a { color:var(--accent4); text-decoration:underline; }
 
     /* ════════════════════════════════════════════
        HOME / CATEGORY GRID
@@ -1180,7 +1199,7 @@
         <div class="compat-note"><span>⚠</span> <span id="browser-support-note">Requires Chrome or Edge — Firefox not supported</span></div>
         <div class="howto-panel">
           <div class="howto-head" id="howto-title">How To Use (README.md)</div>
-          <pre class="howto-text" id="howto-content">Loading README.md…</pre>
+          <div class="howto-text" id="howto-content">Loading README.md…</div>
         </div>
       </div>
     </div>
@@ -1314,7 +1333,7 @@
     <!-- README shown below home/category views -->
     <div class="howto-panel" id="global-howto-panel" style="display:none;margin-top:22px">
       <div class="howto-head" id="global-howto-title">How To Use (README.md)</div>
-      <pre class="howto-text" id="global-howto-content">Loading README.md…</pre>
+      <div class="howto-text" id="global-howto-content">Loading README.md…</div>
     </div>
 
   </div><!-- /.main -->
