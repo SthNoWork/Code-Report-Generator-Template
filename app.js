@@ -630,7 +630,7 @@ function pickAndAddImages(body, ex, addRow) {
         r.readAsDataURL(file);
       });
       if (!dataUrl) continue;
-      
+
       // Classify as description or regular image
       if (isDescriptionImage(file.name)) {
         ex.descImages = ex.descImages || [];
@@ -1188,9 +1188,32 @@ function initThemePicker() {
 // SECTION 14: README
 // ══════════════════════════════════════════════════════════════════════════
 
+function renderMarkdownHtml(rawText) {
+  const text = String(rawText || '');
+  // If marked library loaded, use it; otherwise fallback to escaped plain text
+  if (window.marked && typeof window.marked.parse === 'function') {
+    try {
+      let html = window.marked.parse(text, { breaks: true, gfm: true, mangle: false, headerIds: false });
+      // Sanitize with DOMPurify if available
+      if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+        html = window.DOMPurify.sanitize(html, {
+          USE_PROFILES: { html: true },
+          FORBID_TAGS: ['style', 'script']
+        });
+      }
+      return html;
+    } catch (err) {
+      console.error('Markdown rendering error:', err);
+      return `<pre>${escapeHtml(text)}</pre>`;
+    }
+  }
+  // Fallback: escape HTML and display as pre-formatted text
+  return `<pre>${escapeHtml(text)}</pre>`;
+}
+
 async function loadReadmeHowTo(handle) {
   const panel = document.getElementById('landing-howto-panel');
-  const pre   = document.getElementById('howto-content');
+  const div   = document.getElementById('howto-content');
   if (panel) panel.style.display = 'none';
   try {
     const raceText = (p) => Promise.race([p, new Promise(r=>setTimeout(()=>r(''),2000))]);
@@ -1208,7 +1231,7 @@ async function loadReadmeHowTo(handle) {
       }
     }
     if (text && text.trim()) {
-      if (pre) pre.textContent = text;
+      if (div) div.innerHTML = renderMarkdownHtml(text);
       if (panel) panel.style.display = '';
     }
   } catch {}

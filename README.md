@@ -33,7 +33,6 @@ You can use either layout:
 ### A) Lab-style layout (recommended)
 
 ```text
-<<<<<<< HEAD
 YourRoot/
   Lab3/
     Ex1/
@@ -317,10 +316,8 @@ You can edit `config.js` to change:
 
 ---
 
-# If you want, I can also add a second README section with a "template folder you can copy" for new lab reports.
-
-=== CUT ===
+If you want, I can also add a second README section with a template folder you can copy for new lab reports.
 
 ```
->>>>>>> c0165641837feab5c73187b210b58549de17d3ff
+
 ```
