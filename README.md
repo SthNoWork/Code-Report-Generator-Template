@@ -1,6 +1,6 @@
 # Code Report Generator - Step-by-Step Tutorial
 
-Simple web viewer for lab reports with automatic folder detection.
+Simple web viewer for building lab/code reports from a folder.
 
 Live demo:
 https://sthnowork.github.io/Code-Report-Generator-Template/
@@ -33,6 +33,7 @@ You can use either layout:
 ### A) Lab-style layout (recommended)
 
 ```text
+<<<<<<< HEAD
 YourRoot/
   Lab3/
     Ex1/
@@ -316,4 +317,10 @@ You can edit `config.js` to change:
 
 ---
 
-If you want, I can also add a second README section with a "template folder you can copy" for new lab reports.
+# If you want, I can also add a second README section with a "template folder you can copy" for new lab reports.
+
+=== CUT ===
+
+```
+>>>>>>> c0165641837feab5c73187b210b58549de17d3ff
+```

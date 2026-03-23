@@ -298,7 +298,7 @@
     body.exporting-pdf #view-lab { background:var(--dr-bg) !important; border:1px solid var(--border) !important; }
     body.exporting-pdf #view-lab .section-head,
     body.exporting-pdf #view-general .section-head,
-    body.exporting-pdf .cover-top { display:none !important; }
+    body.exporting-pdf .section-head { display:none !important; }
     body.exporting-pdf .output-table-wrap { max-height:none !important; overflow:visible !important; }
     /* hide UI chrome during capture */
     body.exporting-pdf .topbar,
@@ -610,24 +610,6 @@
       bottom:0; left:0; right:0;
       height:1px;
       background:linear-gradient(90deg, var(--border), transparent);
-    }
-    .cover-top-row {
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      position:relative;
-      z-index:1;
-    }
-    .cover-top {
-      font-family:var(--mono);
-      font-size:9px;
-      letter-spacing:.1em;
-      text-transform:uppercase;
-      color:var(--accent);
-      text-align:center;
-      font-weight:600;
-      opacity:0.9;
     }
     .cover-logo-slot {
       width:var(--cover-logo-size);
@@ -1110,6 +1092,390 @@
       .output-table-wrap { overflow:visible !important; }
       .ex-item { break-inside:avoid; page-break-inside:avoid; }
     }
+
+    /* ════════ MODE PICKER ════════ */
+    .mode-picker { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; width:min(680px,100%); }
+    .mode-option {
+      flex:1; min-width:200px; max-width:300px; display:flex; flex-direction:column;
+      align-items:center; gap:6px; padding:18px 20px;
+      background:var(--surface); border:2px solid var(--border); border-radius:12px;
+      cursor:pointer; transition:border-color .2s, background .2s, transform .15s;
+      font-family:var(--sans); text-align:center;
+    }
+    .mode-option:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .mode-option.active { border-color:var(--accent); background:rgba(88,166,255,.08); }
+    .mode-icon  { font-family:var(--mono); font-size:22px; font-weight:700; color:var(--accent); }
+    .mode-label { font-size:14px; font-weight:700; color:var(--text); }
+    .mode-desc  { font-family:var(--mono); font-size:11px; color:var(--muted); line-height:1.5; }
+
+    /* ════════ MODE BADGE ════════ */
+    .mode-badge {
+      font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+      padding:3px 10px; border-radius:20px;
+      background:rgba(88,166,255,.12); color:var(--accent); border:1px solid rgba(88,166,255,.3);
+    }
+    .mode-badge--text {
+      background:rgba(210,168,255,.12); color:var(--accent4); border-color:rgba(210,168,255,.3);
+    }
+
+    /* ════════ PROSE BLOCK ════════ */
+    .prose-block { border-radius:12px; overflow:hidden; border:1px solid var(--border); background:var(--surface); box-shadow:0 4px 16px rgba(0,0,0,.12); }
+    .prose-header { display:flex; align-items:center; gap:8px; padding:10px 14px; background:linear-gradient(180deg,var(--surface2),var(--surface)); border-bottom:1px solid var(--border); font-family:var(--mono); font-size:12px; color:var(--text); }
+    .prose-content { background:var(--surface); }
+    .prose-text { background:var(--surface); padding:16px; font-family:var(--mono); font-size:13px; line-height:1.8; color:var(--text); white-space:pre-wrap; word-break:break-word; margin:0; }
+    .prose-header .file-drag-handle { opacity:0; } .prose-header:hover .file-drag-handle { opacity:1; }
+    .prose-header .remove-block-btn { opacity:0; } .prose-header:hover .remove-block-btn { opacity:.5; }
+    html.theme-blossom .prose-block  { background:#fff5f9; border-color:#f7b8d4; }
+    html.theme-blossom .prose-header { background:linear-gradient(180deg,#fce4f0,#fff5f9); border-bottom-color:#f7b8d4; }
+    html.theme-blossom .prose-text   { background:#fff5f9; color:#2d1a24; }
+    html.theme-synthwave .prose-block  { background:#faf6ff; border-color:#d4c5ff; }
+    html.theme-synthwave .prose-header { background:linear-gradient(180deg,#efe7ff,#faf6ff); border-bottom-color:#d4c5ff; }
+    html.theme-coral .prose-block  { background:#fffaf7; border-color:#ffcbb5; }
+    html.theme-coral .prose-header { background:linear-gradient(180deg,#ffe8dd,#fffaf7); border-bottom-color:#ffcbb5; }
+
+    /* ════════ BLOCK COLLAPSE BUTTON ════════ */
+    .block-collapse-btn {
+      background:transparent; border:1px solid var(--border); color:var(--muted);
+      border-radius:4px; font-family:var(--mono); font-size:9px; padding:2px 5px;
+      cursor:pointer; flex-shrink:0; margin-left:2px; opacity:.35; transition:opacity .15s, color .15s, border-color .15s;
+    }
+    .code-header:hover .block-collapse-btn, .prose-header:hover .block-collapse-btn { opacity:1; }
+    .block-collapse-btn:hover { color:var(--accent); border-color:var(--accent); }
+    body.exporting-pdf .block-collapse-btn { display:none !important; }
+    .code-with-desc.file-drag-over, .output-block.file-drag-over, .image-block.file-drag-over { outline:2px dashed var(--accent4); outline-offset:2px; }
+    .code-with-desc.file-dragging, .output-block.file-dragging, .image-block.file-dragging { opacity:.35; }
+
+
+    /* ════════════════════════════════════════════
+       UTILS FOLDER FEATURE
+    ════════════════════════════════════════════ */
+    .utils-load-btn {
+      background:transparent; border:1px solid var(--accent4); color:var(--accent4);
+      font-family:var(--mono); font-size:11px; border-radius:6px; padding:6px 12px;
+      cursor:pointer; transition:background .15s, color .15s;
+    }
+    .utils-load-btn:hover { background:rgba(210,168,255,.12); }
+
+    .utils-banner {
+      display:flex; align-items:center; gap:10px;
+      margin-top:18px; padding:12px 16px;
+      background:rgba(210,168,255,.1); border:1px dashed rgba(210,168,255,.5);
+      border-radius:10px; font-family:var(--mono); font-size:12px; color:var(--accent4);
+    }
+    .utils-banner-icon { font-size:18px; flex-shrink:0; }
+    .utils-banner-text { line-height:1.5; }
+
+    .utils-section {
+      margin-top:8px; display:flex; flex-direction:column; gap:12px;
+      border:1px solid var(--border); border-radius:10px;
+      background:var(--surface); padding:14px;
+    }
+    .utils-heading {
+      display:flex; align-items:center; gap:10px;
+      font-family:var(--mono); font-size:12px; padding-bottom:10px;
+      border-bottom:1px solid var(--border); flex-wrap:wrap;
+    }
+    .utils-title { font-weight:600; color:var(--accent4); font-size:13px; }
+    .utils-meta  { color:var(--muted); font-size:11px; }
+
+    /* Theme overrides for utils */
+    html.theme-blossom .utils-banner { background:rgba(214,51,132,.07); border-color:rgba(214,51,132,.3); color:#a0307a; }
+    html.theme-blossom .utils-section { background:#fff5f9; border-color:#f7b8d4; }
+    html.theme-synthwave .utils-banner { background:rgba(0,217,255,.07); border-color:rgba(0,217,255,.3); color:var(--accent); }
+    html.theme-coral .utils-banner { background:rgba(255,140,66,.07); border-color:rgba(255,140,66,.3); color:var(--accent); }
+
+    /* PDF: keep utils section but hide chrome buttons inside it */
+    body.exporting-pdf .utils-banner { border-style:solid; }
+    body.exporting-pdf .utils-load-btn,
+    body.exporting-pdf .utils-heading .danger { display:none !important; }
+
+
+    /* ═══ COVER PANEL COLLAPSIBLE ═══ */
+    .cover-panel-body.collapsed { display:none; }
+    .cover-panel-actions { display:flex; gap:6px; align-items:center; margin-left:auto; margin-right:8px; }
+    #cover-panel-chevron { font-size:10px; transition:transform .2s; flex-shrink:0; }
+    .cover-panel-body.collapsed ~ * #cover-panel-chevron,
+    #cover-panel-chevron.up { transform:rotate(180deg); }
+
+    /* ═══ UTILS COLLAPSE BUTTON ═══ */
+    .utils-collapse-btn {
+      margin-left:auto; background:transparent; border:1px solid rgba(210,168,255,.4);
+      color:var(--accent4); border-radius:4px; font-size:10px; padding:2px 7px;
+      cursor:pointer; flex-shrink:0; transition:background .15s;
+    }
+    .utils-collapse-btn:hover { background:rgba(210,168,255,.12); }
+
+    /* ═══ UTILS INFO NOTICE (top of view) ═══ */
+    .utils-info-notice {
+      display:flex; align-items:center; gap:10px; margin-bottom:14px;
+      padding:10px 14px; border-radius:8px;
+      background:rgba(210,168,255,.08); border:1px solid rgba(210,168,255,.3);
+      font-family:var(--mono); font-size:11px; color:var(--accent4);
+    }
+    .utils-info-icon { font-size:16px; flex-shrink:0; }
+    .utils-info-text { flex:1; line-height:1.5; }
+    .utils-info-tag {
+      display:inline-block; padding:0px 6px; border-radius:10px;
+      background:rgba(210,168,255,.15); border:1px solid rgba(210,168,255,.35);
+      font-size:10px; vertical-align:middle;
+    }
+    .utils-info-dismiss {
+      background:transparent; border:none; color:var(--muted); font-size:14px;
+      cursor:pointer; padding:0 2px; flex-shrink:0; line-height:1;
+    }
+    .utils-info-dismiss:hover { color:var(--text); }
+
+    /* ═══ UTILS TAG IN EXERCISE HEADER ═══ */
+    .ex-utils-tag {
+      margin-left:auto;
+      display:inline-flex; align-items:center; gap:4px;
+      border:1px dashed rgba(210,168,255,.45);
+      background:rgba(210,168,255,.08);
+      border-radius:999px;
+      padding:2px 8px;
+      font-family:var(--mono);
+      font-size:10px;
+      color:var(--accent4);
+      line-height:1;
+    }
+    .ex-utils-tag .label { white-space:nowrap; }
+    .ex-utils-tag-remove {
+      background:transparent;
+      border:none;
+      color:var(--muted);
+      cursor:pointer;
+      font-size:12px;
+      line-height:1;
+      padding:0;
+      margin-left:2px;
+    }
+    .ex-utils-tag-remove:hover { color:var(--accent3); }
+
+    /* ═══ UTILS FOOTER INSIDE EXERCISE BODY ═══ */
+    .ex-utils-footer {
+      margin-top:4px; padding:10px 14px;
+      border:1px dashed rgba(210,168,255,.4); border-radius:8px;
+      background:rgba(210,168,255,.05); font-family:var(--mono); font-size:11px;
+    }
+    .ex-utils-footer-title {
+      display:flex; align-items:center; gap:8px; margin-bottom:8px;
+      font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+      color:var(--accent4);
+    }
+    .ex-utils-chips { display:flex; flex-wrap:wrap; gap:6px; }
+
+    /* Chip — file name with ✕ */
+    .utils-file-chip {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:2px 6px 2px 8px; border-radius:12px;
+      background:rgba(210,168,255,.1); border:1px solid rgba(210,168,255,.25);
+      color:var(--text); font-size:10px; font-family:var(--mono);
+    }
+    .utils-chip-remove {
+      background:transparent; border:none; color:var(--muted); cursor:pointer;
+      font-size:12px; padding:0; line-height:1; transition:color .15s;
+    }
+    .utils-chip-remove:hover { color:var(--accent3); }
+
+    /* ＋ Add button */
+    .utils-chip-add-btn {
+      background:transparent; border:1px solid rgba(210,168,255,.3); color:var(--accent4);
+      border-radius:10px; font-family:var(--mono); font-size:10px;
+      padding:2px 8px; cursor:pointer; transition:background .15s;
+    }
+    .utils-chip-add-btn:hover { background:rgba(210,168,255,.12); }
+
+    /* Chip picker popover */
+    .utils-chip-picker {
+      position:relative; display:flex; flex-wrap:wrap; gap:4px;
+      margin-top:6px; padding:8px;
+      background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+      z-index:10;
+    }
+    .utils-chip-picker-opt {
+      background:var(--surface); border:1px solid var(--border); color:var(--text);
+      border-radius:8px; font-family:var(--mono); font-size:10px; padding:3px 10px;
+      cursor:pointer; transition:border-color .15s, color .15s;
+    }
+    .utils-chip-picker-opt:hover { border-color:var(--accent4); color:var(--accent4); }
+
+    body.exporting-pdf .ex-utils-footer { border-style:solid; }
+    body.exporting-pdf .utils-chip-remove,
+    body.exporting-pdf .utils-chip-add-btn,
+    body.exporting-pdf .utils-chip-picker,
+    body.exporting-pdf .utils-collapse-btn,
+    body.exporting-pdf .utils-info-dismiss { display:none !important; }
+
+
+    /* ═══════════════════════════════════════════════════
+       STORAGE PANEL — fixed right-edge block stash
+    ═══════════════════════════════════════════════════ */
+    /* ─────────────────────────────────────────────────────────────
+       BLOCK STASH
+       Two independent fixed elements:
+         1. .storage-tab   — the always-visible pull tab on the right edge
+         2. .storage-panel — the drawer that slides in from the right
+       They share a CSS variable --stash-w for the open width.
+    ───────────────────────────────────────────────────────────── */
+    :root { --stash-w: 300px; --stash-top: 48px; }
+
+    /* Drawer panel — slides in from right, sits behind the tab */
+    .storage-panel {
+      position:fixed; top:var(--stash-top); right:0;
+      height:calc(100vh - var(--stash-top));
+      width:0; overflow:hidden;
+      background:var(--surface);
+      border-left:1px solid var(--border);
+      box-shadow:-6px 0 24px rgba(0,0,0,.18);
+      z-index:198;
+      transition:width .25s ease;
+      display:flex; flex-direction:column;
+      pointer-events:none;
+    }
+    .storage-panel.open {
+      width:var(--stash-w);
+      pointer-events:auto;
+    }
+    body:not(:has(#view-general.active)) .storage-panel,
+    body:not(:has(#view-general.active)) .storage-tab { display:none; }
+
+    /* Pull tab — fixed, always on the left edge of the drawer */
+    .storage-tab {
+      position:fixed;
+      top:50vh; transform:translateY(-50%);
+      /* right = 0 when closed, stash-w when open */
+      right:0;
+      transition:right .25s ease;
+      z-index:199;
+    }
+    .storage-panel.open ~ .storage-tab,
+    .storage-panel.open + .storage-tab { right:var(--stash-w); }
+
+    .storage-toggle-btn {
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:4px;
+      width:42px; height:84px;
+      border:none; border-radius:10px 0 0 10px;
+      cursor:pointer;
+      /* Closed: vivid accent so users find it */
+      background:var(--accent4); color:#fff;
+      box-shadow:-4px 0 16px rgba(0,0,0,.28);
+      transition:background .15s, box-shadow .15s;
+      animation:stash-pulse 3s ease-in-out infinite;
+    }
+    .storage-toggle-btn:hover {
+      background:var(--accent); color:#fff;
+      box-shadow:-4px 0 22px rgba(88,166,255,.55);
+      animation:none;
+    }
+    /* Open state — muted close button */
+    .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    .storage-panel.open + .storage-tab .storage-toggle-btn {
+      animation:none;
+      background:var(--surface2);
+      color:var(--muted);
+      box-shadow:-2px 0 8px rgba(0,0,0,.1);
+      border-right:1px solid var(--border);
+    }
+    .storage-toggle-btn .tab-icon  { font-size:16px; line-height:1; }
+    .storage-toggle-btn .tab-label {
+      font-family:var(--mono); font-size:8px; letter-spacing:.06em;
+      text-transform:uppercase; writing-mode:vertical-rl;
+      transform:rotate(180deg); opacity:.9;
+    }
+    @keyframes stash-pulse {
+      0%,100% { box-shadow:-4px 0 12px rgba(0,0,0,.22); }
+      50%      { box-shadow:-4px 0 26px rgba(0,0,0,.38); }
+    }
+
+    /* Theme-aware tab colours */
+    html.theme-blossom   .storage-toggle-btn { background:#d63384; }
+    html.theme-synthwave .storage-toggle-btn { background:#b537f2; }
+    html.theme-coral     .storage-toggle-btn { background:#e07028; }
+    /* Open/muted state overrides per theme */
+    html.theme-blossom   .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    html.theme-blossom   .storage-panel.open + .storage-tab .storage-toggle-btn
+      { background:#fce4f0; color:#9a3060; }
+    html.theme-synthwave .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    html.theme-synthwave .storage-panel.open + .storage-tab .storage-toggle-btn
+      { background:#efe7ff; color:#7020b0; }
+    html.theme-coral     .storage-panel.open ~ .storage-tab .storage-toggle-btn,
+    html.theme-coral     .storage-panel.open + .storage-tab .storage-toggle-btn
+      { background:#ffe8dd; color:#b05010; }
+
+    /* Panel body theme overrides */
+    html.theme-blossom   .storage-panel.open { background:#fff5f9; border-left-color:#f7b8d4; }
+    html.theme-synthwave .storage-panel.open { background:#faf6ff; border-left-color:#d4c5ff; }
+    html.theme-coral     .storage-panel.open { background:#fffaf7; border-left-color:#ffcbb5; }
+
+    .storage-inner {
+      flex:1; overflow:hidden; display:flex; flex-direction:column;
+      opacity:0; transition:opacity .2s;
+      pointer-events:none;
+    }
+    .storage-panel.open .storage-inner { opacity:1; pointer-events:auto; }
+
+    .storage-header {
+      padding:10px 12px 6px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .storage-title {
+      display:block; font-family:var(--mono); font-size:11px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--accent4);
+    }
+    .storage-hint {
+      display:block; font-family:var(--mono); font-size:10px; color:var(--muted);
+      margin-top:2px; line-height:1.4;
+    }
+
+    .storage-drop-zone {
+      flex:1; overflow-y:auto; padding:8px;
+      display:flex; flex-direction:column; gap:8px;
+      min-height:80px;
+      transition:background .15s;
+    }
+    .storage-drop-zone.storage-drag-over {
+      background:rgba(210,168,255,.08);
+      outline:2px dashed rgba(210,168,255,.5);
+      outline-offset:-4px;
+    }
+    .storage-empty-msg {
+      font-family:var(--mono); font-size:11px; color:var(--muted);
+      text-align:center; padding:20px 8px; align-self:center;
+    }
+    /* Hide empty message when there are cards */
+    .storage-drop-zone:has(.storage-card) .storage-empty-msg { display:none; }
+
+    /* A parked block inside the stash */
+    .storage-card {
+      background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+      overflow:hidden; cursor:grab; flex-shrink:0;
+    }
+    .storage-card:hover { border-color:var(--accent4); }
+    .storage-card:active { cursor:grabbing; }
+    /* Compact the blocks inside the stash */
+    .storage-card .code-block pre,
+    .storage-card .prose-block .prose-content { max-height:80px; overflow:hidden; }
+    .storage-card .image-content img { max-height:80px; width:100%; object-fit:cover; }
+    .storage-card .exercise-note-image img { max-height:60px; object-fit:cover; width:100%; }
+    /* Hide action buttons while in stash (cleaner look) */
+    .storage-card .remove-block-btn,
+    .storage-card .mark-main-btn,
+    .storage-card .block-collapse-btn,
+    .storage-card .copy-btn { display:none; }
+
+    /* Panel overlays content — no layout shift */
+
+    /* PDF: hide the storage panel entirely */
+    body.exporting-pdf .storage-panel { display:none !important; }
+
+    /* Theme overrides for panel body */
+    html.theme-blossom .storage-panel.open   { background:#fff5f9; border-left-color:#f7b8d4; }
+    html.theme-blossom .storage-card         { background:#ffe8f3; border-color:#f7b8d4; }
+    html.theme-synthwave .storage-panel.open { background:#faf6ff; border-left-color:#d4c5ff; }
+    html.theme-coral .storage-panel.open     { background:#fffaf7; border-left-color:#ffcbb5; }
+
   </style>
 </head>
 <body>
@@ -1121,17 +1487,12 @@
     <div class="dot r"></div>
     <div class="dot a"></div>
     <div class="dot g"></div>
-    <div class="topbar-title" id="topbar-title">Project &gt; Lab</div>
-    <button class="back-btn" id="switch-project-btn" style="margin-left:auto;margin-right:4px" onclick="openLabFolder()">Switch Project</button>
-    <button class="back-btn" id="add-cover-image-btn" style="margin-left:0;margin-right:4px" onclick="pickCoverImage()">Add Cover Image</button>
-    <button class="report-btn" id="toggle-cover-pdf-btn" style="margin-left:0;margin-right:4px" onclick="toggleCoverInPdf()" disabled>Cover in PDF: Off</button>
-    <button class="report-btn" id="export-pdf-btn" style="display:none;margin-left:0;margin-right:4px" onclick="exportPdf()">Export PDF</button>
-    <!-- Theme swatches: default / blossom / navy / rose -->
-    <div class="theme-picker" title="Switch colour theme">
-      <span class="theme-swatch sw-default active" data-theme=""             title="Default (dark)"></span>
-      <span class="theme-swatch sw-blossom"        data-theme="theme-blossom" title="Blossom (light pink)"></span>
-      <span class="theme-swatch sw-synthwave"       data-theme="theme-synthwave" title="Synthwave (bright neon)"></span>
-      <span class="theme-swatch sw-coral"           data-theme="theme-coral"    title="Coral (bright warm)"></span>
+    <div class="topbar-title" id="topbar-title">Report Generator</div>
+    <div class="theme-picker" title="Switch colour theme" style="margin-left:auto">
+      <span class="theme-swatch sw-default active" data-theme=""              title="Default (dark)"></span>
+      <span class="theme-swatch sw-blossom"         data-theme="theme-blossom" title="Blossom (light pink)"></span>
+      <span class="theme-swatch sw-synthwave"        data-theme="theme-synthwave" title="Synthwave"></span>
+      <span class="theme-swatch sw-coral"            data-theme="theme-coral"    title="Coral"></span>
     </div>
     <div class="breadcrumb" id="breadcrumb"><span class="crumb active">Home</span></div>
   </div>
@@ -1140,12 +1501,18 @@
 
   <div class="main">
     <div class="cover-panel" id="global-cover-panel">
-      <div class="settings-head" style="margin:-14px -14px 12px -14px; border-radius:10px 10px 0 0; cursor:default;">
-        Cover Page
+      <div class="settings-head" style="margin:-14px -14px 12px -14px; border-radius:10px 10px 0 0; cursor:pointer;" onclick="toggleCoverPanel()">
+        <span>Cover Page</span>
+        <span class="cover-panel-actions" onclick="event.stopPropagation()">
+          <button class="small-btn" id="add-cover-image-btn" onclick="pickCoverImage()">Add Cover Image</button>
+          <button class="small-btn" id="toggle-cover-pdf-btn" onclick="toggleCoverInPdf()" disabled>Cover in PDF: Off</button>
+          <button class="report-btn" id="export-pdf-btn" style="display:none" onclick="exportPdf()">Export PDF</button>
+        </span>
+        <span class="settings-chevron" id="cover-panel-chevron">▼</span>
       </div>
+      <div class="cover-panel-body" id="cover-panel-body">
       <div class="cover-grid">
         <div class="cover-fields">
-          <label>Top Label<input id="cover-top-input" type="text" placeholder="Top label" /></label>
           <label>Title<input id="cover-title-input" type="text" placeholder="Report title" /></label>
           <label>Subtitle<input id="cover-subtitle-input" type="text" placeholder="Subtitle" /></label>
           <h4>Logo</h4>
@@ -1163,9 +1530,6 @@
         </div>
         <div class="cover-preview-wrap">
           <div class="cover-card" id="cover-card-export">
-            <div class="cover-top-row">
-              <div class="cover-top" id="cover-top-text">Code Report</div>
-            </div>
             <div class="cover-mid">
               <div class="cover-logo-slot" id="cover-logo-slot"><span id="cover-logo-placeholder">Logo</span></div>
               <h3 id="cover-title-text">Report</h3>
@@ -1176,6 +1540,7 @@
           </div>
         </div>
       </div>
+      </div><!-- /.cover-panel-body -->
     </div>
 
     <!-- ══════════════════════════════════════════
@@ -1186,99 +1551,31 @@
         <div class="label" id="landing-label">Code Report Viewer</div>
         <h1 id="landing-title">Lab Report<br />Generator</h1>
         <p id="landing-description">Click below and select your <strong>project root</strong> folder.<br />Everything loads automatically — folders, labs, exercises, code files, and output.</p>
-        <div class="landing-btn-row">
-          <button class="open-btn" id="open-btn" onclick="openLabFolder()">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-            <span id="open-project-button-text">Open Project Folder</span>
+        <!-- Mode picker -->
+        <div class="mode-picker">
+          <button class="mode-option active" id="mode-code-btn" onclick="selectMode('code')">
+            <span class="mode-icon">{ }</span>
+            <span class="mode-label">Code Mode</span>
+            <span class="mode-desc">Source code files with syntax highlighting. .txt/.csv are output blocks.</span>
           </button>
-          <button class="open-btn general" onclick="openGeneralFolder()">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12h6M12 9v6M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-            General Usage
+          <button class="mode-option" id="mode-text-btn" onclick="selectMode('text')">
+            <span class="mode-icon">¶</span>
+            <span class="mode-label">Text Mode</span>
+            <span class="mode-desc">Report-first: .txt as description, .csv as tables, .json as formatted output.</span>
+          </button>
+        </div>
+        <div class="landing-btn-row">
+          <button class="open-btn" id="open-btn" onclick="openFolder()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            <span id="open-project-button-text">Open Folder</span>
           </button>
         </div>
         <div class="compat-note"><span>⚠</span> <span id="browser-support-note">Requires Chrome or Edge — Firefox not supported</span></div>
-        <div class="howto-panel">
+        <div class="howto-panel" id="landing-howto-panel" style="display:none">
           <div class="howto-head" id="howto-title">How To Use (README.md)</div>
           <div class="howto-text" id="howto-content">Loading README.md…</div>
         </div>
       </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════
-         HOME — folder grid after project open
-    ══════════════════════════════════════════ -->
-    <div class="view" id="view-home">
-      <div class="home-hero">
-        <div class="label" id="home-hero-label">Project Explorer</div>
-        <h1 id="home-hero-title">Project Folders</h1>
-        <p id="home-sub">// select a folder to explore</p>
-        <button class="rescan-btn" onclick="rescan()">↺ Rescan Folder</button>
-      </div>
-      <div class="lab-grid" id="lab-grid"></div>
-    </div>
-
-    <!-- ══════════════════════════════════════════
-         CATEGORY — list of labs inside a folder
-    ══════════════════════════════════════════ -->
-    <div class="view" id="view-category">
-      <div class="section-head">
-        <button class="back-btn" onclick="showHome()">← Home</button>
-        <h2 id="category-title">Folder</h2>
-        <span class="section-tag" id="category-tag"></span>
-      </div>
-      <div class="lab-grid" id="category-lab-grid"></div>
-    </div>
-
-    <!-- ══════════════════════════════════════════
-         LAB — exercises inside a lab folder
-    ══════════════════════════════════════════ -->
-    <div class="view" id="view-lab">
-      <div class="section-head">
-        <button class="back-btn" onclick="showCategory(selectedCategory)">← Back</button>
-        <h2 id="lab-title">Lab</h2>
-        <span class="section-tag" id="lab-tag"></span>
-      </div>
-      <!-- toolbar: collapse/expand + settings toggle -->
-      <div class="general-toolbar" style="margin-bottom:14px">
-        <button class="collapse-btn" onclick="collapseAll('ex-list')">Collapse All</button>
-        <button class="collapse-btn" onclick="expandAll('ex-list','lab')">Expand All</button>
-        <span class="toolbar-label">↕ Drag to reorder</span>
-      </div>
-      <!-- toggleable settings panel -->
-      <div class="settings-panel" id="lab-settings">
-        <div class="settings-head" onclick="toggleSettings('lab-settings')">
-          ⚙ Display Options <span class="settings-chevron">▶</span>
-        </div>
-        <div class="settings-body">
-          <div class="toggle-row">
-            <div><div>Show output files (.txt / .csv / .json)</div><div class="toggle-desc">Text and CSV output blocks per exercise</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-lab-output" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
-          </div>
-          <div class="toggle-row">
-            <div><div>Show images (.png / .jpg / .gif)</div><div class="toggle-desc">Image output blocks per exercise</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-lab-images" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
-          </div>
-          <div class="toggle-row">
-            <div><div>Show empty output block</div><div class="toggle-desc">Show placeholder when no output file found</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-lab-empty-output" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
-          </div>
-          <div class="toggle-row">
-            <div><div>Show exercise descriptions</div><div class="toggle-desc">Block comment from each main-flagged file</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-lab-desc" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
-          </div>
-          <div class="toggle-row">
-            <div><div>Show shared utils section</div><div class="toggle-desc">Shared utils/ code shown after exercises</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-lab-utils" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
-          </div>
-          <div class="toggle-row">
-            <div><div>Show notes field</div><div class="toggle-desc">Editable annotation per exercise</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-lab-notes" checked onchange="applyToggles('lab')"><span class="toggle-track"></span></label>
-          </div>
-        </div>
-      </div>
-      <div class="lab-bottom-note"><strong>Note:</strong> <span id="shared-utils-note">Shared utils code shown at the bottom of this report.</span></div>
-      <div class="ex-list" id="ex-list"></div>
-      <div class="lab-utils" id="lab-utils"></div>
     </div>
 
     <!-- ══════════════════════════════════════════
@@ -1289,13 +1586,16 @@
         <button class="back-btn" onclick="showLanding()">← Home</button>
         <h2 id="general-title">Files</h2>
         <span class="section-tag" id="general-tag"></span>
-        <button class="report-btn" id="export-general-pdf-btn" style="display:none;margin-left:4px" onclick="exportGeneralPdf()">Export PDF</button>
+        <span class="mode-badge" id="mode-badge">{ } Code Mode</span>
+        <button class="report-btn" id="export-general-pdf-btn" style="display:none;margin-left:4px" onclick="exportPdf()">Export PDF</button>
       </div>
       <div class="general-toolbar">
-        <button class="collapse-btn" onclick="collapseAll('general-ex-list')">Collapse All</button>
-        <button class="collapse-btn" onclick="expandAll('general-ex-list','general')">Expand All</button>
-        <button class="new-card-btn" onclick="addNewGeneralCard()" title="Add a new empty card">＋ New Card</button>
-        <button class="collapse-btn" onclick="rescanGeneral()" title="Re-open folder">↺ Rescan</button>
+        <button class="collapse-btn" onclick="collapseAll()">Collapse All</button>
+        <button class="collapse-btn" onclick="expandAll()">Expand All</button>
+        <button class="new-card-btn" onclick="addNewCard()" title="Add a new empty card">＋ New Card</button>
+        <button class="utils-load-btn" id="utils-load-btn" onclick="loadUtilsFolder()" title="Load a shared utils folder (Code Mode)">📦 Utils</button>
+        <button class="collapse-btn" onclick="openFolder()" title="Open a different folder">📂 Open Folder</button>
+        <button class="collapse-btn" onclick="rescan()" title="Rescan current folder">↺ Rescan</button>
         <span class="toolbar-label" id="general-toolbar-hint">↕ Drag to reorder</span>
       </div>
       <div id="gen-dropzone" onclick="addFilesToNewCard()">＋ Drop files here or click to add files</div>
@@ -1307,27 +1607,56 @@
         <div class="settings-body">
           <div class="toggle-row">
             <div><div>Show output files (.txt / .csv / .json)</div><div class="toggle-desc">Text and CSV output blocks</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-gen-output" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-output" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
             <div><div>Show images (.png / .jpg / .gif)</div><div class="toggle-desc">Image output blocks</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-gen-images" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-images" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div>Show image descriptions</div><div class="toggle-desc">Use desc/desc1/desc2 images as exercise descriptions</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-image-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
             <div><div>Show empty output block</div><div class="toggle-desc">Placeholder when no output file found</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-gen-empty-output" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-empty-output" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
             <div><div>Show exercise descriptions</div><div class="toggle-desc">Block comment from each main-flagged file</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-gen-desc" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row" id="tog-main-txt-row" style="display:none">
+            <div><div>Use .txt as description</div><div class="toggle-desc">Text Mode: on = show .txt as exercise description, off = show raw .txt blocks</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-txt-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">
             <div><div>Show notes field</div><div class="toggle-desc">Editable annotation per exercise</div></div>
-            <label class="toggle-switch"><input type="checkbox" id="tog-gen-notes" checked onchange="applyToggles('general')"><span class="toggle-track"></span></label>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-notes" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
+          </div>
+          <div class="toggle-row" id="tog-main-utils-row">
+            <div><div>Show utils section</div><div class="toggle-desc">Shared utility files shown below exercises</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="tog-main-utils" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
         </div>
       </div>
+      <!-- Utils info notice — appears automatically when utils folder is loaded -->
+      <div class="utils-info-notice" id="utils-info-notice" style="display:none">
+        <span class="utils-info-icon">📦</span>
+        <span class="utils-info-text">Exercises showing a <span class="utils-info-tag">📦 utils</span> footer use shared helper files from the loaded utils folder below.</span>
+        <button class="utils-info-dismiss" onclick="dismissUtilsNotice()" title="Dismiss">✕</button>
+      </div>
+
       <div class="ex-list" id="general-ex-list"></div>
+
+      <!-- Utils banner — shown when a utils folder is loaded -->
+      <div class="utils-banner" id="utils-banner" style="display:none">
+        <span class="utils-banner-icon">📦</span>
+        <span class="utils-banner-text">Some functions in the exercises above may use shared utilities from the <strong id="utils-banner-name"></strong> folder shown below.</span>
+        <button class="utils-collapse-btn" id="utils-collapse-btn" onclick="toggleUtilsSection()" title="Collapse/expand utils">▼</button>
+      </div>
+
+      <!-- Utils section — rendered by renderUtilsSection() -->
+      <div class="utils-section" id="utils-section" style="display:none"></div>
     </div>
 
     <!-- README shown below home/category views -->
@@ -1340,6 +1669,29 @@
 
   <footer id="app-footer">Open your project root folder — folders, labs, exercises, code files, output — Chrome &amp; Edge</footer>
 
-  <script type="module" src="./src/app.js"></script>
+  <!-- ═══════════════════════════════════════════════
+       STORAGE PANEL — block stash on right edge
+  ═══════════════════════════════════════════════ -->
+  <!-- Block stash drawer -->
+  <div class="storage-panel" id="storage-panel">
+    <div class="storage-inner">
+      <div class="storage-header">
+        <span class="storage-title">Block Stash</span>
+        <span class="storage-hint">Drag blocks here, scroll, drag back</span>
+      </div>
+      <div class="storage-drop-zone" id="storage-drop-zone">
+        <span class="storage-empty-msg">Drop a block here to park it</span>
+      </div>
+    </div>
+  </div>
+  <!-- Tab is a separate fixed element so it always sticks to the drawer's left edge -->
+  <div class="storage-tab" id="storage-tab">
+    <button class="storage-toggle-btn" id="storage-toggle-btn" title="Open block stash">
+      <span class="tab-icon">⬡</span>
+      <span class="tab-label">Stash</span>
+    </button>
+  </div>
+
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
