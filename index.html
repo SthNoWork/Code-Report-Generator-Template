@@ -183,6 +183,10 @@
       border-color:#f7b8d4;
       box-shadow:0 8px 20px rgba(200,100,140,.1), inset 0 1px 0 rgba(255,255,255,.2);
     }
+    html.theme-blossom .cover-logo-slot.has-logo-img,
+    html.theme-blossom .cover-logo-slot:has(img) {
+      background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important;
+    }
     html.theme-blossom .cover-foot {
       border-top-color:rgba(214,51,132,.15);
     }
@@ -197,6 +201,10 @@
       border-color:#d4c5ff;
       box-shadow:0 8px 20px rgba(0,217,255,.1), inset 0 1px 0 rgba(0,217,255,.06);
     }
+    html.theme-synthwave .cover-logo-slot.has-logo-img,
+    html.theme-synthwave .cover-logo-slot:has(img) {
+      background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important;
+    }
     html.theme-synthwave .cover-foot {
       border-top-color:rgba(0,217,255,.15);
     }
@@ -210,6 +218,10 @@
       background:linear-gradient(135deg,#fffaf7,#ffe8dd);
       border-color:#ffcbb5;
       box-shadow:0 8px 20px rgba(255,140,66,.1), inset 0 1px 0 rgba(255,140,66,.06);
+    }
+    html.theme-coral .cover-logo-slot.has-logo-img,
+    html.theme-coral .cover-logo-slot:has(img) {
+      background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important;
     }
     html.theme-coral .cover-foot {
       border-top-color:rgba(255,140,66,.15);
@@ -631,6 +643,32 @@
       height:100%;
       object-fit:contain;
       padding:5px;
+    }
+    /* When the slot holds a real logo image, remove the decorative box entirely.
+       The PNG is transparent — any background/border/shadow bleeds through in html2canvas.
+       :has(img) is supported in Chrome/Edge (the only browsers we target). */
+    .cover-logo-slot:has(img) {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      backdrop-filter: none !important;
+      padding: 0 !important;
+    }
+    .cover-logo-slot:has(img) img {
+      padding: 0 !important;
+    }
+    /* Fallback class set by JS (syncCoverPreview) for extra safety */
+    .cover-logo-slot.has-logo-img {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      backdrop-filter: none !important;
+      padding: 0 !important;
+    }
+    .cover-logo-slot.has-logo-img img {
+      padding: 0 !important;
     }
     .cover-logo-slot span {
       font-family:var(--mono);

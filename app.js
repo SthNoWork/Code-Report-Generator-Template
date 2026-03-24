@@ -1109,6 +1109,8 @@ function syncCoverPreview() {
   const slot=document.getElementById('cover-logo-slot');
   const ph=document.getElementById('cover-logo-placeholder');
   if(slot){slot.querySelectorAll('img').forEach(n=>n.remove());if(coverLogoDataUrl){const img=document.createElement('img');img.src=coverLogoDataUrl;img.alt='Logo';slot.appendChild(img);if(ph)ph.style.display='none';}else if(ph){ph.style.display='';}}
+  // Toggle class so CSS can strip the decorative box when a logo image is present
+  if(slot) slot.classList.toggle('has-logo-img', !!coverLogoDataUrl);
   const prev=document.getElementById('cover-sections-preview');
   if(!prev)return;
   prev.innerHTML='';
