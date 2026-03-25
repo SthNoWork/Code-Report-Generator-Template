@@ -15,8 +15,6 @@
  * for backwards-compatibility with existing call sites.
  */
 
-import { extractDescription, stripLeadingComment } from './scanner.js';
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 export function escapeHtml(v) {
@@ -47,9 +45,10 @@ export function languageClass(ext) {
 const BLOCK_TYPE_CONFIG = {
   'code':         { headerClass:'code-header',  dotClass:'code-dot',   label: null,     labelClass: null,          draggable:true, crossDraggable:true  },
   'output':       { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:true  },
-  'empty-output': { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:false },
+  'empty-output': { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:true  },
   'image':        { headerClass:'image-header', dotClass:'image-dot',  label:'IMAGE',   labelClass:'image-label',  draggable:true, crossDraggable:true  },
   'image-desc':   { headerClass:'code-header',  dotClass:'image-dot',  label:'DESC',    labelClass:'image-label',  draggable:true, crossDraggable:true  },
+  'desc-text':    { headerClass:'code-header',  dotClass:'image-dot',  label:'DESC',    labelClass:'image-label',  draggable:true, crossDraggable:true  },
 };
 
 // ── buildBlock — the one function that builds everything ───────────────────
@@ -75,41 +74,23 @@ export function buildBlock(spec) {
   if (tc.crossDraggable) el.dataset.crossDraggable = '1';
 
   // ── Per-type setup ─────────────────────────────────────────────────────
-  let blockClass, headerClass, fileName, displayLabel, contentEl;
+  let blockClass, headerClass, contentEl;
   let hasMarkMain = false, hasCopy = false, hasCollapse = false;
   let displayContent = '';
 
   if (type === 'code') {
     const { file: f, ex, modeConfig } = spec;
     const isProse   = modeConfig.renderAsProse(f);
-    const isTxt     = (f.ext || '') === 'txt';
-    const txtAsDesc = !!modeConfig.txtAsDescription && isTxt;
-    displayContent  = f.main ? stripLeadingComment(f.content || '') : (f.content || '');
+    displayContent  = f.content || '';
 
     blockClass  = isProse ? 'prose-block'  : 'code-block';
     headerClass = isProse ? 'prose-header' : 'code-header';
-    fileName    = f.name;
-
     el.className = 'code-with-desc';
     el.dataset.fileName = f.name;
     el.dataset.mode     = modeConfig.id;
     hasMarkMain = !!ex;
     hasCopy     = true;
     hasCollapse = true;
-
-    // Desc notes for non-txt-as-desc files
-    if (!txtAsDesc) refreshDescNote(el, f, modeConfig);
-
-    // Text-mode description note
-    if (txtAsDesc) {
-      const txtDescVisible = document.getElementById('tog-main-txt-desc')?.checked ?? true;
-      const txtNote = document.createElement('div');
-      txtNote.className = 'exercise-note txt-description-note';
-      txtNote.innerHTML = '<div class="exercise-note-head">Description</div><pre class="exercise-note-text"></pre>';
-      txtNote.querySelector('.exercise-note-text').textContent = (f.content || '').trim() || '[empty .txt file]';
-      txtNote.style.display = txtDescVisible ? '' : 'none';
-      el.appendChild(txtNote);
-    }
 
     // Inner block
     const inner = document.createElement('div');
@@ -169,17 +150,13 @@ export function buildBlock(spec) {
       };
     }
 
-    if (txtAsDesc) {
-      const txtDescVisible = document.getElementById('tog-main-txt-desc')?.checked ?? true;
-      el.classList.add('txt-raw-block');
-      inner.style.display = txtDescVisible ? 'none' : '';
-    }
-
   } else if (type === 'output') {
     const { fileName: fn, section, sectionIdx, sectionTotal, renderContent } = spec;
     blockClass  = 'output-block';
     headerClass = 'out-header';
     el.className = blockClass;
+    el.dataset.fileName = fn;
+    el.dataset.sectionIdx = String(sectionIdx || 0);
 
     const displayName = fn + (sectionTotal > 1 ? ` · ${sectionIdx + 1}` : '');
     const header = _buildHeader({
@@ -215,6 +192,7 @@ export function buildBlock(spec) {
     const { fileName: fn, dataUrl } = spec;
     blockClass  = 'image-block';
     el.className = blockClass;
+    el.dataset.fileName = fn;
     const header = _buildHeader({
       headerClass: 'image-header',
       dotClass: 'image-dot',
@@ -241,6 +219,24 @@ export function buildBlock(spec) {
     img.src = dataUrl; img.alt = 'Exercise description';
     img.style.cssText = 'max-width:100%;height:auto';
     el.querySelector('.exercise-note-image').appendChild(img);
+    el.querySelector('.desc-toggle-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      const hidden = el.dataset.userHidden === '1';
+      el.style.display = hidden ? '' : 'none';
+      el.dataset.userHidden = hidden ? '0' : '1';
+      e.target.textContent = hidden ? '✕' : '↩';
+    });
+  } else if (type === 'desc-text') {
+    const { fileName: fn, text, source = 'file' } = spec;
+    el.className = 'exercise-note desc-text-note';
+    el.dataset.autoDesc = '1';
+    el.dataset.descSource = source;
+    el.dataset.fileName = fn || '';
+    el.innerHTML =
+      '<div class="exercise-note-head">Description ' +
+      '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
+      '<pre class="exercise-note-text"></pre>';
+    el.querySelector('.exercise-note-text').textContent = (text || '').trim() || '[empty description]';
     el.querySelector('.desc-toggle-btn').addEventListener('click', e => {
       e.stopPropagation();
       const hidden = el.dataset.userHidden === '1';
@@ -364,7 +360,7 @@ export function syncFileBlockUI(wrapEl, f, isMain, modeConfig) {
     mainTag.setAttribute('data-exttag', ''); mainTag.textContent = '.' + f.ext;
   }
 
-  const displayContent = isMain ? stripLeadingComment(f.content) : (f.content || '');
+  const displayContent = f.content || '';
   const codeNode = inner?.querySelector('code');
   if (codeNode) {
     codeNode.removeAttribute('data-highlighted');
@@ -374,39 +370,8 @@ export function syncFileBlockUI(wrapEl, f, isMain, modeConfig) {
   const proseEl = inner?.querySelector('.prose-text');
   if (proseEl) proseEl.textContent = displayContent;
 
-  refreshDescNote(wrapEl, f, modeConfig);
-
   const note = wrapEl.querySelector('.exercise-note[data-auto-desc]');
   if (note && !(document.getElementById('tog-main-desc')?.checked ?? true)) note.style.display = 'none';
-}
-
-// ── Description note helpers ───────────────────────────────────────────────
-
-export function buildAutoDescNote(desc) {
-  const note = document.createElement('div');
-  note.className = 'exercise-note'; note.dataset.autoDesc = '1';
-  note.innerHTML = '<div class="exercise-note-head">Description <button class="desc-toggle-btn" title="Hide">✕</button></div><pre class="exercise-note-text"></pre>';
-  note.querySelector('.exercise-note-text').textContent = desc;
-  note.querySelector('.desc-toggle-btn').addEventListener('click', e => {
-    e.stopPropagation();
-    const hidden = note.dataset.userHidden === '1';
-    note.style.display = hidden ? '' : 'none'; note.dataset.userHidden = hidden ? '0' : '1';
-    e.target.textContent = hidden ? '✕' : '↩';
-  });
-  return note;
-}
-
-function refreshDescNote(wrapEl, f, modeConfig) {
-  const existing = wrapEl.querySelector('.exercise-note[data-auto-desc]');
-  const desc = (f.main && modeConfig.descExtractionEnabled) ? extractDescription(f.content) : '';
-  if (desc) {
-    if (existing) {
-      existing.querySelector('.exercise-note-text').textContent = desc;
-      if (existing.dataset.userHidden !== '1') existing.style.display = '';
-    } else {
-      wrapEl.insertBefore(buildAutoDescNote(desc), wrapEl.firstChild);
-    }
-  } else if (existing) { existing.remove(); }
 }
 
 // ── Backwards-compatible convenience wrappers ─────────────────────────────
@@ -435,6 +400,12 @@ export function buildImageDescNote(dataUrl, fileName) {
 // ── renderBodyContents ────────────────────────────────────────────────────
 
 export function renderBodyContents(body, ex, modeConfig, renderOutputContent) {
+  (ex.descTexts || []).forEach(desc =>
+    body.appendChild(buildBlock({ type:'desc-text', fileName:desc.fileName, text:desc.text, source:'file' }))
+  );
+  if (ex.descFromComment) {
+    body.appendChild(buildBlock({ type:'desc-text', fileName:'main comment', text:ex.descFromComment, source:'comment' }));
+  }
   (ex.descImages || []).forEach(img =>
     body.appendChild(buildBlock({ type:'image-desc', fileName:img.fileName, dataUrl:img.dataUrl }))
   );

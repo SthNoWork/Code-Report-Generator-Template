@@ -1596,10 +1596,10 @@
             <span class="mode-label">Code Mode</span>
             <span class="mode-desc">Source code files with syntax highlighting. .txt/.csv are output blocks.</span>
           </button>
-          <button class="mode-option" id="mode-text-btn" onclick="selectMode('text')">
+          <button class="mode-option" id="mode-doc-btn" onclick="selectMode('doc')">
             <span class="mode-icon">¶</span>
-            <span class="mode-label">Text Mode</span>
-            <span class="mode-desc">Report-first: .txt as description, .csv as tables, .json as formatted output.</span>
+            <span class="mode-label">Doc Mode</span>
+            <span class="mode-desc">desc.txt/desc.png are descriptions. All other files are output blocks.</span>
           </button>
         </div>
         <div class="landing-btn-row">
@@ -1664,7 +1664,7 @@
             <label class="toggle-switch"><input type="checkbox" id="tog-main-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row" id="tog-main-txt-row" style="display:none">
-            <div><div>Use .txt as description</div><div class="toggle-desc">Text Mode: on = show .txt as exercise description, off = show raw .txt blocks</div></div>
+            <div><div>Use .txt as description</div><div class="toggle-desc">Legacy toggle kept for compatibility.</div></div>
             <label class="toggle-switch"><input type="checkbox" id="tog-main-txt-desc" checked onchange="applyToggles()"><span class="toggle-track"></span></label>
           </div>
           <div class="toggle-row">

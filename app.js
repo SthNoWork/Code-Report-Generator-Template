@@ -5,12 +5,11 @@
  * Delegates to: mode-config.js (what), scanner.js (read), renderer.js (draw).
  */
 
-import { CODE_MODE, TEXT_MODE, getModeById, ALL_MODES } from './mode-config.js';
-import { scanFolder, scanUtilsFolder, readTextFromHandle, readImageDataUrlFromHandle,
-         extractOutputSections, isImageFile, isDescriptionImage, getExt } from './scanner.js';
-import { buildFileBlock, buildOutputBlock, buildEmptyOutputBlock,
-         buildImageBlock, renderBodyContents, syncFileBlockUI,
-         buildAutoDescNote, buildImageDescNote, escapeHtml, updateFileCountBadge } from './renderer.js';
+import { CODE_MODE, getModeById, ALL_MODES } from './mode-config.js';
+import { scanFolder, scanUtilsFolder, readTextFromHandle,
+         isImageFile, isDescriptionImage, getExt } from './scanner.js';
+import { buildFileBlock, buildImageBlock, renderBodyContents,
+         buildImageDescNote, escapeHtml, updateFileCountBadge } from './renderer.js';
 
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
@@ -46,9 +45,37 @@ const CFG = (() => {
 
 let activeMode     = CODE_MODE;   // current ModeConfig
 let exercises      = [];          // loaded exercise cards
+let exerciseIdSeed = 1;
+const exerciseIndex = new Map();
 let folderHandle   = null;        // last opened FileSystemDirectoryHandle
 let folderName     = '';          // display name of opened folder
 let activeSubtitle = '';
+
+function ensureExerciseId(ex) {
+  if (!ex._id) ex._id = `ex-${exerciseIdSeed++}`;
+  return ex._id;
+}
+
+function reindexExercises() {
+  exerciseIndex.clear();
+  exercises.forEach(ex => exerciseIndex.set(ensureExerciseId(ex), ex));
+}
+
+function registerExercise(ex) {
+  exerciseIndex.set(ensureExerciseId(ex), ex);
+}
+
+function unregisterExercise(ex) {
+  if (ex?._id) exerciseIndex.delete(ex._id);
+}
+
+function findExerciseIdByName(name) {
+  if (!name) return '';
+  for (const [id, ex] of exerciseIndex.entries()) {
+    if (ex?.name === name) return id;
+  }
+  return '';
+}
 
 // Utils folder state
 let utilsFiles    = [];          // flat array of FileObject loaded from utils folder
@@ -107,18 +134,18 @@ async function selectMode(modeId) {
 }
 
 function syncModeUi() {
-  const isCode = activeMode.id === 'code';
+  const utilsEnabled = activeMode.utilsEnabled !== false;
 
   const utilsBtn = document.getElementById('utils-load-btn');
-  if (utilsBtn) utilsBtn.style.display = isCode ? '' : 'none';
+  if (utilsBtn) utilsBtn.style.display = utilsEnabled ? '' : 'none';
 
   const utilsRow = document.getElementById('tog-main-utils-row');
-  if (utilsRow) utilsRow.style.display = isCode ? '' : 'none';
+  if (utilsRow) utilsRow.style.display = utilsEnabled ? '' : 'none';
 
   const txtRow = document.getElementById('tog-main-txt-row');
-  if (txtRow) txtRow.style.display = isCode ? 'none' : '';
+  if (txtRow) txtRow.style.display = 'none';
 
-  if (!isCode) {
+  if (!utilsEnabled) {
     utilsFiles = [];
     utilsFolderName = '';
     document.querySelectorAll('.ex-utils-tag, .ex-utils-footer').forEach(el => el.remove());
@@ -153,9 +180,8 @@ async function rescan() {
 
 async function loadUtilsFolder() {
   if (!window.showDirectoryPicker) { alert('Use Chrome or Edge.'); return; }
-  // Only meaningful in code mode
-  if (activeMode.id !== 'code') {
-    alert('Utils folders are only used in Code Mode (shared .c/.cpp/.py etc. files).');
+  if (activeMode.utilsEnabled === false) {
+    alert('Utils folders are disabled in this mode.');
     return;
   }
   try {
@@ -202,6 +228,7 @@ async function loadFolder(handle) {
   utilsFiles = [];
   utilsFolderName = '';
   exercises = await scanFolder(handle, folderName, activeMode, pct => setLoading(10 + pct * 0.85));
+  reindexExercises();
   setLoading(100); setTimeout(() => setLoading(0), 350);
 
   // Update mode badge
@@ -239,7 +266,7 @@ function renderUtilsSection() {
   const notice    = document.getElementById('utils-info-notice');
   if (!container || !banner) return;
 
-  if (activeMode.id !== 'code') {
+  if (activeMode.utilsEnabled === false) {
     container.style.display = 'none';
     banner.style.display    = 'none';
     if (notice) notice.style.display = 'none';
@@ -447,6 +474,7 @@ function renderExercises() {
   }
 
   exercises.forEach((ex, idx) => {
+    ensureExerciseId(ex);
     const item = buildExerciseItem(ex, idx);
     item.querySelector('.ex-header').onclick = e => {
       if (e.target.closest('.drag-handle,.ex-title-input,.ex-delete-btn')) return;
@@ -464,7 +492,7 @@ function buildExerciseItem(ex, idx) {
   const num  = (ex.name.replace(/\D/g,'') || String(idx + 1));
   const meta = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
   const item = document.createElement('div');
-  item.className = 'ex-item'; item.draggable = true; item.dataset.exName = ex.name;
+  item.className = 'ex-item'; item.draggable = true; item.dataset.exName = ex.name; item.dataset.exId = ensureExerciseId(ex);
   item.innerHTML = `
     <div class="ex-header">
       <span class="drag-handle" title="Drag to reorder">⠿</span>
@@ -489,6 +517,7 @@ function buildExerciseItem(ex, idx) {
     if (confirm(`Remove "${ex.name}"?`)) {
       const i = exercises.indexOf(ex);
       if (i > -1) exercises.splice(i, 1);
+      unregisterExercise(ex);
       item.remove();
     }
   });
@@ -523,6 +552,7 @@ function populateExerciseBody(body, ex) {
   const mc = getModeById(ex._mode || activeMode.id);
 
   renderBodyContents(body, ex, mc, renderOutputContent);
+  assignBlockOwnership(body, ex);
 
   // Notes textarea
   const notesRow = document.createElement('div');
@@ -554,6 +584,15 @@ function populateExerciseBody(body, ex) {
   initFileDragSort(body);
 }
 
+function assignBlockOwnership(body, ex) {
+  const exId = ensureExerciseId(ex);
+  body.querySelectorAll('.code-with-desc,.output-block,.image-block,.image-description-note,.desc-text-note')
+    .forEach(block => {
+      block.dataset.ownerExId = exId;
+      block.dataset.ownerEx = ex.name;
+    });
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 6: DISPLAY OPTIONS TOGGLES
 // ══════════════════════════════════════════════════════════════════════════
@@ -569,8 +608,6 @@ function applyToggles() {
   const showEmpty = document.getElementById(p+'-empty-output')?.checked ?? true;
   const showDesc  = document.getElementById(p+'-desc')?.checked ?? true;
   const showNotes = document.getElementById(p+'-notes')?.checked ?? true;
-  const txtAsDesc = document.getElementById('tog-main-txt-desc')?.checked ?? true;
-
   list.querySelectorAll('.output-block').forEach(ob => {
     const isEmpty = ob.querySelector('.output-text')?.textContent.startsWith('No output') ?? false;
     ob.style.display = (isEmpty ? showEmpty : showOut) ? '' : 'none';
@@ -582,16 +619,10 @@ function applyToggles() {
   list.querySelectorAll('.exercise-note[data-auto-desc]').forEach(en => {
     en.style.display = (!showDesc || en.dataset.userHidden === '1') ? 'none' : '';
   });
-  list.querySelectorAll('.txt-description-note').forEach(note => {
-    note.style.display = (activeMode.id === 'text' && txtAsDesc) ? '' : 'none';
-  });
-  list.querySelectorAll('.txt-raw-block .code-block, .txt-raw-block .prose-block').forEach(block => {
-    block.style.display = (activeMode.id === 'text' && txtAsDesc) ? 'none' : '';
-  });
   list.querySelectorAll('.ex-notes-row').forEach(nr => { nr.style.display = showNotes ? '' : 'none'; });
 
   // Utils section
-  const showU = (activeMode.id === 'code') && (document.getElementById('tog-main-utils')?.checked ?? true);
+  const showU = (activeMode.utilsEnabled !== false) && (document.getElementById('tog-main-utils')?.checked ?? true);
   showUtils = showU;
   renderUtilsSection();
 }
@@ -611,6 +642,8 @@ function pickAndAddFiles(body, ex, modeConfig, addRow) {
       const f = { name:file.name, ext, main:false, content, proseMode:modeConfig.renderAsProse({ext}) };
       ex.files.push(f);
       const wrap = buildFileBlock(f, ex, modeConfig);
+      wrap.dataset.ownerExId = ensureExerciseId(ex);
+      wrap.dataset.ownerEx = ex.name;
       body.insertBefore(wrap, addRow);
       updateFileCountBadge(wrap, ex);
     }
@@ -636,11 +669,16 @@ function pickAndAddImages(body, ex, addRow) {
         ex.descImages = ex.descImages || [];
         ex.descImages.push({ fileName: file.name, dataUrl });
         const imgDescNote = buildImageDescNote(dataUrl, file.name);
+        imgDescNote.dataset.ownerExId = ensureExerciseId(ex);
+        imgDescNote.dataset.ownerEx = ex.name;
         body.insertBefore(imgDescNote, body.firstChild);
       } else {
         ex.images = ex.images || [];
         ex.images.push({ fileName: file.name, dataUrl });
-        body.insertBefore(buildImageBlock(file.name, dataUrl), addRow);
+        const imgBlock = buildImageBlock(file.name, dataUrl);
+        imgBlock.dataset.ownerExId = ensureExerciseId(ex);
+        imgBlock.dataset.ownerEx = ex.name;
+        body.insertBefore(imgBlock, addRow);
       }
     }
     initFileDragSort(body);
@@ -652,6 +690,7 @@ function addNewCard() {
   const mc  = activeMode;
   const ex  = { name:'New Card', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
   exercises.push(ex);
+  registerExercise(ex);
   const list = document.getElementById('general-ex-list');
   const item = buildExerciseItem(ex, exercises.length - 1);
   item.querySelector('.ex-header').onclick = e => {
@@ -676,6 +715,7 @@ function addFilesToNewCard() {
     const mc = activeMode;
     const ex = { name:'Files', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
     exercises.push(ex);
+    registerExercise(ex);
     for (const file of Array.from(input.files)) {
       if (isImageFile(file.name)) {
         const dataUrl = await new Promise(res => {
@@ -735,6 +775,7 @@ function initGenDropzone() {
     const mc = activeMode;
     const ex = { name:'Dropped Files', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
     exercises.push(ex);
+    registerExercise(ex);
     for (const file of files) {
       if (isImageFile(file.name)) {
         const dataUrl = await new Promise(res => {
@@ -836,17 +877,20 @@ function expandAll() {
   document.querySelectorAll('#general-ex-list .ex-item').forEach(item=>{
     item.classList.add('open');
     const body=item.querySelector('.ex-body');
-    const ex=exercises.find(e=>e.name===item.dataset.exName);
+    const ex=exerciseIndex.get(item.dataset.exId || '');
     if(ex) populateExerciseBody(body,ex);
   });
 }
 
 function initDragSort(list) {
+  if (list.dataset.dragSortInit === '1') return;
+  list.dataset.dragSortInit = '1';
   let src=null;
+  let over=null;
   list.addEventListener('dragstart',e=>{const item=e.target.closest('.ex-item');if(!item)return;src=item;item.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-  list.addEventListener('dragend',()=>{list.querySelectorAll('.dragging,.drag-over').forEach(i=>{i.classList.remove('dragging','drag-over');});src=null;});
-  list.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';const t=e.target.closest('.ex-item');if(!t||t===src)return;list.querySelectorAll('.drag-over').forEach(i=>i.classList.remove('drag-over'));t.classList.add('drag-over');});
-  list.addEventListener('dragleave',e=>{const t=e.target.closest('.ex-item');if(t)t.classList.remove('drag-over');});
+  list.addEventListener('dragend',()=>{if (over) over.classList.remove('drag-over'); list.querySelectorAll('.dragging').forEach(i=>i.classList.remove('dragging')); src=null; over=null;});
+  list.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';const t=e.target.closest('.ex-item');if(!t||t===src)return; if (over && over!==t) over.classList.remove('drag-over'); over=t; t.classList.add('drag-over');});
+  list.addEventListener('dragleave',e=>{const t=e.target.closest('.ex-item');if(t&&t===over){t.classList.remove('drag-over'); over=null;}});
   list.addEventListener('drop',e=>{e.preventDefault();const t=e.target.closest('.ex-item');if(!t||t===src||!src)return;t.classList.remove('drag-over');const items=Array.from(list.querySelectorAll('.ex-item'));const si=items.indexOf(src),ti=items.indexOf(t);list.insertBefore(src,si<ti?t.nextSibling:t);Array.from(list.querySelectorAll('.ex-item')).forEach((el,i)=>{const b=el.querySelector('.ex-num');if(b)b.textContent=String(i+1);});src=null;});
 }
 
@@ -855,8 +899,11 @@ function initDragSort(list) {
  * Also integrates with storage panel via window.__dragSrc.
  */
 function initBlockDragSort(list) {
-  const BLOCK_SEL = '.code-with-desc,.output-block,.image-block,.image-description-note';
+  if (list.dataset.blockDragSortInit === '1') return;
+  list.dataset.blockDragSortInit = '1';
+  const BLOCK_SEL = '.code-with-desc,.output-block,.image-block,.image-description-note,.desc-text-note';
   let src = null, srcBody = null;
+  let hoverBlock = null, hoverBody = null;
 
   list.addEventListener('dragstart', e => {
     const b = e.target.closest(BLOCK_SEL + '[draggable="true"]');
@@ -868,26 +915,42 @@ function initBlockDragSort(list) {
   }, true);
 
   list.addEventListener('dragend', () => {
-    list.querySelectorAll('.file-dragging,.file-drag-over,.cross-drag-over')
-      .forEach(el => el.classList.remove('file-dragging','file-drag-over','cross-drag-over'));
+    if (hoverBlock) hoverBlock.classList.remove('file-drag-over');
+    if (hoverBody) hoverBody.classList.remove('cross-drag-over');
+    list.querySelectorAll('.file-dragging').forEach(el => el.classList.remove('file-dragging'));
     window.__dragSrc = null;
-    src = null; srcBody = null;
+    src = null; srcBody = null; hoverBlock = null; hoverBody = null;
   }, true);
 
   list.addEventListener('dragover', e => {
     if (!src) return;
     e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
-    const hoverBlock = e.target.closest(BLOCK_SEL);
-    const hoverBody  = e.target.closest('.ex-body');
-    list.querySelectorAll('.file-drag-over,.cross-drag-over')
-      .forEach(el => el.classList.remove('file-drag-over','cross-drag-over'));
-    if (hoverBlock && hoverBlock !== src) hoverBlock.classList.add('file-drag-over');
-    else if (hoverBody && hoverBody !== srcBody) hoverBody.classList.add('cross-drag-over');
+    const nextHoverBlock = e.target.closest(BLOCK_SEL);
+    const nextHoverBody  = e.target.closest('.ex-body');
+    if (hoverBlock && hoverBlock !== nextHoverBlock) hoverBlock.classList.remove('file-drag-over');
+    if (hoverBody && hoverBody !== nextHoverBody) hoverBody.classList.remove('cross-drag-over');
+    hoverBlock = null;
+    hoverBody = null;
+    if (nextHoverBlock && nextHoverBlock !== src) {
+      nextHoverBlock.classList.add('file-drag-over');
+      hoverBlock = nextHoverBlock;
+    } else if (nextHoverBody && nextHoverBody !== srcBody) {
+      nextHoverBody.classList.add('cross-drag-over');
+      hoverBody = nextHoverBody;
+    }
   }, true);
 
   list.addEventListener('dragleave', e => {
-    const b = e.target.closest(BLOCK_SEL); if (b) b.classList.remove('file-drag-over');
-    const bd = e.target.closest('.ex-body'); if (bd) bd.classList.remove('cross-drag-over');
+    const b = e.target.closest(BLOCK_SEL);
+    if (b && b === hoverBlock) {
+      b.classList.remove('file-drag-over');
+      hoverBlock = null;
+    }
+    const bd = e.target.closest('.ex-body');
+    if (bd && bd === hoverBody) {
+      bd.classList.remove('cross-drag-over');
+      hoverBody = null;
+    }
   }, true);
 
   list.addEventListener('drop', e => {
@@ -899,11 +962,15 @@ function initBlockDragSort(list) {
     const targetBody = dropBody || dropBlock?.closest('.ex-body');
     if (!targetBody) return;
     targetBody.classList.remove('cross-drag-over');
+    if (hoverBlock) hoverBlock.classList.remove('file-drag-over');
+    if (hoverBody) hoverBody.classList.remove('cross-drag-over');
 
     // Remove from storage stash if it came from there
     window.__dragSrcStorage?.remove(); window.__dragSrcStorage = null;
 
     const isSameBody = targetBody === srcBody;
+    const targetExId = targetBody.closest('.ex-item')?.dataset.exId || '';
+    const sourceExId = srcBody?.closest('.ex-item')?.dataset.exId || src.dataset.ownerExId || findExerciseIdByName(src.dataset.ownerEx || '');
 
     if (isSameBody && dropBlock && dropBlock !== src) {
       // A: Intra-exercise reorder
@@ -912,30 +979,57 @@ function initBlockDragSort(list) {
       targetBody.insertBefore(src, si < ti ? dropBlock.nextSibling : dropBlock);
     } else if (!isSameBody) {
       // B: Cross-exercise move
-      const srcItem = srcBody?.closest('.ex-item');
       const tgtItem = targetBody.closest('.ex-item');
-      if (!srcItem || !tgtItem || srcItem === tgtItem) return;
-      const srcEx = exercises.find(ex => ex.name === srcItem.dataset.exName);
-      const tgtEx = exercises.find(ex => ex.name === tgtItem.dataset.exName);
-      if (!srcEx || !tgtEx) return;
+      if (!tgtItem) return;
+      if (sourceExId && sourceExId === targetExId) {
+        if (dropBlock && dropBlock !== src && dropBlock.closest('.ex-body') === targetBody) {
+          targetBody.insertBefore(src, dropBlock);
+        } else {
+          const anchor = targetBody.querySelector('.ex-add-row,.ex-notes-row');
+          anchor ? targetBody.insertBefore(src, anchor) : targetBody.appendChild(src);
+        }
+        src.dataset.ownerExId = targetExId;
+        src.dataset.ownerEx = tgtItem.dataset.exName || '';
+        src.classList.remove('file-dragging'); src = null; srcBody = null;
+        return;
+      }
+
+      const srcEx = exerciseIndex.get(sourceExId);
+      const tgtEx = exerciseIndex.get(targetExId);
+      if (!tgtEx) return;
 
       const blockType = src.dataset.blockType;
-      if (blockType === 'code') {
+      if (srcEx && blockType === 'code') {
         const fname = src.dataset.fileName;
         const fi = (srcEx.files||[]).findIndex(f => f.name === fname);
         if (fi > -1) { const [f] = srcEx.files.splice(fi,1); (tgtEx.files=tgtEx.files||[]).push(f); updateFileCountBadge(src,srcEx); updateFileCountBadge(src,tgtEx); }
-      } else if (blockType === 'output') {
-        const fname = src.querySelector('.fname')?.textContent.split('·')[0].trim();
+      } else if (srcEx && blockType === 'output') {
+        const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent.split('·')[0].trim();
         const oi = (srcEx.outputSectionsCache||[]).findIndex(o=>o.fileName===fname);
         if (oi > -1) { const [o]=srcEx.outputSectionsCache.splice(oi,1); (tgtEx.outputSectionsCache=tgtEx.outputSectionsCache||[]).push(o); }
-      } else if (blockType === 'image') {
-        const fname = src.querySelector('.fname')?.textContent;
+      } else if (srcEx && blockType === 'image') {
+        const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent;
         const ii = (srcEx.images||[]).findIndex(img=>img.fileName===fname);
         if (ii > -1) { const [img]=srcEx.images.splice(ii,1); (tgtEx.images=tgtEx.images||[]).push(img); }
-      } else if (blockType === 'image-desc') {
+      } else if (srcEx && blockType === 'image-desc') {
         const fname = src.dataset.fileName;
         const di = (srcEx.descImages||[]).findIndex(img=>img.fileName===fname);
         if (di > -1) { const [img]=srcEx.descImages.splice(di,1); (tgtEx.descImages=tgtEx.descImages||[]).push(img); }
+      } else if (srcEx && blockType === 'desc-text') {
+        const source = src.dataset.descSource;
+        if (source === 'comment') {
+          if (srcEx.descFromComment) {
+            tgtEx.descFromComment = srcEx.descFromComment;
+            srcEx.descFromComment = '';
+          }
+        } else {
+          const fname = src.dataset.fileName;
+          const di = (srcEx.descTexts||[]).findIndex(d => d.fileName === fname);
+          if (di > -1) {
+            const [desc] = srcEx.descTexts.splice(di, 1);
+            (tgtEx.descTexts = tgtEx.descTexts || []).push(desc);
+          }
+        }
       }
 
       // Place in target: near drop block or before add-row
@@ -945,8 +1039,10 @@ function initBlockDragSort(list) {
         const anchor = targetBody.querySelector('.ex-add-row,.ex-notes-row');
         anchor ? targetBody.insertBefore(src, anchor) : targetBody.appendChild(src);
       }
+      src.dataset.ownerExId = targetExId;
+      src.dataset.ownerEx = tgtItem.dataset.exName || '';
     }
-    src.classList.remove('file-dragging'); src = null; srcBody = null;
+    src.classList.remove('file-dragging'); src = null; srcBody = null; hoverBlock = null; hoverBody = null;
   }, true);
 }
 
@@ -964,6 +1060,8 @@ function initStoragePanel() {
   const toggle = document.getElementById('storage-toggle-btn');
   const drop   = document.getElementById('storage-drop-zone');
   if (!panel || !drop) return;
+  if (panel.dataset.storageInit === '1') return;
+  panel.dataset.storageInit = '1';
 
   if (toggle) toggle.addEventListener('click', () => {
     panel.classList.toggle('open');
@@ -973,7 +1071,7 @@ function initStoragePanel() {
     toggle.title = isOpen ? 'Close block stash' : 'Open block stash';
   });
 
-  const BLOCK_SEL = '.code-with-desc,.output-block,.image-block,.image-description-note';
+  const BLOCK_SEL = '.code-with-desc,.output-block,.image-block,.image-description-note,.desc-text-note';
 
   panel.addEventListener('dragover', e => {
     if (!window.__dragSrc) return;
@@ -1017,7 +1115,7 @@ function initStoragePanel() {
 async function exportPdf() {
   await exportExerciseListPdf({
     listSelector: '#general-ex-list',
-    resolveExercise: item => exercises.find(e => e.name === item.dataset.exName),
+    resolveExercise: item => exerciseIndex.get(item.dataset.exId || ''),
     ensureBodyLoaded: (body, ex) => { populateExerciseBody(body, ex); },
     notesSelector: '#general-ex-list .ex-notes-area',
     viewId: 'view-general',

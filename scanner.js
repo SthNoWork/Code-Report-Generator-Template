@@ -33,7 +33,6 @@ export async function readImageDataUrlFromHandle(handle) {
 // ── File classification (all param-driven, no globals) ────────────────────
 
 const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','bmp','webp','svg']);
-const STORAGE_OUTPUT_EXTS = new Set(['txt', 'json', 'csv']);
 
 export function getExt(fileName) {
   const idx = fileName.lastIndexOf('.');
@@ -66,6 +65,12 @@ export function isDescriptionImage(fileName) {
   return base === 'desc' || /^desc\d+$/.test(base);
 }
 
+export function isDescriptionTxt(fileName) {
+  if (getExt(fileName) !== 'txt') return false;
+  const base = getBaseName(fileName).toLowerCase();
+  return base === 'desc' || /^desc\d+$/.test(base);
+}
+
 /**
  * Decide whether a file is an OUTPUT artifact given a ModeConfig.
  * Order of precedence:
@@ -76,14 +81,14 @@ export function isDescriptionImage(fileName) {
  */
 export function isOutputArtifact(fileName, modeConfig) {
   if (isImageFile(fileName)) return false;
+  if (isDescriptionTxt(fileName)) return false;
   const ext   = getExt(fileName);
-  const lower = fileName.toLowerCase();
+  if (!ext) return false;
+  if (modeConfig.skipExtensions.has(ext)) return false;
 
-  // Extension-based: if ext is a dedicated output ext AND not prose
-  if (modeConfig.outputExtensions.has(ext) && !modeConfig.proseExtensions.has(ext)) return true;
-
-  // Name-pattern-based (e.g. output.txt, result_output.csv)
-  if (modeConfig.outputNamePatterns.some(p => p.test(lower))) return true;
+  if (modeConfig.forceAllToOutput) return true;
+  if (modeConfig.outputExtensions.has(ext)) return true;
+  if (!modeConfig.codeExtensions.has(ext)) return true;
 
   return false;
 }
@@ -93,6 +98,7 @@ export function isOutputArtifact(fileName, modeConfig) {
  */
 export function isViewableFile(fileName, modeConfig) {
   if (isImageFile(fileName)) return false;
+  if (isDescriptionTxt(fileName)) return false;
   if (isOutputArtifact(fileName, modeConfig)) return false;
   if (modeConfig.skipExtensions.has(getExt(fileName))) return false;
   const ext = getExt(fileName);
@@ -132,7 +138,7 @@ export function extractOutputSections(rawText) {
 
 export function extractDescription(content) {
   if (!content) return '';
-  const m = content.match(/\/\*([\s\S]*?)\*\//);
+  const m = content.match(/^\s*\/\*([\s\S]*?)\*\//);
   if (!m) return '';
   return m[1].split('\n').map(l => l.replace(/^\s*\*\s?/, '').trimEnd()).join('\n').trim();
 }
@@ -145,14 +151,15 @@ export function stripLeadingComment(content) {
 
 /**
  * Read all files in a single DirectoryHandle (no recursion).
- * Returns { files, images, descImages, outputEntries } — raw handles not yet read.
+ * Returns { files, images, descImages, descTxtEntries, outputEntries } — raw handles not yet read.
  *
  * Files are classified according to modeConfig.
  */
 async function readFilesInDirectory(dirHandle, modeConfig) {
   const fileEntries   = [];
   const imageEntries  = [];
-  const descImageEntries  = [];
+  const descImageEntries = [];
+  const descTxtEntries   = [];
   const outputEntries = [];
 
   for await (const entry of dirHandle.values()) {
@@ -165,6 +172,8 @@ async function readFilesInDirectory(dirHandle, modeConfig) {
       } else {
         imageEntries.push({ entry, name });
       }
+    } else if (isDescriptionTxt(name)) {
+      descTxtEntries.push({ entry, name });
     } else if (isOutputArtifact(name, modeConfig)) {
       outputEntries.push({ entry, name });
     } else if (isViewableFile(name, modeConfig)) {
@@ -173,21 +182,22 @@ async function readFilesInDirectory(dirHandle, modeConfig) {
     // else: skip (binary, no extension, etc.)
   }
 
-  return { fileEntries, imageEntries, descImageEntries, outputEntries };
+  return { fileEntries, imageEntries, descImageEntries, descTxtEntries, outputEntries };
 }
 
 // ── Recursive file reader (flat-mode deep scan) ────────────────────────────
 
 /**
  * Recursively read ALL files from dirHandle and all nested subdirectories.
- * Returns { files, images, descImages, outputEntries } aggregated from the entire tree.
+ * Returns { files, images, descImages, descTxtEntries, outputEntries } aggregated from the entire tree.
  * Each entry includes { entry, name, path } where path is the relative path.
  */
 async function readFilesRecursively(dirHandle, modeConfig, basePath = '') {
   const SKIP = new Set(['.git', 'node_modules', '.DS_Store']);
   const fileEntries   = [];
   const imageEntries  = [];
-  const descImageEntries  = [];
+  const descImageEntries = [];
+  const descTxtEntries   = [];
   const outputEntries = [];
 
   for await (const entry of dirHandle.values()) {
@@ -203,6 +213,8 @@ async function readFilesRecursively(dirHandle, modeConfig, basePath = '') {
         } else {
           imageEntries.push({ entry, name, path: entryPath });
         }
+      } else if (isDescriptionTxt(name)) {
+        descTxtEntries.push({ entry, name, path: entryPath });
       } else if (isOutputArtifact(name, modeConfig)) {
         outputEntries.push({ entry, name, path: entryPath });
       } else if (isViewableFile(name, modeConfig)) {
@@ -214,85 +226,96 @@ async function readFilesRecursively(dirHandle, modeConfig, basePath = '') {
       fileEntries.push(...sub.fileEntries);
       imageEntries.push(...sub.imageEntries);
       descImageEntries.push(...sub.descImageEntries);
+      descTxtEntries.push(...sub.descTxtEntries);
       outputEntries.push(...sub.outputEntries);
     }
   }
 
-  return { fileEntries, imageEntries, descImageEntries, outputEntries };
+  return { fileEntries, imageEntries, descImageEntries, descTxtEntries, outputEntries };
 }
 
 /**
  * Materialize raw file handles into loaded data arrays.
  * Each viewable file gets: { name, ext, main, content, proseMode }
  */
-async function materialize(fileEntries, imageEntries, descImageEntries, outputEntries, modeConfig) {
-  // Viewable files
+async function materialize(fileEntries, imageEntries, descImageEntries, descTxtEntries, outputEntries, modeConfig) {
   const files = [];
-  for (const { entry, name } of fileEntries) {
-    const content = await readTextFromHandle(entry);
-    if (!content && content !== '') continue;
-    if (content.includes('\u0000')) continue;  // binary guard
+  let descFromComment = '';
+
+  const fileReads = await Promise.all(
+    fileEntries.map(async ({ entry, name }) => ({ name, raw: await readTextFromHandle(entry) }))
+  );
+
+  for (const { name, raw } of fileReads) {
+    if (!raw && raw !== '') continue;
+    if (raw.includes('\u0000')) continue;  // binary guard
+
+    const main = isPrimarySourceFile(name, modeConfig);
+    let content = raw;
+    if (modeConfig.descExtractionEnabled && main) {
+      if (!descFromComment) {
+        const extracted = extractDescription(raw);
+        if (extracted) descFromComment = extracted;
+      }
+      content = stripLeadingComment(raw);
+    }
+
     const ext = getExt(name);
-    files.push({
-      name,
-      ext,
-      main:      isPrimarySourceFile(name, modeConfig),
-      content,
-      proseMode: modeConfig.renderAsProse({ ext }),
-    });
+    files.push({ name, ext, main, content, proseMode: modeConfig.renderAsProse({ ext }) });
   }
   files.sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-  // Regular images
-  const images = [];
-  for (const { entry, name } of imageEntries) {
-    const dataUrl = await readImageDataUrlFromHandle(entry);
-    if (dataUrl) images.push({ fileName: name, dataUrl });
-  }
+  const imageReads = await Promise.all(
+    imageEntries.map(async ({ entry, name }) => ({ fileName: name, dataUrl: await readImageDataUrlFromHandle(entry) }))
+  );
+  const images = imageReads.filter(x => !!x.dataUrl);
 
-  // Description images
-  const descImages = [];
-  for (const { entry, name } of descImageEntries) {
-    const dataUrl = await readImageDataUrlFromHandle(entry);
-    if (dataUrl) descImages.push({ fileName: name, dataUrl });
-  }
+  const descImageReads = await Promise.all(
+    descImageEntries.map(async ({ entry, name }) => ({ fileName: name, dataUrl: await readImageDataUrlFromHandle(entry) }))
+  );
+  const descImages = descImageReads.filter(x => !!x.dataUrl);
 
-  // Output artifacts
-  const outputSectionsCache = [];
-  for (const { entry, name } of outputEntries) {
-    const raw      = await readTextFromHandle(entry);
-    const sections = extractOutputSections(raw);
-    if (sections.length) outputSectionsCache.push({ fileName: name, sections });
-  }
+  const descTexts = await Promise.all(
+    descTxtEntries.map(async ({ entry, name }) => ({ fileName: name, text: (await readTextFromHandle(entry) || '').trim() }))
+  );
 
-  return { files, images, descImages, outputSectionsCache };
+  descTexts.sort((a, b) => {
+    const an = extractExerciseNumber(a.fileName) ?? Number.MAX_SAFE_INTEGER;
+    const bn = extractExerciseNumber(b.fileName) ?? Number.MAX_SAFE_INTEGER;
+    return an - bn || a.fileName.localeCompare(b.fileName, undefined, { numeric: true });
+  });
+
+  const outputReads = await Promise.all(
+    outputEntries.map(async ({ entry, name }) => {
+      const raw = await readTextFromHandle(entry);
+      const sections = extractOutputSections(raw);
+      return sections.length ? { fileName: name, sections } : null;
+    })
+  );
+  const outputSectionsCache = outputReads.filter(Boolean);
+
+  return { files, images, descImages, descTexts, descFromComment, outputSectionsCache };
 }
 
 /**
  * Group files by exercise number.
  * Used for folders with no number in name, or root-level files.
  */
-async function groupFilesByNumber(fileEntries, imageEntries, descImageEntries, outputEntries, modeConfig) {
+async function groupFilesByNumber(fileEntries, imageEntries, descImageEntries, descTxtEntries, outputEntries, modeConfig) {
   const groups = new Map();
-  const fallback = { fileEntries: [], imageEntries: [], descImageEntries: [], outputEntries: [] };
+  const fallback = { fileEntries: [], imageEntries: [], descImageEntries: [], descTxtEntries: [], outputEntries: [] };
 
   const ensureGroup = (n) => {
     if (!groups.has(n)) {
-      groups.set(n, { number: n, fileEntries: [], imageEntries: [], descImageEntries: [], outputEntries: [] });
+      groups.set(n, { number: n, fileEntries: [], imageEntries: [], descImageEntries: [], descTxtEntries: [], outputEntries: [] });
     }
     return groups.get(n);
   };
 
   for (const item of fileEntries) {
     const n = extractExerciseNumber(item.name);
-    const ext = getExt(item.name);
-    if (STORAGE_OUTPUT_EXTS.has(ext)) {
-      if (n !== null) ensureGroup(n).outputEntries.push(item);
-      else fallback.outputEntries.push(item);
-    } else {
-      if (n !== null) ensureGroup(n).fileEntries.push(item);
-      else fallback.fileEntries.push(item);
-    }
+    if (n !== null) ensureGroup(n).fileEntries.push(item);
+    else fallback.fileEntries.push(item);
   }
 
   for (const item of outputEntries) {
@@ -313,13 +336,19 @@ async function groupFilesByNumber(fileEntries, imageEntries, descImageEntries, o
     else fallback.descImageEntries.push(item);
   }
 
+  for (const item of descTxtEntries) {
+    const n = extractExerciseNumber(item.name);
+    if (n !== null) ensureGroup(n).descTxtEntries.push(item);
+    else fallback.descTxtEntries.push(item);
+  }
+
   const cards = [];
   const ordered = Array.from(groups.values()).sort((a, b) => a.number - b.number);
 
   for (const g of ordered) {
-    const loaded = await materialize(g.fileEntries, g.imageEntries, g.descImageEntries, g.outputEntries, modeConfig);
+    const loaded = await materialize(g.fileEntries, g.imageEntries, g.descImageEntries, g.descTxtEntries, g.outputEntries, modeConfig);
     loaded.files.forEach(f => { f.main = true; });
-    if (loaded.files.length || loaded.images.length || loaded.descImages.length || loaded.outputSectionsCache.length) {
+    if (loaded.files.length || loaded.images.length || loaded.descImages.length || loaded.descTexts.length || loaded.descFromComment || loaded.outputSectionsCache.length) {
       cards.push({
         name: `Exercise ${g.number}`,
         _mode: modeConfig.id,
@@ -329,9 +358,9 @@ async function groupFilesByNumber(fileEntries, imageEntries, descImageEntries, o
     }
   }
 
-  if (fallback.fileEntries.length || fallback.imageEntries.length || fallback.descImageEntries.length || fallback.outputEntries.length) {
-    const loaded = await materialize(fallback.fileEntries, fallback.imageEntries, fallback.descImageEntries, fallback.outputEntries, modeConfig);
-    if (loaded.files.length || loaded.images.length || loaded.descImages.length || loaded.outputSectionsCache.length) {
+  if (fallback.fileEntries.length || fallback.imageEntries.length || fallback.descImageEntries.length || fallback.descTxtEntries.length || fallback.outputEntries.length) {
+    const loaded = await materialize(fallback.fileEntries, fallback.imageEntries, fallback.descImageEntries, fallback.descTxtEntries, fallback.outputEntries, modeConfig);
+    if (loaded.files.length || loaded.images.length || loaded.descImages.length || loaded.descTexts.length || loaded.descFromComment || loaded.outputSectionsCache.length) {
       cards.push({
         name: 'Misc Files',
         _mode: modeConfig.id,
@@ -406,12 +435,13 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
         allFiles.fileEntries,
         allFiles.imageEntries,
         allFiles.descImageEntries,
+        allFiles.descTxtEntries,
         allFiles.outputEntries,
         modeConfig
       );
       // Auto-mark files in numbered folders as main
       loaded.files.forEach(f => { f.main = true; });
-      if (loaded.files.length || loaded.images.length || loaded.descImages.length || loaded.outputSectionsCache.length) {
+      if (loaded.files.length || loaded.images.length || loaded.descImages.length || loaded.descTexts.length || loaded.descFromComment || loaded.outputSectionsCache.length) {
         cards.push({
           name: dirName,
           _mode: modeConfig.id,
@@ -426,13 +456,14 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
   // CASE 2: If only unnumbered folders exist, treat them all as one pool
   else if (unNumFolders.length > 0) {
     // Recursively collect from ALL unnumbered folders + any root files
-    let allCollected = { fileEntries: [], imageEntries: [], descImageEntries: [], outputEntries: [] };
+    let allCollected = { fileEntries: [], imageEntries: [], descImageEntries: [], descTxtEntries: [], outputEntries: [] };
 
     // Scan root level first
     const rootFiles = await readFilesInDirectory(rootHandle, modeConfig);
     allCollected.fileEntries.push(...rootFiles.fileEntries);
     allCollected.imageEntries.push(...rootFiles.imageEntries);
     allCollected.descImageEntries.push(...rootFiles.descImageEntries);
+    allCollected.descTxtEntries.push(...rootFiles.descTxtEntries);
     allCollected.outputEntries.push(...rootFiles.outputEntries);
 
     // Then scan all unnumbered folders recursively
@@ -441,6 +472,7 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
       allCollected.fileEntries.push(...sub.fileEntries);
       allCollected.imageEntries.push(...sub.imageEntries);
       allCollected.descImageEntries.push(...sub.descImageEntries);
+      allCollected.descTxtEntries.push(...sub.descTxtEntries);
       allCollected.outputEntries.push(...sub.outputEntries);
     }
 
@@ -449,6 +481,7 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
       allCollected.fileEntries,
       allCollected.imageEntries,
       allCollected.descImageEntries,
+      allCollected.descTxtEntries,
       allCollected.outputEntries,
       modeConfig
     );
@@ -459,9 +492,9 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
   // CASE 3: No subfolders
   else {
     // NO SUBFOLDERS: check for root-level files
-    const { fileEntries, imageEntries, descImageEntries, outputEntries } = await readFilesInDirectory(rootHandle, modeConfig);
+    const { fileEntries, imageEntries, descImageEntries, descTxtEntries, outputEntries } = await readFilesInDirectory(rootHandle, modeConfig);
 
-    if (fileEntries.length || imageEntries.length || descImageEntries.length || outputEntries.length) {
+    if (fileEntries.length || imageEntries.length || descImageEntries.length || descTxtEntries.length || outputEntries.length) {
       // Recursively collect all nested files
       const allFiles = await readFilesRecursively(rootHandle, modeConfig);
       // Group by file NAME numbers
@@ -469,6 +502,7 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
         allFiles.fileEntries,
         allFiles.imageEntries,
         allFiles.descImageEntries,
+        allFiles.descTxtEntries,
         allFiles.outputEntries,
         modeConfig
       );
@@ -493,6 +527,6 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
  */
 export async function scanUtilsFolder(handle, modeConfig) {
   const { fileEntries } = await readFilesInDirectory(handle, modeConfig);
-  const { files } = await materialize(fileEntries, [], [], [], modeConfig);
+  const { files } = await materialize(fileEntries, [], [], [], [], modeConfig);
   return files;
 }
