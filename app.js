@@ -498,7 +498,6 @@ function buildExerciseItem(ex, idx) {
       <span class="drag-handle" title="Drag to reorder">⠿</span>
       <div class="ex-num">${escapeHtml(num)}</div>
       <input class="ex-title-input" type="text" value="${escapeHtml(ex.name)}" title="Click to rename"/>
-      <span class="ex-meta">${escapeHtml(meta)}</span>
       <button class="ex-delete-btn" title="Remove this card">✕</button>
       <span class="ex-chevron">▶</span>
     </div>
