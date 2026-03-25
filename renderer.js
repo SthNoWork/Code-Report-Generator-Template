@@ -114,7 +114,6 @@ export function buildBlock(spec) {
     _addRemoveBtn(header, el, () => {
       if (ex && f) {
         const i = ex.files.indexOf(f); if (i > -1) ex.files.splice(i, 1);
-        updateFileCountBadge(el, ex);
       }
     });
     inner.appendChild(header);
@@ -330,11 +329,7 @@ function _addRemoveBtn(headerEl, blockEl, onRemove) {
 
 // ── Public badge helper ────────────────────────────────────────────────────
 
-export function updateFileCountBadge(el, ex) {
-  const item = el.closest('.ex-item');
-  const meta = item?.querySelector('.ex-meta');
-  if (meta) meta.textContent = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
-}
+
 
 // ── syncFileBlockUI — called when ★ main is toggled ───────────────────────
 
