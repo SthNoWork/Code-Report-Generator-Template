@@ -114,7 +114,6 @@ export function buildBlock(spec) {
     _addRemoveBtn(header, el, () => {
       if (ex && f) {
         const i = ex.files.indexOf(f); if (i > -1) ex.files.splice(i, 1);
-        updateFileCountBadge(el, ex);
       }
     });
     inner.appendChild(header);
@@ -330,11 +329,7 @@ function _addRemoveBtn(headerEl, blockEl, onRemove) {
 
 // ── Public badge helper ────────────────────────────────────────────────────
 
-export function updateFileCountBadge(el, ex) {
-  const item = el.closest('.ex-item');
-  const meta = item?.querySelector('.ex-meta');
-  if (meta) meta.textContent = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
-}
+
 
 // ── syncFileBlockUI — called when ★ main is toggled ───────────────────────
 
@@ -399,30 +394,129 @@ export function buildImageDescNote(dataUrl, fileName) {
 
 // ── renderBodyContents ────────────────────────────────────────────────────
 
+function extractFileNumber(fileName) {
+  const matches = String(fileName || '').match(/\d+/g);
+  if (!matches || !matches.length) return null;
+  const value = Number.parseInt(matches[matches.length - 1], 10);
+  return Number.isFinite(value) ? value : null;
+}
+
+function compareByFileName(a, b) {
+  const an = String(a || '').toLowerCase();
+  const bn = String(b || '').toLowerCase();
+  return an.localeCompare(bn, undefined, { numeric: true });
+}
+
 export function renderBodyContents(body, ex, modeConfig, renderOutputContent) {
-  (ex.descTexts || []).forEach(desc =>
-    body.appendChild(buildBlock({ type:'desc-text', fileName:desc.fileName, text:desc.text, source:'file' }))
-  );
+  const descTexts = ex.descTexts || [];
+  const descImages = ex.descImages || [];
+  const files = ex.files || [];
+  const outputs = ex.outputSectionsCache || [];
+  const images = ex.images || [];
+
+  const allNamedItems = [];
+  descTexts.forEach(d => allNamedItems.push(d.fileName));
+  descImages.forEach(d => allNamedItems.push(d.fileName));
+  files.forEach(f => allNamedItems.push(f.name));
+  outputs.forEach(o => allNamedItems.push(o.fileName));
+  images.forEach(i => allNamedItems.push(i.fileName));
+
+  const hasNumberedItems = allNamedItems.some(name => extractFileNumber(name) !== null);
+
+  if (!hasNumberedItems) {
+    descTexts.forEach(desc =>
+      body.appendChild(buildBlock({ type:'desc-text', fileName:desc.fileName, text:desc.text, source:'file' }))
+    );
+    if (ex.descFromComment) {
+      body.appendChild(buildBlock({ type:'desc-text', fileName:'main comment', text:ex.descFromComment, source:'comment' }));
+    }
+    descImages.forEach(img =>
+      body.appendChild(buildBlock({ type:'image-desc', fileName:img.fileName, dataUrl:img.dataUrl }))
+    );
+    files.forEach(f =>
+      body.appendChild(buildBlock({ type:'code', file:f, ex, modeConfig }))
+    );
+    if (!outputs.length) {
+      body.appendChild(buildBlock({ type:'empty-output' }));
+    } else {
+      outputs.forEach(entry =>
+        (entry.sections || []).forEach((sec, i) =>
+          body.appendChild(buildBlock({ type:'output', fileName:entry.fileName, section:sec, sectionIdx:i, sectionTotal:entry.sections.length, renderContent:renderOutputContent }))
+        )
+      );
+    }
+    images.forEach(img =>
+      body.appendChild(buildBlock({ type:'image', fileName:img.fileName, dataUrl:img.dataUrl }))
+    );
+    return;
+  }
+
+  const groups = new Map();
+  const fallback = { descTexts: [], descImages: [], files: [], outputs: [], images: [] };
+
+  const ensureGroup = (n) => {
+    if (!groups.has(n)) {
+      groups.set(n, { number: n, descTexts: [], descImages: [], files: [], outputs: [], images: [] });
+    }
+    return groups.get(n);
+  };
+
+  const assign = (fileName, key, item) => {
+    const n = extractFileNumber(fileName);
+    if (n === null) {
+      fallback[key].push(item);
+    } else {
+      ensureGroup(n)[key].push(item);
+    }
+  };
+
+  descTexts.forEach(item => assign(item.fileName, 'descTexts', item));
+  descImages.forEach(item => assign(item.fileName, 'descImages', item));
+  files.forEach(item => assign(item.name, 'files', item));
+  outputs.forEach(item => assign(item.fileName, 'outputs', item));
+  images.forEach(item => assign(item.fileName, 'images', item));
+
+  const ordered = Array.from(groups.values()).sort((a, b) => a.number - b.number);
+
+  const renderGroup = (g) => {
+    g.descTexts
+      .slice()
+      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
+      .forEach(desc => body.appendChild(buildBlock({ type:'desc-text', fileName:desc.fileName, text:desc.text, source:'file' })));
+
+    g.descImages
+      .slice()
+      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
+      .forEach(img => body.appendChild(buildBlock({ type:'image-desc', fileName:img.fileName, dataUrl:img.dataUrl })));
+
+    g.files
+      .slice()
+      .sort((a, b) => compareByFileName(a.name, b.name))
+      .forEach(f => body.appendChild(buildBlock({ type:'code', file:f, ex, modeConfig })));
+
+    g.outputs
+      .slice()
+      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
+      .forEach(entry =>
+        (entry.sections || []).forEach((sec, i) =>
+          body.appendChild(buildBlock({ type:'output', fileName:entry.fileName, section:sec, sectionIdx:i, sectionTotal:entry.sections.length, renderContent:renderOutputContent }))
+        )
+      );
+
+    g.images
+      .slice()
+      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
+      .forEach(img => body.appendChild(buildBlock({ type:'image', fileName:img.fileName, dataUrl:img.dataUrl })));
+  };
+
   if (ex.descFromComment) {
     body.appendChild(buildBlock({ type:'desc-text', fileName:'main comment', text:ex.descFromComment, source:'comment' }));
   }
-  (ex.descImages || []).forEach(img =>
-    body.appendChild(buildBlock({ type:'image-desc', fileName:img.fileName, dataUrl:img.dataUrl }))
-  );
-  (ex.files || []).forEach(f =>
-    body.appendChild(buildBlock({ type:'code', file:f, ex, modeConfig }))
-  );
-  const outputs = ex.outputSectionsCache || [];
+
+  ordered.forEach(renderGroup);
+  renderGroup(fallback);
+
   if (!outputs.length) {
     body.appendChild(buildBlock({ type:'empty-output' }));
-  } else {
-    outputs.forEach(entry =>
-      (entry.sections || []).forEach((sec, i) =>
-        body.appendChild(buildBlock({ type:'output', fileName:entry.fileName, section:sec, sectionIdx:i, sectionTotal:entry.sections.length, renderContent:renderOutputContent }))
-      )
-    );
   }
-  (ex.images || []).forEach(img =>
-    body.appendChild(buildBlock({ type:'image', fileName:img.fileName, dataUrl:img.dataUrl }))
-  );
 }

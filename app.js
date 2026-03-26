@@ -9,7 +9,7 @@ import { CODE_MODE, getModeById, ALL_MODES } from './mode-config.js';
 import { scanFolder, scanUtilsFolder, readTextFromHandle,
          isImageFile, isDescriptionImage, getExt } from './scanner.js';
 import { buildFileBlock, buildImageBlock, renderBodyContents,
-         buildImageDescNote, escapeHtml, updateFileCountBadge } from './renderer.js';
+         buildImageDescNote, escapeHtml } from './renderer.js';
 
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
@@ -498,7 +498,6 @@ function buildExerciseItem(ex, idx) {
       <span class="drag-handle" title="Drag to reorder">⠿</span>
       <div class="ex-num">${escapeHtml(num)}</div>
       <input class="ex-title-input" type="text" value="${escapeHtml(ex.name)}" title="Click to rename"/>
-      <span class="ex-meta">${escapeHtml(meta)}</span>
       <button class="ex-delete-btn" title="Remove this card">✕</button>
       <span class="ex-chevron">▶</span>
     </div>
@@ -645,7 +644,6 @@ function pickAndAddFiles(body, ex, modeConfig, addRow) {
       wrap.dataset.ownerExId = ensureExerciseId(ex);
       wrap.dataset.ownerEx = ex.name;
       body.insertBefore(wrap, addRow);
-      updateFileCountBadge(wrap, ex);
     }
     initFileDragSort(body);
   };
@@ -1002,7 +1000,7 @@ function initBlockDragSort(list) {
       if (srcEx && blockType === 'code') {
         const fname = src.dataset.fileName;
         const fi = (srcEx.files||[]).findIndex(f => f.name === fname);
-        if (fi > -1) { const [f] = srcEx.files.splice(fi,1); (tgtEx.files=tgtEx.files||[]).push(f); updateFileCountBadge(src,srcEx); updateFileCountBadge(src,tgtEx); }
+        if (fi > -1) { const [f] = srcEx.files.splice(fi,1); (tgtEx.files=tgtEx.files||[]).push(f); }
       } else if (srcEx && blockType === 'output') {
         const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent.split('·')[0].trim();
         const oi = (srcEx.outputSectionsCache||[]).findIndex(o=>o.fileName===fname);
