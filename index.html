@@ -312,6 +312,7 @@
     body.exporting-pdf #view-general .section-head,
     body.exporting-pdf .section-head { display:none !important; }
     body.exporting-pdf .output-table-wrap { max-height:none !important; overflow:visible !important; }
+    body.exporting-pdf .output-table thead th { position:static !important; }
     /* hide UI chrome during capture */
     body.exporting-pdf .topbar,
     body.exporting-pdf .general-toolbar,
@@ -789,6 +790,7 @@
     .ex-header {
       display:flex; align-items:center; gap:12px; padding:16px 20px;
       cursor:pointer; user-select:none; transition:background .15s;
+      min-width:0;
     }
     .ex-header:hover { background:var(--surface2); }
     .ex-num {
@@ -799,7 +801,7 @@
     }
     .ex-header h3 { font-size:15px; font-weight:600; }
 
-    .ex-chevron { margin-left:auto; color:var(--muted); font-size:13px; transition:transform .25s; }
+    .ex-chevron { margin-left:auto; color:var(--muted); font-size:13px; transition:transform .25s; flex-shrink:0; }
     .ex-item.open .ex-chevron { transform:rotate(90deg); }
     .ex-body { display:none; padding:0 20px 20px; flex-direction:column; gap:16px; }
     .ex-item.open .ex-body { display:flex; }
@@ -924,7 +926,7 @@
       background:transparent; border:none; outline:none; font-family:var(--sans);
       font-size:15px; font-weight:600; color:var(--text); cursor:text;
       border-bottom:1px solid transparent; transition:border-color .15s; padding:0;
-      max-width:300px; min-width:60px; width:auto;
+      flex:1 1 220px; min-width:0; max-width:none; width:auto;
     }
     .ex-title-input:focus { border-bottom-color:var(--accent); color:var(--accent); }
 
@@ -932,7 +934,7 @@
     .ex-delete-btn {
       background:transparent; border:none; color:var(--muted); font-size:15px;
       cursor:pointer; padding:3px 6px; border-radius:4px; opacity:0;
-      transition:opacity .15s, color .15s; flex-shrink:0; margin-left:auto;
+      transition:opacity .15s, color .15s; flex-shrink:0; margin-left:0;
     }
     .ex-item:hover .ex-delete-btn { opacity:.5; }
     .ex-delete-btn:hover { color:var(--accent3) !important; opacity:1 !important; }
@@ -1084,7 +1086,7 @@
     }
     .exercise-note-text {
       font-family:var(--mono); font-size:12.5px; line-height:1.7;
-      white-space:pre-wrap; color:var(--text);
+      white-space:pre-wrap; color:var(--text); overflow-wrap:anywhere; word-break:break-word;
     }
 
     /* ════════════════════════════════════════════
@@ -1271,7 +1273,7 @@
 
     /* ═══ UTILS TAG IN EXERCISE HEADER ═══ */
     .ex-utils-tag {
-      margin-left:auto;
+      margin-left:0;
       display:inline-flex; align-items:center; gap:4px;
       border:1px dashed rgba(210,168,255,.45);
       background:rgba(210,168,255,.08);

@@ -89,6 +89,32 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
   return slices;
 }
 
+async function ensureImagesReady(root) {
+  const images = Array.from(root.querySelectorAll('img'));
+  if (!images.length) return;
+
+  await Promise.all(images.map(async image => {
+    image.loading = 'eager';
+    image.decoding = 'sync';
+
+    if (image.complete && image.naturalWidth > 0) return;
+
+    try {
+      if (typeof image.decode === 'function') {
+        await image.decode();
+        return;
+      }
+    } catch {
+      // Fall back to load/error events below when decode fails.
+    }
+
+    await new Promise(resolve => {
+      image.addEventListener('load', resolve, { once: true });
+      image.addEventListener('error', resolve, { once: true });
+    });
+  }));
+}
+
 function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, paddingMm, aspectRatio, bgColor) {
   const maxWidth = pageWidthMm - (paddingMm * 2);
   const maxHeight = pageHeightMm - (paddingMm * 2);
@@ -137,6 +163,8 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   try {
+    await ensureImagesReady(view);
+
     const { jsPDF } = window.jspdf;
     const pad = safeConfig.pagePaddingMm;
     const width = safeConfig.pageWidthMm;
