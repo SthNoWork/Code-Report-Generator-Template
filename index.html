@@ -1027,10 +1027,16 @@
       line-height:1.8; white-space:pre-wrap; word-break:break-word;
       color:var(--dr-fg); overflow:visible; max-height:none;
     }
-    .output-table-wrap { max-height:360px; overflow:auto; background:var(--dr-bg); padding:12px; }
+    .output-table-wrap {
+      max-height:none;
+      overflow:visible;
+      background:var(--dr-bg);
+      padding:12px;
+    }
     .output-table {
       width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px;
       line-height:1.5; color:var(--dr-fg); background:#21222c; border:1px solid #44475a;
+      table-layout:fixed;
     }
     .output-table thead th {
       position:sticky; top:0; background:#1f2230; color:var(--dr-cyan);
@@ -1038,7 +1044,7 @@
     }
     .output-table th, .output-table td {
       border:1px solid #44475a; padding:8px 10px;
-      vertical-align:top; white-space:pre-wrap; word-break:break-word;
+      vertical-align:top; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
     }
     .output-table tbody tr:nth-child(even) { background:rgba(255,255,255,.03); }
 
