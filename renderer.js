@@ -17,6 +17,20 @@
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+const APP_CFG = window.APP_CONFIG || {};
+const APP_LABELS = APP_CFG.labels || {};
+const APP_TEXT = APP_CFG.ui?.text || {};
+const APP_RUNTIME = APP_CFG.runtime || {};
+
+const RENDERER_LABELS = {
+  output: APP_LABELS.outputLabel || 'OUTPUT',
+  image: APP_LABELS.imageLabel || 'IMAGE',
+  description: APP_LABELS.descriptionLabel || 'Description'
+};
+
+const COPY_FEEDBACK_MS = Number(APP_RUNTIME.copyFeedbackMs) || 1800;
+const NO_OUTPUT_MESSAGE = APP_TEXT.noOutputMessage || 'No output file found for this exercise.';
+
 export function escapeHtml(v) {
   return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
@@ -162,7 +176,7 @@ export function buildBlock(spec) {
       headerClass,
       dotClass: 'out-dot',
       fileName: displayName,
-      tag: { cls: 'out-label', attr: null, text: 'OUTPUT' },
+      tag: { cls: 'out-label', attr: null, text: RENDERER_LABELS.output },
     });
     _addRemoveBtn(header, el);
     el.appendChild(header);
@@ -178,13 +192,13 @@ export function buildBlock(spec) {
       headerClass: 'out-header',
       dotClass: 'out-dot',
       fileName: 'output',
-      tag: { cls: 'out-label', attr: null, text: 'OUTPUT' },
+      tag: { cls: 'out-label', attr: null, text: RENDERER_LABELS.output },
     });
     _addRemoveBtn(header, el);
     el.appendChild(header);
     const pre = document.createElement('pre');
     pre.className = 'output-text';
-    pre.textContent = 'No output file found for this exercise.';
+    pre.textContent = NO_OUTPUT_MESSAGE;
     el.appendChild(pre);
 
   } else if (type === 'image') {
@@ -196,7 +210,7 @@ export function buildBlock(spec) {
       headerClass: 'image-header',
       dotClass: 'image-dot',
       fileName: fn,
-      tag: { cls: 'image-label', attr: null, text: 'IMAGE' },
+      tag: { cls: 'image-label', attr: null, text: RENDERER_LABELS.image },
     });
     _addRemoveBtn(header, el);
     el.appendChild(header);
@@ -211,7 +225,7 @@ export function buildBlock(spec) {
     el.dataset.imageDesc = '1';
     el.dataset.fileName  = fn || 'desc.png';
     el.innerHTML =
-      '<div class="exercise-note-head">Description ' +
+      `<div class="exercise-note-head">${RENDERER_LABELS.description} ` +
       '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
       '<div class="exercise-note-image"></div>';
     const img = document.createElement('img');
@@ -232,7 +246,7 @@ export function buildBlock(spec) {
     el.dataset.descSource = source;
     el.dataset.fileName = fn || '';
     el.innerHTML =
-      '<div class="exercise-note-head">Description ' +
+      `<div class="exercise-note-head">${RENDERER_LABELS.description} ` +
       '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
       '<pre class="exercise-note-text"></pre>';
     el.querySelector('.exercise-note-text').textContent = (text || '').trim() || '[empty description]';
@@ -294,7 +308,7 @@ function _buildHeader(config) {
       e.stopPropagation();
       navigator.clipboard.writeText(copyGetContent()).then(() => {
         btn.textContent = 'copied!'; btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, COPY_FEEDBACK_MS);
       }).catch(() => {});
     };
     h.appendChild(btn);

@@ -113,7 +113,13 @@ export function isPrimarySourceFile(fileName, modeConfig) {
 
 // ── Output section parsing ────────────────────────────────────────────────
 
-const SECTION_MARKERS = ['=== CUT ==='];
+const OUTPUT_CFG = window.APP_CONFIG?.output || {};
+const FILE_DISCOVERY_CFG = window.APP_CONFIG?.fileDiscovery || {};
+
+const SECTION_MARKERS =
+  Array.isArray(OUTPUT_CFG.sectionMarkers) && OUTPUT_CFG.sectionMarkers.length
+    ? OUTPUT_CFG.sectionMarkers
+    : ['=== CUT ==='];
 
 function stripNoise(text) {
   return text.split(/\r?\n/).filter(l => {
@@ -193,7 +199,11 @@ async function readFilesInDirectory(dirHandle, modeConfig) {
  * Each entry includes { entry, name, path } where path is the relative path.
  */
 async function readFilesRecursively(dirHandle, modeConfig, basePath = '') {
-  const SKIP = new Set(['.git', 'node_modules', '.DS_Store']);
+  const SKIP = new Set(
+    Array.isArray(FILE_DISCOVERY_CFG.skipDirectories) && FILE_DISCOVERY_CFG.skipDirectories.length
+      ? FILE_DISCOVERY_CFG.skipDirectories
+      : ['.git', 'node_modules', '.DS_Store']
+  );
   const fileEntries   = [];
   const imageEntries  = [];
   const descImageEntries = [];

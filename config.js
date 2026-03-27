@@ -27,6 +27,9 @@ window.APP_CONFIG = {
       landingDescription: 'Click below and select your project root folder. Everything loads automatically - folders, labs, exercises, code files, and output text.',
       openProjectButton: 'Open Project Folder',
       browserSupportNote: 'Requires Chrome or Edge - Firefox not supported',
+      emptyFolderMessage: 'No files found in this folder.',
+      notesPlaceholder: 'Notes for this exercise (shown in PDF if filled)…',
+      noOutputMessage: 'No output file found for this exercise.',
       homeHeroLabel: 'Project Explorer',
       homeHeroTitle: 'Project Folders',
       homeSubtitlePrefix: '//',
@@ -34,6 +37,34 @@ window.APP_CONFIG = {
       footer: 'Open your project root folder - Shows folders, labs, exercises, code files, and text outputs - Chrome & Edge',
       sharedUtilsNote: 'Shared utils code is shown at the very bottom of this report (after all exercises), in both HTML and exported PDF.'
     }
+  },
+
+  // Cover page defaults (non-dynamic values).
+  cover: {
+    defaultLogoPath: './ITC_logo.png',
+    includeInPdfByDefault: true,
+    logoSize: 120,
+    titleSize: 28,
+    defaultTitle: 'Institute Technology of Cambodia',
+    defaultSubtitle: 'Lab Report',
+    labLabelPrefix: 'Lab',
+    labLabelSuffix: ' - Report',
+    fallbackSubtitle: 'Lab Report',
+    detailRows: [
+      { label: 'Course', value: 'Course' },
+      { label: 'Author', value: 'Author' },
+      { label: 'Instructor', value: 'Instructor' },
+      { label: 'Date', value: '__TODAY__' }
+    ]
+  },
+
+  // Runtime/UI behavior timings.
+  runtime: {
+    loadingResetDelayMs: 350,
+    utilsChipFlashMs: 1200,
+    copyFeedbackMs: 1800,
+    newCardFocusDelayMs: 50,
+    readmeFetchTimeoutMs: 2000
   },
 
   // Folder selection behavior.
@@ -61,7 +92,9 @@ window.APP_CONFIG = {
   },
   labels: {
     utilsSectionTitle: 'Shared Utilities',
-    outputLabel: 'OUTPUT'
+    outputLabel: 'OUTPUT',
+    imageLabel: 'IMAGE',
+    descriptionLabel: 'Description'
   },
 
   // Output file parsing.
@@ -78,6 +111,7 @@ window.APP_CONFIG = {
     viewportWidthPx: 960,
     captureScale: 2,
     pageWidthMm: 210,
+    pageHeightMm: 297,
     pagePaddingMm: 8,
     imageQuality: 0.95
   },
@@ -90,6 +124,12 @@ window.APP_CONFIG = {
       'mp3', 'wav', 'ogg', 'mp4', 'mov', 'avi',
       'html', 'htm', 'css', 'js', 'jsx', 'mjs', 'cjs'
     ],
-    preferredMainFileBases: ['main']
+    preferredMainFileBases: ['main'],
+    skipDirectories: ['.git', 'node_modules', '.DS_Store'],
+    codeFileExtensions: [
+      'c', 'h', 'cpp', 'hpp', 'cc', 'cxx',
+      'py', 'java', 'cs', 'js', 'ts', 'tsx', 'jsx', 'go', 'rs', 'php', 'rb', 'swift', 'kt', 'scala',
+      'sql', 'sh', 'ps1', 'xml', 'yaml', 'yml', 'toml', 'ini', 'md'
+    ]
   }
 };

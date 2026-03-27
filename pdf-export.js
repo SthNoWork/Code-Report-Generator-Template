@@ -33,7 +33,7 @@ async function captureElementToImage(elementId, captureConfig, bgColor) {
   };
 }
 
-async function captureElementSlices(element, captureConfig, bgColor, targetSliceHeightPx) {
+async function captureElementSlices(element, captureConfig, bgColor, targetSliceHeightPx, ignoredSelectors = []) {
   const widthPx = Math.max(1, element.offsetWidth);
   const totalHeightPx = Math.max(1, element.scrollHeight);
   const sliceHeightPx = Math.max(256, Math.floor(targetSliceHeightPx));
@@ -57,6 +57,11 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
     ].join(';');
 
     const clone = element.cloneNode(true);
+    if (ignoredSelectors.length) {
+      ignoredSelectors.forEach(selector => {
+        clone.querySelectorAll(selector).forEach(node => node.remove());
+      });
+    }
     clone.style.margin = '0';
     clone.style.transform = `translateY(-${y}px)`;
     clone.style.transformOrigin = 'top left';
@@ -87,6 +92,58 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
   }
 
   return slices;
+}
+
+async function captureElementFullImage(element, captureConfig, bgColor, ignoredSelectors = []) {
+  const widthPx = Math.max(1, element.offsetWidth);
+  const heightPx = Math.max(1, element.scrollHeight, element.offsetHeight);
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = [
+    'position:fixed',
+    'left:-99999px',
+    'top:0',
+    `width:${widthPx}px`,
+    `height:${heightPx}px`,
+    'overflow:visible',
+    `background:${bgColor}`,
+    'z-index:-1',
+    'pointer-events:none'
+  ].join(';');
+
+  const clone = element.cloneNode(true);
+  if (ignoredSelectors.length) {
+    ignoredSelectors.forEach(selector => {
+      clone.querySelectorAll(selector).forEach(node => node.remove());
+    });
+  }
+  clone.style.margin = '0';
+  clone.style.transform = 'none';
+  clone.style.transformOrigin = 'top left';
+
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  try {
+    const canvas = await window.html2canvas(wrapper, {
+      scale: captureConfig.captureScale,
+      backgroundColor: bgColor,
+      useCORS: true,
+      logging: false,
+      width: widthPx,
+      height: heightPx,
+      windowWidth: Math.max(captureConfig.viewportWidthPx || widthPx, widthPx),
+      windowHeight: Math.max(heightPx, 900)
+    });
+
+    return {
+      dataUrl: canvas.toDataURL('image/jpeg', captureConfig.imageQuality),
+      widthPx: canvas.width || 1,
+      heightPx: canvas.height || 1
+    };
+  } finally {
+    wrapper.remove();
+  }
 }
 
 async function ensureImagesReady(root) {
@@ -134,6 +191,20 @@ function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, paddingMm, a
   pdf.addImage(dataUrl, 'JPEG', x, y, renderWidth, renderHeight);
 }
 
+function drawSlicesOnSinglePage(pdf, slices, pageWidthMm, pageHeightMm, paddingMm, bgColor) {
+  const contentWidthMm = pageWidthMm - 2 * paddingMm;
+  let cursorY = paddingMm;
+
+  pdf.setFillColor(bgColor);
+  pdf.rect(0, 0, pageWidthMm, pageHeightMm, 'F');
+
+  slices.forEach(slice => {
+    const imgHeightMm = contentWidthMm * (slice.heightPx / Math.max(slice.widthPx, 1));
+    pdf.addImage(slice.dataUrl, 'JPEG', paddingMm, cursorY, contentWidthMm, imgHeightMm);
+    cursorY += imgHeightMm;
+  });
+}
+
 export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig, coverImageDataUrl = '', coverElementId = '') {
   if (!window.html2canvas || !window.jspdf) {
     alert('PDF libraries not loaded. Please refresh.');
@@ -171,13 +242,22 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     const pageHeight = safeConfig.pageHeightMm;
     const contentWidthMm = width - 2 * pad;
     const contentHeightMm = pageHeight - 2 * pad;
+    const ignoredSelectors = viewId === 'view-general'
+      ? ['#utils-section', '#utils-banner', '#utils-info-notice']
+      : [];
 
-    const targetSliceHeightPx = Math.max(
-      512,
-      Math.floor(view.offsetWidth * (contentHeightMm / Math.max(contentWidthMm, 1)))
-    );
+    let slices;
+    try {
+      const fullCapture = await captureElementFullImage(view, safeConfig, bgColor, ignoredSelectors);
+      slices = [fullCapture];
+    } catch {
+      const targetSliceHeightPx = Math.max(
+        512,
+        Math.floor(view.offsetWidth * (contentHeightMm / Math.max(contentWidthMm, 1)))
+      );
+      slices = await captureElementSlices(view, safeConfig, bgColor, targetSliceHeightPx, ignoredSelectors);
+    }
 
-    const slices = await captureElementSlices(view, safeConfig, bgColor, targetSliceHeightPx);
     if (!slices.length) throw new Error('No capture slices were generated.');
 
     let coverSource = null;
@@ -192,27 +272,23 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
 
     const hasCover = Boolean(coverSource?.dataUrl);
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, pageHeight] });
-    let needsNewPageForFirstSlice = false;
+    const contentTotalHeightMm = slices.reduce(
+      (sum, slice) => sum + (contentWidthMm * (slice.heightPx / Math.max(slice.widthPx, 1))),
+      0
+    );
+    const longPageHeightMm = Math.max(pageHeight, (2 * pad) + contentTotalHeightMm);
 
     if (hasCover) {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, pageHeight] });
       drawImageCentered(pdf, coverSource.dataUrl, width, pageHeight, pad, coverSource.aspectRatio, bgColor);
-      needsNewPageForFirstSlice = true;
+      pdf.addPage([width, longPageHeightMm], 'portrait');
+      drawSlicesOnSinglePage(pdf, slices, width, longPageHeightMm, pad, bgColor);
+      pdf.save(`${fileName}-report.pdf`);
+    } else {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, longPageHeightMm] });
+      drawSlicesOnSinglePage(pdf, slices, width, longPageHeightMm, pad, bgColor);
+      pdf.save(`${fileName}-report.pdf`);
     }
-
-    slices.forEach((slice, index) => {
-      if (index > 0 || needsNewPageForFirstSlice) {
-        pdf.addPage([width, pageHeight], 'portrait');
-        needsNewPageForFirstSlice = false;
-      }
-      const imgWidthMm = contentWidthMm;
-      const imgHeightMm = imgWidthMm * (slice.heightPx / Math.max(slice.widthPx, 1));
-      pdf.setFillColor(bgColor);
-      pdf.rect(0, 0, width, pageHeight, 'F');
-      pdf.addImage(slice.dataUrl, 'JPEG', pad, pad, imgWidthMm, Math.min(imgHeightMm, contentHeightMm));
-    });
-
-    pdf.save(`${fileName}-report.pdf`);
   } catch (error) {
     console.error('PDF export error:', error);
     alert('PDF export failed: ' + (error?.message || 'Unknown error'));

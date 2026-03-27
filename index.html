@@ -1297,6 +1297,21 @@
     }
     .ex-utils-tag-remove:hover { color:var(--accent3); }
 
+    .ex-utils-tag-add {
+      margin-left:0;
+      background:transparent;
+      border:1px dashed rgba(210,168,255,.45);
+      color:var(--accent4);
+      border-radius:999px;
+      font-family:var(--mono);
+      font-size:10px;
+      line-height:1;
+      padding:3px 8px;
+      cursor:pointer;
+      transition:background .15s, border-color .15s;
+    }
+    .ex-utils-tag-add:hover { background:rgba(210,168,255,.08); border-color:rgba(210,168,255,.65); }
+
     /* ═══ UTILS FOOTER INSIDE EXERCISE BODY ═══ */
     .ex-utils-footer {
       margin-top:4px; padding:10px 14px;
@@ -1349,6 +1364,7 @@
     body.exporting-pdf .utils-chip-remove,
     body.exporting-pdf .utils-chip-add-btn,
     body.exporting-pdf .utils-chip-picker,
+    body.exporting-pdf .ex-utils-tag-add,
     body.exporting-pdf .utils-collapse-btn,
     body.exporting-pdf .utils-info-dismiss { display:none !important; }
 

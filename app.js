@@ -22,7 +22,40 @@ import { exportExerciseListPdf } from './pdf-export.js';
 const CFG = (() => {
   const u = window.APP_CONFIG || {};
   const pdf = { contentWidthPx:900, viewportWidthPx:960, captureScale:2,
-                pageWidthMm:210, pagePaddingMm:8, imageQuality:0.95, ...(u.pdf||{}) };
+                pageWidthMm:210, pageHeightMm:297, pagePaddingMm:8, imageQuality:0.95, ...(u.pdf||{}) };
+  const runtime = {
+    loadingResetDelayMs: 350,
+    utilsChipFlashMs: 1200,
+    newCardFocusDelayMs: 50,
+    readmeFetchTimeoutMs: 2000,
+    ...(u.runtime || {})
+  };
+  const labels = {
+    utilsSectionTitle: 'Shared Utilities',
+    ...(u.labels || {})
+  };
+  const paths = {
+    utilsFolderName: 'utils',
+    ...(u.paths || {})
+  };
+  const cover = {
+    defaultLogoPath: './ITC_logo.png',
+    includeInPdfByDefault: true,
+    logoSize: 120,
+    titleSize: 28,
+    defaultTitle: 'Institute Technology of Cambodia',
+    defaultSubtitle: 'Lab Report',
+    labLabelPrefix: 'Lab',
+    labLabelSuffix: ' - Report',
+    fallbackSubtitle: 'Lab Report',
+    detailRows: [
+      { label:'Course', value:'Course' },
+      { label:'Author', value:'Author' },
+      { label:'Instructor', value:'Instructor' },
+      { label:'Date', value:'__TODAY__' },
+    ],
+    ...(u.cover || {})
+  };
   const ui  = {
     pageTitle:'Report Generator',
     topbar: { useRootFolderName:true, separator:' > ', ...(u.ui?.topbar||{}) },
@@ -31,12 +64,14 @@ const CFG = (() => {
       landingDescription:'Open a folder to begin.',
       openProjectButton:'Open Folder',
       browserSupportNote:'Requires Chrome or Edge',
+      emptyFolderMessage:'No files found in this folder.',
+      notesPlaceholder:'Notes for this exercise (shown in PDF if filled)…',
       footer:'Report Generator — Chrome & Edge',
       ...(u.ui?.text||{})
     },
     ...(u.ui||{})
   };
-  return { pdf, ui };
+  return { pdf, ui, runtime, cover, labels, paths };
 })();
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -84,13 +119,13 @@ let showUtils     = true;        // controlled by Display Options toggle
 
 // Cover page state
 let coverImageDataUrl = '';
-let coverLogoDataUrl  = './ITC_logo.png';
-let coverLogoSize     = 120;
-let coverTitleSize    = 28;
-let includeCoverInPdf = true;
+let coverLogoDataUrl  = CFG.cover.defaultLogoPath;
+let coverLogoSize     = Number(CFG.cover.logoSize) || 120;
+let coverTitleSize    = Number(CFG.cover.titleSize) || 28;
+let includeCoverInPdf = CFG.cover.includeInPdfByDefault !== false;
 const coverInfo = {
-  title:    'Institute Technology of Cambodia',
-  subtitle: 'Lab Report',
+  title:    CFG.cover.defaultTitle,
+  subtitle: CFG.cover.defaultSubtitle,
 };
 
 /** Extract a zero-padded lab number from a folder name.
@@ -111,14 +146,17 @@ function extractLabNumber(name) {
  */
 function buildLabSubtitle(name) {
   const num = extractLabNumber(name);
-  return num ? `Lab${num} - Report` : 'Lab Report';
+  return num
+    ? `${CFG.cover.labLabelPrefix}${num}${CFG.cover.labLabelSuffix}`
+    : CFG.cover.fallbackSubtitle;
 }
-let coverSections = [
-  { label:'Course',     value:'Course' },
-  { label:'Author',     value:'Author' },
-  { label:'Instructor', value:'Instructor' },
-  { label:'Date',       value: new Date().toLocaleDateString() },
-];
+let coverSections = (Array.isArray(CFG.cover.detailRows) ? CFG.cover.detailRows : []).map(row => {
+  const value = row?.value === '__TODAY__' ? new Date().toLocaleDateString() : row?.value;
+  return {
+    label: String(row?.label ?? ''),
+    value: String(value ?? ''),
+  };
+});
 
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 3: MODE PICKER
@@ -163,7 +201,7 @@ function syncModeUi() {
 // ══════════════════════════════════════════════════════════════════════════
 
 async function openFolder() {
-  if (!window.showDirectoryPicker) { alert('Use Chrome or Edge.'); return; }
+  if (!window.showDirectoryPicker) { alert(CFG.ui.text.browserSupportNote); return; }
   try {
     const handle = await window.showDirectoryPicker();
     folderHandle = handle;
@@ -179,17 +217,17 @@ async function rescan() {
 }
 
 async function loadUtilsFolder() {
-  if (!window.showDirectoryPicker) { alert('Use Chrome or Edge.'); return; }
+  if (!window.showDirectoryPicker) { alert(CFG.ui.text.browserSupportNote); return; }
   if (activeMode.utilsEnabled === false) {
     alert('Utils folders are disabled in this mode.');
     return;
   }
   try {
     const handle = await window.showDirectoryPicker();
-    utilsFolderName = handle.name || 'utils';
+    utilsFolderName = handle.name || CFG.paths.utilsFolderName;
     setLoading(10);
     utilsFiles = await scanUtilsFolder(handle, activeMode);
-    setLoading(100); setTimeout(() => setLoading(0), 350);
+    setLoading(100); setTimeout(() => setLoading(0), CFG.runtime.loadingResetDelayMs);
     renderUtilsSection();
   } catch (err) {
     if (err?.name !== 'AbortError') alert('Cannot open folder: ' + (err?.message || err));
@@ -229,7 +267,7 @@ async function loadFolder(handle) {
   utilsFolderName = '';
   exercises = await scanFolder(handle, folderName, activeMode, pct => setLoading(10 + pct * 0.85));
   reindexExercises();
-  setLoading(100); setTimeout(() => setLoading(0), 350);
+  setLoading(100); setTimeout(() => setLoading(0), CFG.runtime.loadingResetDelayMs);
 
   // Update mode badge
   const badge = document.getElementById('mode-badge');
@@ -239,7 +277,7 @@ async function loadFolder(handle) {
   }
 
   // Always reset cover fields on new folder load
-  coverInfo.title    = 'Institute Technology of Cambodia';
+  coverInfo.title    = CFG.cover.defaultTitle;
   coverInfo.subtitle = buildLabSubtitle(folderName);
 
   const titleInp = document.getElementById('cover-title-input');
@@ -282,6 +320,7 @@ function renderUtilsSection() {
     banner.style.display    = 'none';
     if (notice) notice.style.display = 'none';
     document.querySelectorAll('.ex-utils-footer').forEach(el => el.remove());
+    document.querySelectorAll('#general-ex-list .ex-item').forEach(item => updateUtilsRestoreButton(item));
     return;
   }
 
@@ -298,6 +337,7 @@ function renderUtilsSection() {
   container.style.display = (visible && !utilsSectionCollapsed) ? '' : 'none';
   if (!visible) {
     document.querySelectorAll('.ex-utils-footer').forEach(el => el.remove());
+    document.querySelectorAll('#general-ex-list .ex-item').forEach(item => updateUtilsRestoreButton(item));
     return;
   }
 
@@ -306,7 +346,7 @@ function renderUtilsSection() {
   const heading = document.createElement('div');
   heading.className = 'utils-heading';
   heading.innerHTML =
-    `<span class="utils-title">📦 ${escapeHtml(utilsFolderName)} — Shared Utilities</span>` +
+    `<span class="utils-title">📦 ${escapeHtml(utilsFolderName)} — ${escapeHtml(CFG.labels.utilsSectionTitle)}</span>` +
     `<span class="utils-meta">${utilsFiles.length} file${utilsFiles.length !== 1 ? 's' : ''}</span>` +
     `<button class="small-btn danger" onclick="clearUtilsFolder()" title="Remove utils folder">✕ Remove</button>`;
   container.appendChild(heading);
@@ -326,30 +366,85 @@ function injectUtilsTagsIntoCards() {
   if (!utilsFiles.length) return;
 
   document.querySelectorAll('#general-ex-list .ex-item').forEach(item => {
-    if (item.dataset.utilsDisabled === '1') return;
-    if (item.querySelector('.ex-utils-tag')) return;
+    ensureUtilsRestoreButton(item);
+    insertUtilsTag(item);
+    updateUtilsRestoreButton(item);
+  });
+}
 
-    const tag = document.createElement('span');
-    tag.className = 'ex-utils-tag';
-    tag.innerHTML = '<span class="label">📦 utils</span>';
+function ensureUtilsRestoreButton(item) {
+  if (!item || item.querySelector('.ex-utils-tag-add')) return;
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'ex-utils-tag-remove';
-    removeBtn.type = 'button';
-    removeBtn.title = 'Hide utils for this exercise';
-    removeBtn.textContent = '×';
-    removeBtn.onclick = e => {
-      e.stopPropagation();
-      item.dataset.utilsDisabled = '1';
-      item.querySelector('.ex-utils-tag')?.remove();
-      item.querySelector('.ex-utils-footer')?.remove();
-    };
-    tag.appendChild(removeBtn);
+  const addBtn = document.createElement('button');
+  addBtn.className = 'ex-utils-tag-add';
+  addBtn.type = 'button';
+  addBtn.title = 'Show utils for this exercise';
+  addBtn.textContent = '＋ utils';
+  addBtn.onclick = e => {
+    e.stopPropagation();
+    setExerciseUtilsDisabled(item, false);
+  };
 
+  const chevron = item.querySelector('.ex-chevron');
+  if (chevron && chevron.parentNode) chevron.parentNode.insertBefore(addBtn, chevron);
+  else item.querySelector('.ex-header')?.appendChild(addBtn);
+}
+
+function updateUtilsRestoreButton(item) {
+  const addBtn = item?.querySelector('.ex-utils-tag-add');
+  if (!addBtn) return;
+  const shouldShow = utilsFiles.length > 0 && item.dataset.utilsDisabled === '1';
+  addBtn.style.display = shouldShow ? '' : 'none';
+}
+
+function insertUtilsTag(item) {
+  if (!item || !utilsFiles.length) return;
+  if (item.dataset.utilsDisabled === '1') return;
+  if (item.querySelector('.ex-utils-tag')) return;
+
+  const tag = document.createElement('span');
+  tag.className = 'ex-utils-tag';
+  tag.innerHTML = '<span class="label">📦 utils</span>';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'ex-utils-tag-remove';
+  removeBtn.type = 'button';
+  removeBtn.title = 'Hide utils for this exercise';
+  removeBtn.textContent = '×';
+  removeBtn.onclick = e => {
+    e.stopPropagation();
+    setExerciseUtilsDisabled(item, true);
+  };
+  tag.appendChild(removeBtn);
+
+  const addBtn = item.querySelector('.ex-utils-tag-add');
+  if (addBtn && addBtn.parentNode) addBtn.parentNode.insertBefore(tag, addBtn);
+  else {
     const chevron = item.querySelector('.ex-chevron');
     if (chevron && chevron.parentNode) chevron.parentNode.insertBefore(tag, chevron);
     else item.querySelector('.ex-header')?.appendChild(tag);
-  });
+  }
+}
+
+function setExerciseUtilsDisabled(item, disabled) {
+  if (!item) return;
+  if (disabled) item.dataset.utilsDisabled = '1';
+  else delete item.dataset.utilsDisabled;
+
+  item.querySelector('.ex-utils-tag')?.remove();
+  item.querySelector('.ex-utils-footer')?.remove();
+
+  if (!disabled) {
+    insertUtilsTag(item);
+    const body = item.querySelector('.ex-body[data-loaded="1"]');
+    if (body && !body.querySelector('.ex-utils-footer')) {
+      const addRow = body.querySelector('.ex-add-row');
+      const footer = buildUtilsFooter(utilsFiles.map(f => f.name));
+      addRow ? body.insertBefore(footer, addRow) : body.appendChild(footer);
+    }
+  }
+
+  updateUtilsRestoreButton(item);
 }
 
 /** Inject a utils footer into exercise bodies that are already open.
@@ -432,7 +527,7 @@ function openUtilsChipPicker(anchorBtn, chipsWrap) {
   if (!available.length) {
     // All chips already shown — flash the add button briefly
     anchorBtn.textContent = '✓ all added';
-    setTimeout(() => { anchorBtn.textContent = '＋ Add'; }, 1200);
+    setTimeout(() => { anchorBtn.textContent = '＋ Add'; }, CFG.runtime.utilsChipFlashMs);
     return;
   }
 
@@ -469,7 +564,7 @@ function renderExercises() {
   if (pdBtn) pdBtn.style.display = exercises.length ? '' : 'none';
 
   if (!exercises.length) {
-    list.innerHTML = '<div class="empty-card"><div class="big">📂</div>No files found in this folder.</div>';
+    list.innerHTML = `<div class="empty-card"><div class="big">📂</div>${escapeHtml(CFG.ui.text.emptyFolderMessage)}</div>`;
     return;
   }
 
@@ -483,6 +578,9 @@ function renderExercises() {
     };
     list.appendChild(item);
   });
+  if (utilsFiles.length) {
+    document.querySelectorAll('#general-ex-list .ex-item').forEach(item => ensureUtilsRestoreButton(item));
+  }
   if (utilsFiles.length) injectUtilsTagsIntoCards();
   initDragSort(list);
   initBlockDragSort(list);
@@ -521,25 +619,9 @@ function buildExerciseItem(ex, idx) {
     }
   });
 
-  if (utilsFiles.length && item.dataset.utilsDisabled !== '1') {
-    const chevron = item.querySelector('.ex-chevron');
-    const tag = document.createElement('span');
-    tag.className = 'ex-utils-tag';
-    tag.innerHTML = '<span class="label">📦 utils</span>';
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'ex-utils-tag-remove';
-    removeBtn.type = 'button';
-    removeBtn.title = 'Hide utils for this exercise';
-    removeBtn.textContent = '×';
-    removeBtn.onclick = e => {
-      e.stopPropagation();
-      item.dataset.utilsDisabled = '1';
-      item.querySelector('.ex-utils-tag')?.remove();
-      item.querySelector('.ex-utils-footer')?.remove();
-    };
-    tag.appendChild(removeBtn);
-    if (chevron && chevron.parentNode) chevron.parentNode.insertBefore(tag, chevron);
-  }
+  ensureUtilsRestoreButton(item);
+  insertUtilsTag(item);
+  updateUtilsRestoreButton(item);
 
   return item;
 }
@@ -558,7 +640,7 @@ function populateExerciseBody(body, ex) {
   notesRow.className = 'ex-notes-row';
   const ta = document.createElement('textarea');
   ta.className = 'ex-notes-area';
-  ta.placeholder = 'Notes for this exercise (shown in PDF if filled)…';
+  ta.placeholder = CFG.ui.text.notesPlaceholder;
   ta.value = ex._notes || '';
   ta.addEventListener('input', () => { ex._notes = ta.value; });
   notesRow.appendChild(ta); body.appendChild(notesRow);
@@ -700,7 +782,7 @@ function addNewCard() {
   item.classList.add('open');
   populateExerciseBody(item.querySelector('.ex-body'), ex);
   const ti = item.querySelector('.ex-title-input');
-  if (ti) { ti.select(); setTimeout(() => ti.focus(), 50); }
+  if (ti) { ti.select(); setTimeout(() => ti.focus(), CFG.runtime.newCardFocusDelayMs); }
   updateCountTag();
   item.scrollIntoView({ behavior:'smooth', block:'center' });
 }
@@ -1314,7 +1396,7 @@ async function loadReadmeHowTo(handle) {
   const div   = document.getElementById('howto-content');
   if (panel) panel.style.display = 'none';
   try {
-    const raceText = (p) => Promise.race([p, new Promise(r=>setTimeout(()=>r(''),2000))]);
+    const raceText = (p) => Promise.race([p, new Promise(r=>setTimeout(()=>r(''), CFG.runtime.readmeFetchTimeoutMs))]);
     let text = '';
     if (handle) {
       for (const name of ['README.md','readme.md','Readme.md']) {
