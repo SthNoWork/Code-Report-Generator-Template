@@ -1,0 +1,4 @@
+Add: 15
+Subtract: 5
+Abs: 15
+Is Even: true

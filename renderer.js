@@ -15,21 +15,32 @@
  * for backwards-compatibility with existing call sites.
  */
 
+import { getAppConfig } from './app-config-resolver.js';
+import { buildUnifiedBlocks, applyBlockStatePatch } from './block-builder.js';
+import { getAttachmentSupports } from './scan_file-classifier.js';
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const APP_CFG = window.APP_CONFIG || {};
-const APP_LABELS = APP_CFG.labels || {};
-const APP_TEXT = APP_CFG.ui?.text || {};
-const APP_RUNTIME = APP_CFG.runtime || {};
+const APP_CFG = getAppConfig();
+const APP_LABELS = APP_CFG.labels;
+const APP_TEXT = APP_CFG.ui.text;
+const APP_RUNTIME = APP_CFG.runtime;
 
 const RENDERER_LABELS = {
   output: APP_LABELS.outputLabel || 'OUTPUT',
   image: APP_LABELS.imageLabel || 'IMAGE',
+  pdf: APP_LABELS.pdfLabel || 'PDF',
   description: APP_LABELS.descriptionLabel || 'Description'
 };
 
 const COPY_FEEDBACK_MS = Number(APP_RUNTIME.copyFeedbackMs) || 1800;
 const NO_OUTPUT_MESSAGE = APP_TEXT.noOutputMessage || 'No output file found for this exercise.';
+const ATTACHMENT_SUPPORTS = getAttachmentSupports();
+const ATTACHMENT_TYPE_INDEX = new Map();
+ATTACHMENT_SUPPORTS.forEach(support => {
+  ATTACHMENT_TYPE_INDEX.set(support.buildType, { support, isDescription: false });
+  ATTACHMENT_TYPE_INDEX.set(support.descBuildType, { support, isDescription: true });
+});
 
 export function escapeHtml(v) {
   return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -60,10 +71,132 @@ const BLOCK_TYPE_CONFIG = {
   'code':         { headerClass:'code-header',  dotClass:'code-dot',   label: null,     labelClass: null,          draggable:true, crossDraggable:true  },
   'output':       { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:true  },
   'empty-output': { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:true  },
-  'image':        { headerClass:'image-header', dotClass:'image-dot',  label:'IMAGE',   labelClass:'image-label',  draggable:true, crossDraggable:true  },
-  'image-desc':   { headerClass:'code-header',  dotClass:'image-dot',  label:'DESC',    labelClass:'image-label',  draggable:true, crossDraggable:true  },
   'desc-text':    { headerClass:'code-header',  dotClass:'image-dot',  label:'DESC',    labelClass:'image-label',  draggable:true, crossDraggable:true  },
 };
+ATTACHMENT_SUPPORTS.forEach(support => {
+  BLOCK_TYPE_CONFIG[support.buildType] = {
+    headerClass:'image-header', dotClass:'image-dot', label:'', labelClass:'image-label', draggable:true, crossDraggable:true
+  };
+  BLOCK_TYPE_CONFIG[support.descBuildType] = {
+    headerClass:'code-header', dotClass:'image-dot', label:'DESC', labelClass:'image-label', draggable:true, crossDraggable:true
+  };
+});
+
+function buildPdfPreviewMarkup(dataUrl) {
+  const safeUrl = escapeHtml(dataUrl || '');
+  return `<div class="pdf-render-surface" data-pdf-src="${safeUrl}"></div>`;
+}
+
+function dataUrlToUint8Array(dataUrl) {
+  const encoded = String(dataUrl || '').split(',')[1] || '';
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+let pdfJsConfigured = false;
+const pdfRenderJobs = new WeakMap();
+
+function ensurePdfJsConfigured() {
+  if (pdfJsConfigured || !window.pdfjsLib) return;
+  try {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  } catch {
+    // Keep graceful fallback if worker setup fails.
+  }
+  pdfJsConfigured = true;
+}
+
+async function renderPdfSurface(surface) {
+  if (!surface) return;
+  if (surface.dataset.rendered === '1') return;
+  if (pdfRenderJobs.has(surface)) {
+    await pdfRenderJobs.get(surface);
+    return;
+  }
+
+  const src = surface.dataset.pdfSrc || '';
+  if (!src) return;
+
+  const job = (async () => {
+  if (!window.pdfjsLib) {
+    surface.innerHTML = '<div class="pdf-preview-fallback">PDF preview unavailable in this browser.</div>';
+    surface.dataset.rendered = '0';
+    return;
+  }
+
+  ensurePdfJsConfigured();
+  surface.innerHTML = '';
+  surface.dataset.rendering = '1';
+
+  try {
+    const bytes = dataUrlToUint8Array(src);
+    const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+    const pdfDoc = await loadingTask.promise;
+
+    const targetWidth = Math.max(320, surface.clientWidth || surface.parentElement?.clientWidth || 860);
+
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum += 1) {
+      const page = await pdfDoc.getPage(pageNum);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = targetWidth / Math.max(baseViewport.width, 1);
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      canvas.setAttribute('draggable', 'false');
+
+      const ctx = canvas.getContext('2d', { alpha: false });
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      surface.appendChild(canvas);
+    }
+    surface.dataset.rendered = '1';
+  } catch {
+    surface.innerHTML = '<div class="pdf-preview-fallback">Unable to render PDF preview.</div>';
+    surface.dataset.rendered = '0';
+  } finally {
+    delete surface.dataset.rendering;
+  }
+  })();
+
+  pdfRenderJobs.set(surface, job);
+  try {
+    await job;
+  } finally {
+    pdfRenderJobs.delete(surface);
+  }
+}
+
+export async function renderPdfPreviewSurfaces(root = document) {
+  const surfaces = Array.from(root.querySelectorAll('.pdf-render-surface[data-pdf-src]'));
+  if (!surfaces.length) return;
+  await Promise.all(surfaces.map(renderPdfSurface));
+}
+
+function getAttachmentLabel(supportId) {
+  if (supportId === 'image') return RENDERER_LABELS.image;
+  if (supportId === 'pdf') return RENDERER_LABELS.pdf;
+  return String(supportId || 'FILE').toUpperCase();
+}
+
+function renderAttachmentContentMarkup(supportId, dataUrl, fileName, isDescription) {
+  const safeUrl = escapeHtml(dataUrl || '');
+  const safeName = escapeHtml(fileName || 'file');
+
+  if (supportId === 'image') {
+    return `<img src="${safeUrl}" alt="${safeName}" loading="lazy" draggable="false"/>`;
+  }
+
+  if (supportId === 'pdf') {
+    return buildPdfPreviewMarkup(dataUrl);
+  }
+
+  return `<a class="pdf-open-link" href="${safeUrl}" target="_blank" rel="noopener">Open ${escapeHtml(getAttachmentLabel(supportId))}</a>`;
+}
 
 // ── buildBlock — the one function that builds everything ───────────────────
 
@@ -201,44 +334,42 @@ export function buildBlock(spec) {
     pre.textContent = NO_OUTPUT_MESSAGE;
     el.appendChild(pre);
 
-  } else if (type === 'image') {
+  } else if (ATTACHMENT_TYPE_INDEX.has(type)) {
+    const { support, isDescription } = ATTACHMENT_TYPE_INDEX.get(type);
     const { fileName: fn, dataUrl } = spec;
-    blockClass  = 'image-block';
-    el.className = blockClass;
-    el.dataset.fileName = fn;
-    const header = _buildHeader({
-      headerClass: 'image-header',
-      dotClass: 'image-dot',
-      fileName: fn,
-      tag: { cls: 'image-label', attr: null, text: RENDERER_LABELS.image },
-    });
-    _addRemoveBtn(header, el);
-    el.appendChild(header);
-    contentEl = document.createElement('div');
-    contentEl.className = 'image-content';
-    contentEl.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="${escapeHtml(fn)}" loading="lazy"/>`;
-    el.appendChild(contentEl);
+    el.dataset.fileName = fn || '';
 
-  } else if (type === 'image-desc') {
-    const { fileName: fn, dataUrl } = spec;
-    el.className = 'exercise-note image-description-note';
-    el.dataset.imageDesc = '1';
-    el.dataset.fileName  = fn || 'desc.png';
-    el.innerHTML =
-      `<div class="exercise-note-head">${RENDERER_LABELS.description} ` +
-      '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
-      '<div class="exercise-note-image"></div>';
-    const img = document.createElement('img');
-    img.src = dataUrl; img.alt = 'Exercise description';
-    img.style.cssText = 'max-width:100%;height:auto';
-    el.querySelector('.exercise-note-image').appendChild(img);
-    el.querySelector('.desc-toggle-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      const hidden = el.dataset.userHidden === '1';
-      el.style.display = hidden ? '' : 'none';
-      el.dataset.userHidden = hidden ? '0' : '1';
-      e.target.textContent = hidden ? '✕' : '↩';
-    });
+    if (isDescription) {
+      el.className = 'exercise-note image-description-note';
+      el.dataset.attachmentDesc = support.id;
+      el.innerHTML =
+        `<div class="exercise-note-head">${RENDERER_LABELS.description} ` +
+        '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
+        '<div class="exercise-note-attachment"></div>';
+      el.querySelector('.exercise-note-attachment').innerHTML = renderAttachmentContentMarkup(support.id, dataUrl, fn, true);
+      el.querySelector('.desc-toggle-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        const hidden = el.dataset.userHidden === '1';
+        el.style.display = hidden ? '' : 'none';
+        el.dataset.userHidden = hidden ? '0' : '1';
+        e.target.textContent = hidden ? '✕' : '↩';
+      });
+    } else {
+      blockClass  = 'image-block';
+      el.className = blockClass;
+      const header = _buildHeader({
+        headerClass: 'image-header',
+        dotClass: 'image-dot',
+        fileName: fn,
+        tag: { cls: 'image-label', attr: null, text: getAttachmentLabel(support.id) },
+      });
+      _addRemoveBtn(header, el);
+      el.appendChild(header);
+      contentEl = document.createElement('div');
+      contentEl.className = `image-content attachment-surface attachment-${support.id}`;
+      contentEl.innerHTML = renderAttachmentContentMarkup(support.id, dataUrl, fn, false);
+      el.appendChild(contentEl);
+    }
   } else if (type === 'desc-text') {
     const { fileName: fn, text, source = 'file' } = spec;
     el.className = 'exercise-note desc-text-note';
@@ -402,135 +533,89 @@ export function buildImageBlock(fileName, dataUrl) {
   return buildBlock({ type: 'image', fileName, dataUrl });
 }
 
+export function buildPdfBlock(fileName, dataUrl) {
+  return buildBlock({ type: 'pdf', fileName, dataUrl });
+}
+
 export function buildImageDescNote(dataUrl, fileName) {
   return buildBlock({ type: 'image-desc', fileName, dataUrl });
 }
 
+export function buildPdfDescNote(dataUrl, fileName) {
+  return buildBlock({ type: 'pdf-desc', fileName, dataUrl });
+}
+
+export function buildAttachmentBlock(fileName, dataUrl, supportId, isDescription = false) {
+  const support = ATTACHMENT_SUPPORTS.find(item => item.id === supportId);
+  if (!support) return null;
+  return buildBlock({
+    type: isDescription ? support.descBuildType : support.buildType,
+    fileName,
+    dataUrl,
+  });
+}
+
 // ── renderBodyContents ────────────────────────────────────────────────────
 
-function extractFileNumber(fileName) {
-  const matches = String(fileName || '').match(/\d+/g);
-  if (!matches || !matches.length) return null;
-  const value = Number.parseInt(matches[matches.length - 1], 10);
-  return Number.isFinite(value) ? value : null;
+export function buildExerciseBlocks({
+  ex,
+  modeConfig,
+  renderOutputContent,
+  buildConfig = {}
+}) {
+  return buildUnifiedBlocks({
+    ex,
+    modeConfig,
+    renderOutputContent,
+    buildBlock,
+    buildConfig
+  });
 }
 
-function compareByFileName(a, b) {
-  const an = String(a || '').toLowerCase();
-  const bn = String(b || '').toLowerCase();
-  return an.localeCompare(bn, undefined, { numeric: true });
+export function buildBlocksFromScannerGroup({
+  files = [],
+  outputSectionsCache = [],
+  descTexts = [],
+  descFromComment = '',
+  modeConfig,
+  renderOutputContent,
+  buildConfig = {},
+  ...rest
+}) {
+  const attachmentGrouped = {};
+  ATTACHMENT_SUPPORTS.forEach(support => {
+    attachmentGrouped[support.exerciseKey] = rest[support.exerciseKey] || [];
+    attachmentGrouped[support.descExerciseKey] = rest[support.descExerciseKey] || [];
+  });
+
+  return buildUnifiedBlocks({
+    ex: {
+      files,
+      outputSectionsCache,
+      descTexts,
+      descFromComment,
+      ...attachmentGrouped,
+    },
+    modeConfig,
+    renderOutputContent,
+    buildBlock,
+    buildConfig
+  });
 }
 
-export function renderBodyContents(body, ex, modeConfig, renderOutputContent) {
-  const descTexts = ex.descTexts || [];
-  const descImages = ex.descImages || [];
-  const files = ex.files || [];
-  const outputs = ex.outputSectionsCache || [];
-  const images = ex.images || [];
+export function updateExerciseBlockStates(body, statePatch) {
+  applyBlockStatePatch(body, statePatch);
+}
 
-  const allNamedItems = [];
-  descTexts.forEach(d => allNamedItems.push(d.fileName));
-  descImages.forEach(d => allNamedItems.push(d.fileName));
-  files.forEach(f => allNamedItems.push(f.name));
-  outputs.forEach(o => allNamedItems.push(o.fileName));
-  images.forEach(i => allNamedItems.push(i.fileName));
+export function renderBodyContents(body, ex, modeConfig, renderOutputContent, buildConfig = {}) {
+  const built = buildExerciseBlocks({
+    ex,
+    modeConfig,
+    renderOutputContent,
+    buildConfig
+  });
 
-  const hasNumberedItems = allNamedItems.some(name => extractFileNumber(name) !== null);
-
-  if (!hasNumberedItems) {
-    descTexts.forEach(desc =>
-      body.appendChild(buildBlock({ type:'desc-text', fileName:desc.fileName, text:desc.text, source:'file' }))
-    );
-    if (ex.descFromComment) {
-      body.appendChild(buildBlock({ type:'desc-text', fileName:'main comment', text:ex.descFromComment, source:'comment' }));
-    }
-    descImages.forEach(img =>
-      body.appendChild(buildBlock({ type:'image-desc', fileName:img.fileName, dataUrl:img.dataUrl }))
-    );
-    files.forEach(f =>
-      body.appendChild(buildBlock({ type:'code', file:f, ex, modeConfig }))
-    );
-    if (!outputs.length) {
-      body.appendChild(buildBlock({ type:'empty-output' }));
-    } else {
-      outputs.forEach(entry =>
-        (entry.sections || []).forEach((sec, i) =>
-          body.appendChild(buildBlock({ type:'output', fileName:entry.fileName, section:sec, sectionIdx:i, sectionTotal:entry.sections.length, renderContent:renderOutputContent }))
-        )
-      );
-    }
-    images.forEach(img =>
-      body.appendChild(buildBlock({ type:'image', fileName:img.fileName, dataUrl:img.dataUrl }))
-    );
-    return;
-  }
-
-  const groups = new Map();
-  const fallback = { descTexts: [], descImages: [], files: [], outputs: [], images: [] };
-
-  const ensureGroup = (n) => {
-    if (!groups.has(n)) {
-      groups.set(n, { number: n, descTexts: [], descImages: [], files: [], outputs: [], images: [] });
-    }
-    return groups.get(n);
-  };
-
-  const assign = (fileName, key, item) => {
-    const n = extractFileNumber(fileName);
-    if (n === null) {
-      fallback[key].push(item);
-    } else {
-      ensureGroup(n)[key].push(item);
-    }
-  };
-
-  descTexts.forEach(item => assign(item.fileName, 'descTexts', item));
-  descImages.forEach(item => assign(item.fileName, 'descImages', item));
-  files.forEach(item => assign(item.name, 'files', item));
-  outputs.forEach(item => assign(item.fileName, 'outputs', item));
-  images.forEach(item => assign(item.fileName, 'images', item));
-
-  const ordered = Array.from(groups.values()).sort((a, b) => a.number - b.number);
-
-  const renderGroup = (g) => {
-    g.descTexts
-      .slice()
-      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
-      .forEach(desc => body.appendChild(buildBlock({ type:'desc-text', fileName:desc.fileName, text:desc.text, source:'file' })));
-
-    g.descImages
-      .slice()
-      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
-      .forEach(img => body.appendChild(buildBlock({ type:'image-desc', fileName:img.fileName, dataUrl:img.dataUrl })));
-
-    g.files
-      .slice()
-      .sort((a, b) => compareByFileName(a.name, b.name))
-      .forEach(f => body.appendChild(buildBlock({ type:'code', file:f, ex, modeConfig })));
-
-    g.outputs
-      .slice()
-      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
-      .forEach(entry =>
-        (entry.sections || []).forEach((sec, i) =>
-          body.appendChild(buildBlock({ type:'output', fileName:entry.fileName, section:sec, sectionIdx:i, sectionTotal:entry.sections.length, renderContent:renderOutputContent }))
-        )
-      );
-
-    g.images
-      .slice()
-      .sort((a, b) => compareByFileName(a.fileName, b.fileName))
-      .forEach(img => body.appendChild(buildBlock({ type:'image', fileName:img.fileName, dataUrl:img.dataUrl })));
-  };
-
-  if (ex.descFromComment) {
-    body.appendChild(buildBlock({ type:'desc-text', fileName:'main comment', text:ex.descFromComment, source:'comment' }));
-  }
-
-  ordered.forEach(renderGroup);
-  renderGroup(fallback);
-
-  if (!outputs.length) {
-    body.appendChild(buildBlock({ type:'empty-output' }));
-  }
+  body.appendChild(built.fragment);
+  body.__exerciseBlocks = built;
+  void renderPdfPreviewSurfaces(body);
 }

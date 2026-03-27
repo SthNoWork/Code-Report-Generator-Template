@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Report Generator</title>
+  <link rel="stylesheet" href="./theme-config.css" />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/base16/dracula.min.css" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="./config.js"></script>
@@ -17,48 +19,13 @@
        ROOT VARIABLES — default "dark" theme
        All theme overrides reference these vars.
     ════════════════════════════════════════════ */
-    :root {
-      --bg:        #0d1117;
-      --surface:   #161b22;
-      --surface2:  #1c2330;
-      --border:    #30363d;
-      --accent:    #58a6ff;
-      --accent2:   #3fb950;
-      --accent3:   #f78166;
-      --accent4:   #d2a8ff;
-      --text:      #e6edf3;
-      --muted:     #7d8590;
-      --folder:    #e3b341;
-      --mono:      'JetBrains Mono', monospace;
-      --sans:      'Space Grotesk', sans-serif;
-      /* dracula code palette */
-      --dr-bg:     #282a36;
-      --dr-bg-2:   #1f2230;
-      --dr-fg:     #f8f8f2;
-      --dr-com:    #6272a4;
-      --dr-cyan:   #8be9fd;
-      --dr-green:  #50fa7b;
-      --dr-orange: #ffb86c;
-      --dr-pink:   #ff79c6;
-      --dr-purple: #bd93f9;
-      --dr-red:    #ff5555;
-      --dr-yellow: #f1fa8c;
-      --pdf-content-width: 900px;
-    }
+    /* Base + theme variables moved to theme-config.css */
 
     /* ════════════════════════════════════════════
        THEME: BLOSSOM — full light pastel pink
        All hardcoded hex values also overridden.
     ════════════════════════════════════════════ */
-    html.theme-blossom {
-      --bg:        #fdf0f5;  --surface:   #fff5f9;  --surface2:  #ffe8f3;
-      --border:    #f7b8d4;  --accent:    #d63384;  --accent2:   #2a9d8f;
-      --accent3:   #e76f51;  --accent4:   #a0307a;  --text:      #2d1a24;
-      --muted:     #9a5070;  --dr-bg:     #fff0f7;  --dr-bg-2:   #fce4f0;
-      --dr-fg:     #1a0d18;  --dr-com:    #c080a0;  --dr-cyan:   #2a9d8f;
-      --dr-green:  #219653;  --dr-orange: #c05020;  --dr-pink:   #c02070;
-      --dr-purple: #7b2d8b;  --dr-red:    #b02020;  --dr-yellow: #a06000;
-    }
+    /* theme-blossom variable config moved to theme-config.css */
     html.theme-blossom body             { background:#fdf0f5; color:#2d1a24; }
     html.theme-blossom .topbar          { background:#fff0f7; border-bottom-color:#f7b8d4; }
     html.theme-blossom .code-block      { background:#fff0f7; border-color:#f7b8d4; box-shadow:0 4px 16px rgba(200,100,140,.08); }
@@ -93,15 +60,7 @@
     /* ════════════════════════════════════════════
        THEME: SYNTHWAVE — bright neon cyberpunk
     ════════════════════════════════════════════ */
-    html.theme-synthwave {
-      --bg:        #f0e8ff;  --surface:   #faf6ff;  --surface2:  #efe7ff;
-      --border:    #d4c5ff;  --accent:    #00d9ff;  --accent2:   #39ff14;
-      --accent3:   #ff006e;  --accent4:   #b537f2;  --text:      #1a0f3a;
-      --muted:     #8070b0;  --dr-bg:     #f5f0ff;  --dr-bg-2:   #f0e8ff;
-      --dr-fg:     #1a0f3a;  --dr-com:    #6f6297;  --dr-cyan:   #006d8f;
-      --dr-green:  #1f8f3a;  --dr-orange: #a64a1b;  --dr-pink:   #9b1b5a;
-      --dr-purple: #5c2a8a;  --dr-red:    #a31d33;  --dr-yellow: #7a5a00;
-    }
+    /* theme-synthwave variable config moved to theme-config.css */
     html.theme-synthwave body             { background:#f0e8ff; color:#1a0f3a; }
     html.theme-synthwave .topbar          { background:#faf6ff; border-bottom-color:#d4c5ff; }
     html.theme-synthwave .code-block      { background:#faf6ff; border-color:#d4c5ff; box-shadow:0 4px 16px rgba(0,217,255,.06); }
@@ -133,15 +92,7 @@
     /* ════════════════════════════════════════════
        THEME: CORAL — bright warm tropical sunset
     ════════════════════════════════════════════ */
-    html.theme-coral {
-      --bg:        #fff3ed;  --surface:   #fffaf7;  --surface2:  #ffe8dd;
-      --border:    #ffcbb5;  --accent:    #ff8c42;  --accent2:   #6bcf7f;
-      --accent3:   #ffd700;  --accent4:   #ff6b9d;  --text:      #3d2817;
-      --muted:     #a08070;  --dr-bg:     #fff8f5;  --dr-bg-2:   #fff3ed;
-      --dr-fg:     #3d2817;  --dr-com:    #8a6f5f;  --dr-cyan:   #0b6d7a;
-      --dr-green:  #2f7a3d;  --dr-orange: #a64f1b;  --dr-pink:   #9a2b5d;
-      --dr-purple: #6f3f9a;  --dr-red:    #9f2a2a;  --dr-yellow: #7a5c00;
-    }
+    /* theme-coral variable config moved to theme-config.css */
     html.theme-coral body             { background:#fff3ed; color:#3d2817; }
     html.theme-coral .topbar          { background:#fffaf7; border-bottom-color:#ffcbb5; }
     html.theme-coral .code-block      { background:#fffaf7; border-color:#ffcbb5; box-shadow:0 4px 16px rgba(255,140,66,.06); }
@@ -847,28 +798,34 @@
       max-height:none; overflow:visible; white-space:pre-wrap; word-break:break-word;
     }
     /* hljs token colors */
-    .code-block .hljs                          { background:transparent; color:var(--dr-fg); padding:0; }
+    .code-block .hljs                          { background:transparent; color:var(--code-token-text); padding:0; }
     .code-block .hljs-keyword,
     .code-block .hljs-selector-tag,
     .code-block .hljs-literal,
     .code-block .hljs-operator,
-    .code-block .hljs-title.class_             { color:var(--dr-pink); }
+    .code-block .hljs-title.class_             { color:var(--code-token-keyword); }
     .code-block .hljs-type,
     .code-block .hljs-built_in,
     .code-block .hljs-title.function_,
-    .code-block .hljs-function .hljs-title     { color:var(--dr-green); }
+    .code-block .hljs-function .hljs-title     { color:var(--code-token-function); }
     .code-block .hljs-string,
     .code-block .hljs-meta-string,
-    .code-block .hljs-attr                     { color:var(--dr-yellow); }
+    .code-block .hljs-attr                     { color:var(--code-token-string); }
     .code-block .hljs-number,
     .code-block .hljs-symbol,
     .code-block .hljs-variable,
-    .code-block .hljs-template-variable        { color:var(--dr-purple); }
+    .code-block .hljs-template-variable        { color:var(--code-token-number); }
     .code-block .hljs-comment,
     .code-block .hljs-quote,
-    .code-block .hljs-doctag                   { color:var(--dr-com); }
+    .code-block .hljs-doctag                   { color:var(--code-token-comment); }
     .code-block .hljs-meta,
-    .code-block .hljs-preprocessor             { color:var(--dr-pink); }
+    .code-block .hljs-preprocessor             { color:var(--code-token-meta); }
+    /* Language-specific token accents */
+    .code-block code.language-python .hljs-built_in { color:var(--code-token-python-builtin); }
+    .code-block code.language-python .hljs-title.function_ { color:var(--code-token-python-function); }
+    .code-block code.language-java .hljs-type { color:var(--code-token-java-type); }
+    .code-block code.language-java .hljs-meta,
+    .code-block code.language-java .hljs-annotation { color:var(--code-token-java-annotation); }
     /* legacy manual highlight spans */
     .kw { color:var(--dr-pink); } .ty { color:var(--dr-cyan); }
     .fn { color:var(--dr-purple); } .st { color:var(--dr-orange); }
@@ -1066,11 +1023,89 @@
     }
     .image-dot { width:8px; height:8px; border-radius:50%; background:var(--accent4); flex-shrink:0; }
     .image-label { margin-left:auto; font-size:10px; color:var(--accent4); }
-    .image-content { padding:12px; background:var(--dr-bg); text-align:center; }
-    .image-content img {
-      max-width:100%; border-radius:6px;
-      box-shadow:0 4px 16px rgba(0,0,0,.3);
+    :root {
+      --attachment-preview-height: clamp(480px, 72vh, 920px);
+      --attachment-pdf-ratio: 0.707;
     }
+    .image-content {
+      padding:12px;
+      background:var(--dr-bg);
+      text-align:center;
+      width:100%;
+      max-width:100%;
+      overflow:hidden;
+    }
+    .attachment-surface,
+    .exercise-note-attachment {
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      width:100%;
+      max-width:100%;
+      overflow:hidden;
+    }
+    .attachment-surface img,
+    .exercise-note-attachment img {
+      width:100%;
+      max-width:100%;
+      max-height:var(--attachment-preview-height);
+      object-fit:contain;
+      border-radius:6px;
+      box-shadow:0 4px 16px rgba(0,0,0,.3);
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .pdf-render-surface {
+      width:100%;
+      max-width:100%;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:220px;
+    }
+    .pdf-page-canvas {
+      width:100%;
+      height:auto;
+      display:block;
+      border:1px solid #44475a;
+      border-radius:8px;
+      background:#fff;
+      box-shadow:0 4px 16px rgba(0,0,0,.2);
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .pdf-preview-fallback {
+      width:100%;
+      min-height:120px;
+      border:1px solid #44475a;
+      border-radius:8px;
+      background:rgba(255,255,255,.08);
+      color:var(--text);
+      font-family:var(--mono);
+      font-size:12px;
+      padding:12px;
+    }
+    .attachment-surface .pdf-open-link,
+    .exercise-note-attachment .pdf-open-link {
+      align-self:flex-start;
+    }
+    .output-content {
+      width:100%;
+      max-width:100%;
+      overflow:hidden;
+    }
+
+    @media (max-width: 900px) {
+      :root {
+        --attachment-preview-height: clamp(360px, 65vh, 700px);
+      }
+    }
+    .pdf-open-link {
+      display:inline-block; margin-top:10px; color:var(--accent); font-family:var(--mono); font-size:12px;
+      text-decoration:none;
+    }
+    .pdf-open-link:hover { text-decoration:underline; }
 
     /* ════════════════════════════════════════════
        EXERCISE NOTE (description extracted from comment)
@@ -1088,6 +1123,7 @@
       font-family:var(--mono); font-size:12.5px; line-height:1.7;
       white-space:pre-wrap; color:var(--text); overflow-wrap:anywhere; word-break:break-word;
     }
+    .exercise-note-pdf { display:flex; flex-direction:column; gap:8px; }
 
     /* ════════════════════════════════════════════
        UTILS SECTION (shared utils at bottom of lab)
@@ -1550,12 +1586,7 @@
     <div class="dot a"></div>
     <div class="dot g"></div>
     <div class="topbar-title" id="topbar-title">Report Generator</div>
-    <div class="theme-picker" title="Switch colour theme" style="margin-left:auto">
-      <span class="theme-swatch sw-default active" data-theme=""              title="Default (dark)"></span>
-      <span class="theme-swatch sw-blossom"         data-theme="theme-blossom" title="Blossom (light pink)"></span>
-      <span class="theme-swatch sw-synthwave"        data-theme="theme-synthwave" title="Synthwave"></span>
-      <span class="theme-swatch sw-coral"            data-theme="theme-coral"    title="Coral"></span>
-    </div>
+    <div class="theme-picker" id="theme-picker" title="Switch colour theme" style="margin-left:auto"></div>
     <div class="breadcrumb" id="breadcrumb"><span class="crumb active">Home</span></div>
   </div>
 

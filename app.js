@@ -7,9 +7,11 @@
 
 import { CODE_MODE, getModeById, ALL_MODES } from './mode-config.js';
 import { scanFolder, scanUtilsFolder, readTextFromHandle,
-         isImageFile, isDescriptionImage, getExt } from './scanner.js';
+         getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, getExt } from './file-scanner.js';
 import { buildFileBlock, buildImageBlock, renderBodyContents,
-         buildImageDescNote, escapeHtml } from './renderer.js';
+         buildImageDescNote, buildAttachmentBlock, escapeHtml, updateExerciseBlockStates,
+         renderPdfPreviewSurfaces } from './renderer.js';
+import { getAppConfig } from './app-config-resolver.js';
 
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
@@ -19,60 +21,46 @@ import { exportExerciseListPdf } from './pdf-export.js';
 // SECTION 1: APP CONFIG
 // ══════════════════════════════════════════════════════════════════════════
 
-const CFG = (() => {
-  const u = window.APP_CONFIG || {};
-  const pdf = { contentWidthPx:900, viewportWidthPx:960, captureScale:2,
-                pageWidthMm:210, pageHeightMm:297, pagePaddingMm:8, imageQuality:0.95, ...(u.pdf||{}) };
-  const runtime = {
-    loadingResetDelayMs: 350,
-    utilsChipFlashMs: 1200,
-    newCardFocusDelayMs: 50,
-    readmeFetchTimeoutMs: 2000,
-    ...(u.runtime || {})
-  };
-  const labels = {
-    utilsSectionTitle: 'Shared Utilities',
-    ...(u.labels || {})
-  };
-  const paths = {
-    utilsFolderName: 'utils',
-    ...(u.paths || {})
-  };
-  const cover = {
-    defaultLogoPath: './ITC_logo.png',
-    includeInPdfByDefault: true,
-    logoSize: 120,
-    titleSize: 28,
-    defaultTitle: 'Institute Technology of Cambodia',
-    defaultSubtitle: 'Lab Report',
-    labLabelPrefix: 'Lab',
-    labLabelSuffix: ' - Report',
-    fallbackSubtitle: 'Lab Report',
-    detailRows: [
-      { label:'Course', value:'Course' },
-      { label:'Author', value:'Author' },
-      { label:'Instructor', value:'Instructor' },
-      { label:'Date', value:'__TODAY__' },
-    ],
-    ...(u.cover || {})
-  };
-  const ui  = {
-    pageTitle:'Report Generator',
-    topbar: { useRootFolderName:true, separator:' > ', ...(u.ui?.topbar||{}) },
-    text: {
-      landingLabel:'Report Generator', landingTitle:'Lab Report Generator',
-      landingDescription:'Open a folder to begin.',
-      openProjectButton:'Open Folder',
-      browserSupportNote:'Requires Chrome or Edge',
-      emptyFolderMessage:'No files found in this folder.',
-      notesPlaceholder:'Notes for this exercise (shown in PDF if filled)…',
-      footer:'Report Generator — Chrome & Edge',
-      ...(u.ui?.text||{})
-    },
-    ...(u.ui||{})
-  };
-  return { pdf, ui, runtime, cover, labels, paths };
-})();
+const CFG = getAppConfig();
+const ATTACHMENT_SUPPORTS = getAttachmentSupports();
+const ATTACHMENT_BLOCK_TYPE_MAP = new Map();
+ATTACHMENT_SUPPORTS.forEach(support => {
+  ATTACHMENT_BLOCK_TYPE_MAP.set(support.buildType, { support, isDescription: false });
+  ATTACHMENT_BLOCK_TYPE_MAP.set(support.descBuildType, { support, isDescription: true });
+});
+
+function createAttachmentState() {
+  const state = {};
+  ATTACHMENT_SUPPORTS.forEach(support => {
+    state[support.exerciseKey] = [];
+    state[support.descExerciseKey] = [];
+  });
+  return state;
+}
+
+function countAttachmentItems(ex) {
+  return ATTACHMENT_SUPPORTS.reduce(
+    (count, support) => count + (ex[support.exerciseKey]?.length || 0) + (ex[support.descExerciseKey]?.length || 0),
+    0
+  );
+}
+
+function firstAttachmentName(ex) {
+  for (const support of ATTACHMENT_SUPPORTS) {
+    const fromNormal = ex[support.exerciseKey]?.[0]?.fileName;
+    if (fromNormal) return fromNormal;
+    const fromDesc = ex[support.descExerciseKey]?.[0]?.fileName;
+    if (fromDesc) return fromDesc;
+  }
+  return '';
+}
+
+function ensureAttachmentCollections(ex) {
+  ATTACHMENT_SUPPORTS.forEach(support => {
+    ex[support.exerciseKey] = ex[support.exerciseKey] || [];
+    ex[support.descExerciseKey] = ex[support.descExerciseKey] || [];
+  });
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 2: APP STATE
@@ -632,7 +620,18 @@ function populateExerciseBody(body, ex) {
 
   const mc = getModeById(ex._mode || activeMode.id);
 
-  renderBodyContents(body, ex, mc, renderOutputContent);
+  renderBodyContents(body, ex, mc, renderOutputContent, {
+    codeMode: mc.id === 'code',
+    utilsTag: utilsFiles.length > 0,
+    includeEmptyOutputBlock: false,
+    state: {
+      output: document.getElementById('tog-main-output')?.checked ?? true,
+      image: document.getElementById('tog-main-images')?.checked ?? true,
+      descImage: document.getElementById('tog-main-image-desc')?.checked ?? true,
+      descText: document.getElementById('tog-main-desc')?.checked ?? true,
+      emptyOutput: document.getElementById('tog-main-empty-output')?.checked ?? false,
+    }
+  });
   assignBlockOwnership(body, ex);
 
   // Notes textarea
@@ -689,6 +688,15 @@ function applyToggles() {
   const showEmpty = document.getElementById(p+'-empty-output')?.checked ?? true;
   const showDesc  = document.getElementById(p+'-desc')?.checked ?? true;
   const showNotes = document.getElementById(p+'-notes')?.checked ?? true;
+  list.querySelectorAll('.ex-body[data-loaded="1"]').forEach(body => {
+    updateExerciseBlockStates(body, {
+      output: showOut,
+      image: showImg,
+      descImage: showImgDesc,
+      descText: showDesc,
+      emptyOutput: showEmpty,
+    });
+  });
   list.querySelectorAll('.output-block').forEach(ob => {
     const isEmpty = ob.querySelector('.output-text')?.textContent.startsWith('No output') ?? false;
     ob.style.display = (isEmpty ? showEmpty : showOut) ? '' : 'none';
@@ -717,6 +725,23 @@ function pickAndAddFiles(body, ex, modeConfig, addRow) {
   input.type = 'file'; input.multiple = true;
   input.onchange = async () => {
     for (const file of Array.from(input.files)) {
+      const attachmentSupport = getAttachmentSupport(file.name);
+      if (attachmentSupport) {
+        const dataUrl = await readFileAsDataUrl(file);
+        if (!dataUrl) continue;
+        ensureAttachmentCollections(ex);
+        const isDescription = isDescriptionBaseName(file.name);
+        const targetKey = isDescription ? attachmentSupport.descExerciseKey : attachmentSupport.exerciseKey;
+        ex[targetKey].push({ fileName: file.name, dataUrl });
+        const block = buildAttachmentBlock(file.name, dataUrl, attachmentSupport.id, isDescription);
+        if (block) {
+          block.dataset.ownerExId = ensureExerciseId(ex);
+          block.dataset.ownerEx = ex.name;
+          body.insertBefore(block, isDescription ? body.firstChild : addRow);
+        }
+        continue;
+      }
+
       let content;
       try { content = await file.text(); } catch { content = '[binary]'; }
       const ext = getExt(file.name);
@@ -766,9 +791,18 @@ function pickAndAddImages(body, ex, addRow) {
   input.click();
 }
 
+async function readFileAsDataUrl(file) {
+  return await new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result || '');
+    r.onerror = () => resolve('');
+    r.readAsDataURL(file);
+  });
+}
+
 function addNewCard() {
   const mc  = activeMode;
-  const ex  = { name:'New Card', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
+  const ex  = { name:'New Card', files:[], ...createAttachmentState(), outputSectionsCache:[], _notes:'', _mode: mc.id };
   exercises.push(ex);
   registerExercise(ex);
   const list = document.getElementById('general-ex-list');
@@ -793,21 +827,17 @@ function addFilesToNewCard() {
   input.onchange = async () => {
     if (!input.files.length) return;
     const mc = activeMode;
-    const ex = { name:'Files', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
+    const ex = { name:'Files', files:[], ...createAttachmentState(), outputSectionsCache:[], _notes:'', _mode: mc.id };
     exercises.push(ex);
     registerExercise(ex);
     for (const file of Array.from(input.files)) {
-      if (isImageFile(file.name)) {
-        const dataUrl = await new Promise(res => {
-          const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res('');
-          r.readAsDataURL(file);
-        });
+      const attachmentSupport = getAttachmentSupport(file.name);
+      if (attachmentSupport) {
+        const dataUrl = await readFileAsDataUrl(file);
         if (dataUrl) {
-          if (isDescriptionImage(file.name)) {
-            ex.descImages.push({ fileName: file.name, dataUrl });
-          } else {
-            ex.images.push({ fileName:file.name, dataUrl });
-          }
+          const isDescription = isDescriptionBaseName(file.name);
+          const targetKey = isDescription ? attachmentSupport.descExerciseKey : attachmentSupport.exerciseKey;
+          ex[targetKey].push({ fileName:file.name, dataUrl });
         }
       } else {
         let content; try { content = await file.text(); } catch { content = '[binary]'; }
@@ -816,8 +846,8 @@ function addFilesToNewCard() {
       }
     }
     if (ex.files.length === 1) ex.name = ex.files[0].name;
-    else if (!ex.files.length && (ex.images.length + ex.descImages.length === 1)) {
-      ex.name = (ex.images[0]?.fileName || ex.descImages[0]?.fileName || 'Files');
+    else if (!ex.files.length && countAttachmentItems(ex) === 1) {
+      ex.name = (firstAttachmentName(ex) || 'Files');
     }
     const list = document.getElementById('general-ex-list');
     const item = buildExerciseItem(ex, exercises.length - 1);
@@ -853,21 +883,17 @@ function initGenDropzone() {
     const files = Array.from(e.dataTransfer.files);
     if (!files.length) return;
     const mc = activeMode;
-    const ex = { name:'Dropped Files', files:[], images:[], descImages:[], outputSectionsCache:[], _notes:'', _mode: mc.id };
+    const ex = { name:'Dropped Files', files:[], ...createAttachmentState(), outputSectionsCache:[], _notes:'', _mode: mc.id };
     exercises.push(ex);
     registerExercise(ex);
     for (const file of files) {
-      if (isImageFile(file.name)) {
-        const dataUrl = await new Promise(res => {
-          const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res('');
-          r.readAsDataURL(file);
-        });
+      const attachmentSupport = getAttachmentSupport(file.name);
+      if (attachmentSupport) {
+        const dataUrl = await readFileAsDataUrl(file);
         if (dataUrl) {
-          if (isDescriptionImage(file.name)) {
-            ex.descImages.push({ fileName: file.name, dataUrl });
-          } else {
-            ex.images.push({ fileName:file.name, dataUrl });
-          }
+          const isDescription = isDescriptionBaseName(file.name);
+          const targetKey = isDescription ? attachmentSupport.descExerciseKey : attachmentSupport.exerciseKey;
+          ex[targetKey].push({ fileName:file.name, dataUrl });
         }
       } else {
         let content; try { content = await file.text(); } catch { content = '[binary]'; }
@@ -876,8 +902,8 @@ function initGenDropzone() {
       }
     }
     if (ex.files.length === 1) ex.name = ex.files[0].name;
-    else if (!ex.files.length && (ex.images.length + ex.descImages.length === 1)) {
-      ex.name = (ex.images[0]?.fileName || ex.descImages[0]?.fileName || 'Dropped Files');
+    else if (!ex.files.length && countAttachmentItems(ex) === 1) {
+      ex.name = (firstAttachmentName(ex) || 'Dropped Files');
     }
     const list = document.getElementById('general-ex-list');
     const item = buildExerciseItem(ex, exercises.length - 1);
@@ -897,41 +923,80 @@ function initGenDropzone() {
 // SECTION 8: OUTPUT CONTENT RENDERING (CSV table or plain text)
 // ══════════════════════════════════════════════════════════════════════════
 
+const OUTPUT_RENDERERS = new Map();
+
+function registerOutputRenderer(ext, renderer) {
+  const key = String(ext || '').toLowerCase().trim();
+  if (!key || typeof renderer !== 'function') return;
+  OUTPUT_RENDERERS.set(key, renderer);
+}
+
+registerOutputRenderer('csv', (container, sectionText) => {
+  const rows = parseCsv(sectionText);
+  if (!rows.length) return false;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'output-table-wrap';
+  const table = document.createElement('table');
+  table.className = 'output-table';
+
+  const maxC = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const norm = rows.map(r => (r.length >= maxC ? r : r.concat(Array(maxC - r.length).fill(''))));
+  const [hdr, ...body] = norm;
+
+  if (hdr) {
+    const thead = document.createElement('thead');
+    const tr = document.createElement('tr');
+    hdr.forEach(v => {
+      const th = document.createElement('th');
+      th.textContent = v;
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    table.appendChild(thead);
+  }
+
+  const tbody = document.createElement('tbody');
+  body.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(v => {
+      const td = document.createElement('td');
+      td.textContent = v;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  container.appendChild(wrap);
+  return true;
+});
+
+registerOutputRenderer('json', (container, sectionText) => {
+  try {
+    const parsed = JSON.parse(sectionText);
+    const preJson = document.createElement('pre');
+    preJson.className = 'output-text';
+    preJson.textContent = JSON.stringify(parsed, null, 2);
+    container.appendChild(preJson);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
 function renderOutputContent(container, fileName, sectionText) {
   if (!container) return;
   const ext = getExt(fileName);
-  if (ext === 'csv') {
-    const rows = parseCsv(sectionText);
-    if (rows.length) {
-      const wrap = document.createElement('div'); wrap.className = 'output-table-wrap';
-      const table = document.createElement('table'); table.className = 'output-table';
-      const maxC = rows.reduce((m,r)=>Math.max(m,r.length),0);
-      const norm = rows.map(r=>r.length>=maxC?r:r.concat(Array(maxC-r.length).fill('')));
-      const [hdr,...body] = norm;
-      if (hdr) {
-        const thead=document.createElement('thead'),tr=document.createElement('tr');
-        hdr.forEach(v=>{const th=document.createElement('th');th.textContent=v;tr.appendChild(th);});
-        thead.appendChild(tr); table.appendChild(thead);
-      }
-      const tbody=document.createElement('tbody');
-      body.forEach(row=>{const tr=document.createElement('tr');row.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td);});tbody.appendChild(tr);});
-      table.appendChild(tbody); wrap.appendChild(table); container.appendChild(wrap);
-      return;
-    }
+  const renderer = OUTPUT_RENDERERS.get(ext);
+  if (renderer && renderer(container, sectionText, fileName)) {
+    return;
   }
-  if (ext === 'json') {
-    try {
-      const parsed = JSON.parse(sectionText);
-      const preJson = document.createElement('pre');
-      preJson.className = 'output-text';
-      preJson.textContent = JSON.stringify(parsed, null, 2);
-      container.appendChild(preJson);
-      return;
-    } catch {
-      // keep raw json text if parse fails
-    }
-  }
-  const pre=document.createElement('pre'); pre.className='output-text'; pre.textContent=sectionText; container.appendChild(pre);
+
+  const pre = document.createElement('pre');
+  pre.className = 'output-text';
+  pre.textContent = sectionText;
+  container.appendChild(pre);
 }
 
 function parseCsv(text) {
@@ -1087,14 +1152,16 @@ function initBlockDragSort(list) {
         const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent.split('·')[0].trim();
         const oi = (srcEx.outputSectionsCache||[]).findIndex(o=>o.fileName===fname);
         if (oi > -1) { const [o]=srcEx.outputSectionsCache.splice(oi,1); (tgtEx.outputSectionsCache=tgtEx.outputSectionsCache||[]).push(o); }
-      } else if (srcEx && blockType === 'image') {
+      } else if (srcEx && ATTACHMENT_BLOCK_TYPE_MAP.has(blockType)) {
+        const { support, isDescription } = ATTACHMENT_BLOCK_TYPE_MAP.get(blockType);
+        const sourceKey = isDescription ? support.descExerciseKey : support.exerciseKey;
         const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent;
-        const ii = (srcEx.images||[]).findIndex(img=>img.fileName===fname);
-        if (ii > -1) { const [img]=srcEx.images.splice(ii,1); (tgtEx.images=tgtEx.images||[]).push(img); }
-      } else if (srcEx && blockType === 'image-desc') {
-        const fname = src.dataset.fileName;
-        const di = (srcEx.descImages||[]).findIndex(img=>img.fileName===fname);
-        if (di > -1) { const [img]=srcEx.descImages.splice(di,1); (tgtEx.descImages=tgtEx.descImages||[]).push(img); }
+        const idx = (srcEx[sourceKey]||[]).findIndex(item => item.fileName === fname);
+        if (idx > -1) {
+          const [item] = srcEx[sourceKey].splice(idx, 1);
+          tgtEx[sourceKey] = tgtEx[sourceKey] || [];
+          tgtEx[sourceKey].push(item);
+        }
       } else if (srcEx && blockType === 'desc-text') {
         const source = src.dataset.descSource;
         if (source === 'comment') {
@@ -1204,6 +1271,10 @@ async function exportPdf() {
     captureConfig: CFG.pdf,
     coverImageDataUrl: includeCoverInPdf ? (coverImageDataUrl || '') : '',
     coverElementId:    (includeCoverInPdf && !coverImageDataUrl) ? 'cover-card-export' : '',
+    beforeCapture: async () => {
+      const view = document.getElementById('view-general');
+      if (view) await renderPdfPreviewSurfaces(view);
+    },
   });
 }
 
@@ -1348,20 +1419,71 @@ function initCoverEditor() {
 // SECTION 13: THEME PICKER
 // ══════════════════════════════════════════════════════════════════════════
 
-const THEMES=['theme-blossom','theme-synthwave','theme-coral'];
-function applyTheme(name) {
-  THEMES.forEach(c=>document.documentElement.classList.remove(c));
-  if(THEMES.includes(name))document.documentElement.classList.add(name);
-  document.querySelectorAll('.theme-swatch').forEach(sw=>sw.classList.toggle('active',(sw.dataset.theme||'')===(name||'')));
-  try{localStorage.setItem('rg-theme',name||'');}catch{}
+function getThemeOptions() {
+  const opts = CFG.themes?.options;
+  if (Array.isArray(opts) && opts.length) return opts;
+  return [{ id: 'default', className: '', title: 'Default', swatch: 'radial-gradient(circle at 40% 40%, #58a6ff, #0d1117)' }];
 }
-function initThemePicker() {
-  document.querySelectorAll('.theme-swatch').forEach(sw=>sw.addEventListener('click',()=>applyTheme(sw.dataset.theme||'')));
-  // Try both key names so saved preferences migrate from older builds
+
+function getThemeClassNames() {
+  return getThemeOptions().map(t => String(t.className || '')).filter(Boolean);
+}
+
+function renderThemePicker() {
+  const picker = document.getElementById('theme-picker');
+  if (!picker) return;
+
+  picker.innerHTML = '';
+  getThemeOptions().forEach(theme => {
+    const sw = document.createElement('span');
+    sw.className = 'theme-swatch';
+    sw.dataset.theme = String(theme.className || '');
+    sw.dataset.themeId = String(theme.id || '');
+    sw.title = String(theme.title || theme.id || 'Theme');
+    sw.style.background = String(theme.swatch || 'var(--surface)');
+    sw.addEventListener('click', () => applyTheme(sw.dataset.theme || ''));
+    picker.appendChild(sw);
+  });
+}
+
+function applyTheme(name) {
+  const allowed = getThemeClassNames();
+  const requested = String(name || '');
+  const selected = requested && allowed.includes(requested) ? requested : '';
+
+  allowed.forEach(c => document.documentElement.classList.remove(c));
+  if (selected) document.documentElement.classList.add(selected);
+
+  document.querySelectorAll('#theme-picker .theme-swatch')
+    .forEach(sw => sw.classList.toggle('active', (sw.dataset.theme || '') === selected));
+
   try {
-    const s = localStorage.getItem('rg-theme') ?? localStorage.getItem('reportgen-theme');
-    if (s !== null) applyTheme(s);
+    localStorage.setItem(CFG.themes.storageKey || 'rg-theme', selected);
   } catch {}
+}
+
+function initThemePicker() {
+  renderThemePicker();
+
+  try {
+    const keys = [CFG.themes.storageKey || 'rg-theme', ...(CFG.themes.legacyStorageKeys || [])];
+    let saved = null;
+    for (const key of keys) {
+      if (!key) continue;
+      const value = localStorage.getItem(String(key));
+      if (value !== null) {
+        saved = value;
+        break;
+      }
+    }
+
+    if (saved !== null) {
+      applyTheme(saved);
+      return;
+    }
+  } catch {}
+
+  applyTheme(getThemeOptions()[0]?.className || '');
 }
 
 // ══════════════════════════════════════════════════════════════════════════

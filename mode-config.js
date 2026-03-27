@@ -4,44 +4,21 @@
  * Each mode is a plain config object consumed by scanner.js and renderer.js.
  */
 
-const APP_CFG = window.APP_CONFIG || {};
-const FILE_DISCOVERY_CFG = APP_CFG.fileDiscovery || {};
+import { getAppConfig } from './app-config-resolver.js';
 
-const DEFAULT_SKIP = [
-  'ilk','pdb','obj','exe','dll','so','dylib','class','jar','zip','7z',
-  'mp3','wav','ogg','mp4','mov','avi',
-  'html','htm','css','js','jsx','mjs','cjs',
-];
+const APP_CFG = getAppConfig();
+const FILE_DISCOVERY_CFG = APP_CFG.fileDiscovery;
 
-const DEFAULT_CODE_EXTENSIONS = [
-  'c','h','cpp','hpp','cc','cxx',
-  'py','java','cs','js','ts','tsx','jsx','go','rs','php','rb','swift','kt','scala',
-  'sql','sh','ps1','xml','yaml','yml','toml','ini','md'
-];
-
-const BINARY_SKIP = new Set(
-  Array.isArray(FILE_DISCOVERY_CFG.skipCodeFileExtensions) && FILE_DISCOVERY_CFG.skipCodeFileExtensions.length
-    ? FILE_DISCOVERY_CFG.skipCodeFileExtensions
-    : DEFAULT_SKIP
-);
-
-const CODE_EXTENSIONS = new Set(
-  Array.isArray(FILE_DISCOVERY_CFG.codeFileExtensions) && FILE_DISCOVERY_CFG.codeFileExtensions.length
-    ? FILE_DISCOVERY_CFG.codeFileExtensions
-    : DEFAULT_CODE_EXTENSIONS
-);
-
-const PREFERRED_MAIN_BASES =
-  Array.isArray(FILE_DISCOVERY_CFG.preferredMainFileBases) && FILE_DISCOVERY_CFG.preferredMainFileBases.length
-    ? FILE_DISCOVERY_CFG.preferredMainFileBases
-    : ['main'];
+const BINARY_SKIP = new Set(FILE_DISCOVERY_CFG.skipCodeFileExtensions);
+const CODE_EXTENSIONS = new Set(FILE_DISCOVERY_CFG.codeFileExtensions);
+const PREFERRED_MAIN_BASES = FILE_DISCOVERY_CFG.preferredMainFileBases;
 
 // ── CODE MODE ───────────────────────────────────────────────────────────────
 export const CODE_MODE = Object.freeze({
   id:          'code',
   label:       'Code Mode',
   icon:        '{ }',
-  description: 'Source code with syntax highlighting. desc.txt/desc.png become exercise descriptions.',
+  description: 'Source code with syntax highlighting. desc.txt/desc.png/desc.pdf become exercise descriptions.',
 
   outputExtensions: new Set(['txt', 'csv', 'json']),
   codeExtensions:   CODE_EXTENSIONS,
@@ -63,7 +40,7 @@ export const DOC_MODE = Object.freeze({
   id:          'doc',
   label:       'Doc Mode',
   icon:        '¶',
-  description: 'Document mode. desc.txt/desc.png become descriptions, all other files are output blocks.',
+  description: 'Document mode. desc.txt/desc.png/desc.pdf become descriptions, all other files are output blocks.',
 
   outputExtensions: new Set(),
   codeExtensions:   new Set(),

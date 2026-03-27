@@ -1,0 +1,2 @@
+Exercise 1: Simple Hello World
+Print a greeting message using cout.

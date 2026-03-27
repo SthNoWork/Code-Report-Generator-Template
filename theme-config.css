@@ -1,0 +1,161 @@
+/*
+  theme-config.css
+  Centralized theme variable configuration.
+  Add new themes by defining CSS variables in html.theme-<id>.
+*/
+
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1c2330;
+  --border:    #30363d;
+  --accent:    #58a6ff;
+  --accent2:   #3fb950;
+  --accent3:   #f78166;
+  --accent4:   #d2a8ff;
+  --text:      #e6edf3;
+  --muted:     #7d8590;
+  --folder:    #e3b341;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Space Grotesk', sans-serif;
+
+  /* Code surface palette */
+  --dr-bg:     #282a36;
+  --dr-bg-2:   #1f2230;
+  --dr-fg:     #f8f8f2;
+  --dr-com:    #6272a4;
+  --dr-cyan:   #8be9fd;
+  --dr-green:  #50fa7b;
+  --dr-orange: #ffb86c;
+  --dr-pink:   #ff79c6;
+  --dr-purple: #bd93f9;
+  --dr-red:    #ff5555;
+  --dr-yellow: #f1fa8c;
+
+  /* Syntax token theme config */
+  --code-token-text: #f8f8f2;
+  --code-token-keyword: #ff79c6;
+  --code-token-type: #8be9fd;
+  --code-token-function: #50fa7b;
+  --code-token-string: #f1fa8c;
+  --code-token-number: #bd93f9;
+  --code-token-comment: #6272a4;
+  --code-token-meta: #ff79c6;
+  --code-token-python-builtin: #8be9fd;
+  --code-token-python-function: #50fa7b;
+  --code-token-java-annotation: #ffb86c;
+  --code-token-java-type: #8be9fd;
+
+  --pdf-content-width: 900px;
+}
+
+html.theme-blossom {
+  --bg:        #fdf0f5;
+  --surface:   #fff5f9;
+  --surface2:  #ffe8f3;
+  --border:    #f7b8d4;
+  --accent:    #d63384;
+  --accent2:   #2a9d8f;
+  --accent3:   #e76f51;
+  --accent4:   #a0307a;
+  --text:      #2d1a24;
+  --muted:     #9a5070;
+  --dr-bg:     #fff0f7;
+  --dr-bg-2:   #fce4f0;
+  --dr-fg:     #1f1225;
+  --dr-com:    #6e5f78;
+  --dr-cyan:   #0f6b79;
+  --dr-green:  #1a7d45;
+  --dr-orange: #8f4316;
+  --dr-pink:   #8e1a57;
+  --dr-purple: #4f2c97;
+  --dr-red:    #8f2231;
+  --dr-yellow: #7a5600;
+
+  --code-token-text: #1f1225;
+  --code-token-keyword: #8e1a57;
+  --code-token-type: #0f6b79;
+  --code-token-function: #1a7d45;
+  --code-token-string: #7a5600;
+  --code-token-number: #4f2c97;
+  --code-token-comment: #6e5f78;
+  --code-token-meta: #8f2231;
+  --code-token-python-builtin: #0a5e76;
+  --code-token-python-function: #176f40;
+  --code-token-java-annotation: #8f4316;
+  --code-token-java-type: #0f6b79;
+}
+
+html.theme-synthwave {
+  --bg:        #f0e8ff;
+  --surface:   #faf6ff;
+  --surface2:  #efe7ff;
+  --border:    #d4c5ff;
+  --accent:    #00d9ff;
+  --accent2:   #39ff14;
+  --accent3:   #ff006e;
+  --accent4:   #b537f2;
+  --text:      #1a0f3a;
+  --muted:     #8070b0;
+  --dr-bg:     #f5f0ff;
+  --dr-bg-2:   #f0e8ff;
+  --dr-fg:     #181137;
+  --dr-com:    #5f5c84;
+  --dr-cyan:   #0b5e86;
+  --dr-green:  #1f7040;
+  --dr-orange: #8e4a18;
+  --dr-pink:   #7d205f;
+  --dr-purple: #4f2b93;
+  --dr-red:    #8b2638;
+  --dr-yellow: #6a5600;
+
+  --code-token-text: #181137;
+  --code-token-keyword: #7d205f;
+  --code-token-type: #0b5e86;
+  --code-token-function: #1f7040;
+  --code-token-string: #6a5600;
+  --code-token-number: #4f2b93;
+  --code-token-comment: #5f5c84;
+  --code-token-meta: #8b2638;
+  --code-token-python-builtin: #0b4e7e;
+  --code-token-python-function: #1a6342;
+  --code-token-java-annotation: #8e4a18;
+  --code-token-java-type: #0b5e86;
+}
+
+html.theme-coral {
+  --bg:        #fff3ed;
+  --surface:   #fffaf7;
+  --surface2:  #ffe8dd;
+  --border:    #ffcbb5;
+  --accent:    #ff8c42;
+  --accent2:   #6bcf7f;
+  --accent3:   #ffd700;
+  --accent4:   #ff6b9d;
+  --text:      #3d2817;
+  --muted:     #a08070;
+  --dr-bg:     #fff8f5;
+  --dr-bg-2:   #fff3ed;
+  --dr-fg:     #352215;
+  --dr-com:    #6f655e;
+  --dr-cyan:   #0f6470;
+  --dr-green:  #2b6c38;
+  --dr-orange: #874112;
+  --dr-pink:   #7d2857;
+  --dr-purple: #53308c;
+  --dr-red:    #842c2c;
+  --dr-yellow: #695200;
+
+  --code-token-text: #352215;
+  --code-token-keyword: #7d2857;
+  --code-token-type: #0f6470;
+  --code-token-function: #2b6c38;
+  --code-token-string: #695200;
+  --code-token-number: #53308c;
+  --code-token-comment: #6f655e;
+  --code-token-meta: #842c2c;
+  --code-token-python-builtin: #0c5a68;
+  --code-token-python-function: #265f35;
+  --code-token-java-annotation: #874112;
+  --code-token-java-type: #0f6470;
+}

@@ -1,0 +1,1 @@
+Exercise with no output file - testing error handling

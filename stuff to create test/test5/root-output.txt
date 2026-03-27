@@ -1,0 +1,1 @@
+Root-level output file should not break exercise mapping.

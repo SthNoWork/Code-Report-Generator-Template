@@ -1,0 +1,6 @@
+[
+  {"name": "Alice Johnson", "id": 1001, "grade": "A", "gpa": 3.95},
+  {"name": "Bob Smith", "id": 1002, "grade": "B", "gpa": 3.45},
+  {"name": "Charlie Brown", "id": 1003, "grade": "A", "gpa": 3.87},
+  {"name": "Diana Prince", "id": 1004, "grade": "A", "gpa": 4.0}
+]

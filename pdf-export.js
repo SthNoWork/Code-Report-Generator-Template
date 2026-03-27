@@ -1,3 +1,7 @@
+import { getAppConfig } from './app-config-resolver.js';
+
+const CFG = getAppConfig();
+
 async function getImageAspectRatio(dataUrl) {
   return await new Promise(resolve => {
     const image = new Image();
@@ -6,7 +10,7 @@ async function getImageAspectRatio(dataUrl) {
       const height = image.naturalHeight || image.height || 1;
       resolve(height / width);
     };
-    image.onerror = () => resolve(297 / 210);
+    image.onerror = () => resolve(Number(CFG.pdf.fallbackAspectRatio) || (297 / 210));
     image.src = dataUrl;
   });
 }
@@ -23,8 +27,8 @@ async function captureElementToImage(elementId, captureConfig, bgColor) {
     logging: false,
     width: element.offsetWidth,
     height: element.offsetHeight,
-    windowWidth: Math.max(captureConfig.viewportWidthPx || 960, element.offsetWidth),
-    windowHeight: Math.max(element.offsetHeight, 900)
+    windowWidth: element.offsetWidth,
+    windowHeight: Math.max(element.offsetHeight, Number(CFG.pdf.elementWindowMinHeightPx) || 900)
   });
 
   return {
@@ -36,8 +40,26 @@ async function captureElementToImage(elementId, captureConfig, bgColor) {
 async function captureElementSlices(element, captureConfig, bgColor, targetSliceHeightPx, ignoredSelectors = []) {
   const widthPx = Math.max(1, element.offsetWidth);
   const totalHeightPx = Math.max(1, element.scrollHeight);
-  const sliceHeightPx = Math.max(256, Math.floor(targetSliceHeightPx));
+  const sliceHeightPx = Math.max(Number(CFG.pdf.minSliceHeightPx) || 256, Math.floor(targetSliceHeightPx));
   const slices = [];
+
+  const copyCanvasPixelsToClone = (sourceRoot, cloneRoot) => {
+    const sourceCanvases = Array.from(sourceRoot.querySelectorAll('canvas'));
+    const cloneCanvases = Array.from(cloneRoot.querySelectorAll('canvas'));
+    const count = Math.min(sourceCanvases.length, cloneCanvases.length);
+
+    for (let i = 0; i < count; i += 1) {
+      const sourceCanvas = sourceCanvases[i];
+      const cloneCanvas = cloneCanvases[i];
+      if (!sourceCanvas || !cloneCanvas) continue;
+
+      cloneCanvas.width = sourceCanvas.width;
+      cloneCanvas.height = sourceCanvas.height;
+      const ctx = cloneCanvas.getContext('2d');
+      if (!ctx) continue;
+      ctx.drawImage(sourceCanvas, 0, 0);
+    }
+  };
 
   // Render each vertical slice in an isolated viewport-sized wrapper to avoid canvas max-size clipping.
   for (let y = 0; y < totalHeightPx; y += sliceHeightPx) {
@@ -65,6 +87,7 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
     clone.style.margin = '0';
     clone.style.transform = `translateY(-${y}px)`;
     clone.style.transformOrigin = 'top left';
+    copyCanvasPixelsToClone(element, clone);
 
     wrapper.appendChild(clone);
     document.body.appendChild(wrapper);
@@ -77,8 +100,8 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
         logging: false,
         width: widthPx,
         height: currentSliceHeight,
-        windowWidth: Math.max(captureConfig.viewportWidthPx || widthPx, widthPx),
-        windowHeight: Math.max(currentSliceHeight, 512)
+        windowWidth: widthPx,
+        windowHeight: Math.max(currentSliceHeight, Number(CFG.pdf.sliceWindowMinHeightPx) || 512)
       });
 
       slices.push({
@@ -97,6 +120,24 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
 async function captureElementFullImage(element, captureConfig, bgColor, ignoredSelectors = []) {
   const widthPx = Math.max(1, element.offsetWidth);
   const heightPx = Math.max(1, element.scrollHeight, element.offsetHeight);
+
+  const copyCanvasPixelsToClone = (sourceRoot, cloneRoot) => {
+    const sourceCanvases = Array.from(sourceRoot.querySelectorAll('canvas'));
+    const cloneCanvases = Array.from(cloneRoot.querySelectorAll('canvas'));
+    const count = Math.min(sourceCanvases.length, cloneCanvases.length);
+
+    for (let i = 0; i < count; i += 1) {
+      const sourceCanvas = sourceCanvases[i];
+      const cloneCanvas = cloneCanvases[i];
+      if (!sourceCanvas || !cloneCanvas) continue;
+
+      cloneCanvas.width = sourceCanvas.width;
+      cloneCanvas.height = sourceCanvas.height;
+      const ctx = cloneCanvas.getContext('2d');
+      if (!ctx) continue;
+      ctx.drawImage(sourceCanvas, 0, 0);
+    }
+  };
 
   const wrapper = document.createElement('div');
   wrapper.style.cssText = [
@@ -120,6 +161,7 @@ async function captureElementFullImage(element, captureConfig, bgColor, ignoredS
   clone.style.margin = '0';
   clone.style.transform = 'none';
   clone.style.transformOrigin = 'top left';
+  copyCanvasPixelsToClone(element, clone);
 
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
@@ -132,8 +174,8 @@ async function captureElementFullImage(element, captureConfig, bgColor, ignoredS
       logging: false,
       width: widthPx,
       height: heightPx,
-      windowWidth: Math.max(captureConfig.viewportWidthPx || widthPx, widthPx),
-      windowHeight: Math.max(heightPx, 900)
+      windowWidth: widthPx,
+      windowHeight: Math.max(heightPx, Number(CFG.pdf.elementWindowMinHeightPx) || 900)
     });
 
     return {
@@ -207,21 +249,21 @@ function drawSlicesOnSinglePage(pdf, slices, pageWidthMm, pageHeightMm, paddingM
 
 export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig, coverImageDataUrl = '', coverElementId = '') {
   if (!window.html2canvas || !window.jspdf) {
-    alert('PDF libraries not loaded. Please refresh.');
+    alert(CFG.pdf.messages.librariesMissing);
     return;
   }
 
   const view = document.getElementById(viewId);
   const button = document.getElementById(buttonId);
   if (!view) {
-    alert('PDF export failed: content view not found.');
+    alert(CFG.pdf.messages.contentViewMissing);
     return;
   }
 
   const safeConfig = {
     captureScale: Math.max(1, Number(captureConfig?.captureScale) || 2),
     imageQuality: Math.min(1, Math.max(0.1, Number(captureConfig?.imageQuality) || 0.95)),
-    viewportWidthPx: Number(captureConfig?.viewportWidthPx) || 1100,
+    viewportWidthPx: Number(captureConfig?.viewportWidthPx) || Number(CFG.pdf.safeViewportWidthPx) || 1100,
     pagePaddingMm: Number(captureConfig?.pagePaddingMm) || 8,
     pageWidthMm: Number(captureConfig?.pageWidthMm) || 210,
     pageHeightMm: Number(captureConfig?.pageHeightMm) || 297
@@ -243,7 +285,7 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     const contentWidthMm = width - 2 * pad;
     const contentHeightMm = pageHeight - 2 * pad;
     const ignoredSelectors = viewId === 'view-general'
-      ? ['#utils-section', '#utils-banner', '#utils-info-notice']
+      ? CFG.pdf.generalIgnoreSelectors
       : [];
 
     let slices;
@@ -291,7 +333,7 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     }
   } catch (error) {
     console.error('PDF export error:', error);
-    alert('PDF export failed: ' + (error?.message || 'Unknown error'));
+    alert(CFG.pdf.messages.genericFailedPrefix + (error?.message || 'Unknown error'));
   } finally {
     document.body.classList.remove('exporting-pdf');
     if (button) button.style.visibility = '';
@@ -342,7 +384,7 @@ export async function exportExerciseListPdf(options) {
     await captureViewToPdf(viewId, fileName, buttonId, captureConfig, coverImageDataUrl, coverElementId);
   } catch (error) {
     console.error('Exercise list PDF export error:', error);
-    alert('PDF export failed: ' + (error?.message || 'Unknown error'));
+    alert(CFG.pdf.messages.genericFailedPrefix + (error?.message || 'Unknown error'));
   } finally {
     document.querySelectorAll('.ex-notes-row.has-notes').forEach(row => row.classList.remove('has-notes'));
     if (typeof afterCapture === 'function') await afterCapture();

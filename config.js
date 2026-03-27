@@ -94,7 +94,9 @@ window.APP_CONFIG = {
     utilsSectionTitle: 'Shared Utilities',
     outputLabel: 'OUTPUT',
     imageLabel: 'IMAGE',
-    descriptionLabel: 'Description'
+    pdfLabel: 'PDF',
+    descriptionLabel: 'Description',
+    mainCommentName: 'main comment'
   },
 
   // Output file parsing.
@@ -113,7 +115,18 @@ window.APP_CONFIG = {
     pageWidthMm: 210,
     pageHeightMm: 297,
     pagePaddingMm: 8,
-    imageQuality: 0.95
+    imageQuality: 0.95,
+    fallbackAspectRatio: 297 / 210,
+    elementWindowMinHeightPx: 900,
+    sliceWindowMinHeightPx: 512,
+    minSliceHeightPx: 256,
+    safeViewportWidthPx: 1100,
+    generalIgnoreSelectors: ['#utils-banner', '#utils-info-notice'],
+    messages: {
+      librariesMissing: 'PDF libraries not loaded. Please refresh.',
+      contentViewMissing: 'PDF export failed: content view not found.',
+      genericFailedPrefix: 'PDF export failed: '
+    }
   },
 
   // File discovery rules.
@@ -130,6 +143,38 @@ window.APP_CONFIG = {
       'c', 'h', 'cpp', 'hpp', 'cc', 'cxx',
       'py', 'java', 'cs', 'js', 'ts', 'tsx', 'jsx', 'go', 'rs', 'php', 'rb', 'swift', 'kt', 'scala',
       'sql', 'sh', 'ps1', 'xml', 'yaml', 'yml', 'toml', 'ini', 'md'
+    ]
+  },
+
+  // Theme options for the topbar picker.
+  themes: {
+    storageKey: 'rg-theme',
+    legacyStorageKeys: ['reportgen-theme'],
+    options: [
+      {
+        id: 'default',
+        className: '',
+        title: 'Default (dark)',
+        swatch: 'radial-gradient(circle at 40% 40%, #58a6ff, #0d1117)'
+      },
+      {
+        id: 'blossom',
+        className: 'theme-blossom',
+        title: 'Blossom (light pink)',
+        swatch: 'radial-gradient(circle at 40% 40%, #ff9fd4, #fdf0f5)'
+      },
+      {
+        id: 'synthwave',
+        className: 'theme-synthwave',
+        title: 'Synthwave',
+        swatch: 'radial-gradient(circle at 40% 40%, #00d9ff, #f0e8ff)'
+      },
+      {
+        id: 'coral',
+        className: 'theme-coral',
+        title: 'Coral',
+        swatch: 'radial-gradient(circle at 40% 40%, #ff8c42, #fff3ed)'
+      }
     ]
   }
 };

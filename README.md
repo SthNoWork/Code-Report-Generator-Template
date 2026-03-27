@@ -5,6 +5,23 @@ Simple web viewer for building lab/code reports from a folder.
 Live demo:
 https://sthnowork.github.io/Code-Report-Generator-Template/
 
+## Module responsibilities
+
+- [app.js](app.js): app orchestration, UI wiring, and interactions.
+- [file-scanner.js](file-scanner.js): file/folder scanning API used by the app.
+- [scanner.js](scanner.js): compatibility facade for scanner public exports.
+- [scan_file-readers.js](scan_file-readers.js): low-level file content readers.
+- [scan_file-classifier.js](scan_file-classifier.js): file classification and naming rules plus attachment compatibility registry.
+- [scan_output-parser.js](scan_output-parser.js): output section splitting and description parsing.
+- [scan_directory-reader.js](scan_directory-reader.js): directory traversal and entry collection.
+- [scan_materializer.js](scan_materializer.js): converts entries into loaded payloads and block rows.
+- [scan_scan-service.js](scan_scan-service.js): scan orchestration and card grouping.
+- [block-builder.js](block-builder.js): canonical block builder API.
+- [unified-block-builder.js](unified-block-builder.js): implementation for building block fragments from scanner data.
+- [renderer.js](renderer.js): DOM block rendering primitives and body rendering integration.
+- [pdf-export.js](pdf-export.js): PDF capture/export pipeline.
+- [app-config-resolver.js](app-config-resolver.js): normalized config defaults + merge logic.
+
 ## How to use
 
 click open project folder and select the folder that contains all exercise for a single lab/assignment

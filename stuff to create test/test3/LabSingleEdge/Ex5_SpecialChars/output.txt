@@ -1,0 +1,4 @@
+Testing special characters: @#$%^&*()
+Unicode test: café, naïve, résumé
+Symbols: © ® ™ € ¥ £
+Math: ± × ÷ ≤ ≥ ≠
