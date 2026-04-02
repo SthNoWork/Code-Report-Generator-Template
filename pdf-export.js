@@ -117,7 +117,7 @@ async function captureElementSlices(element, captureConfig, bgColor, targetSlice
   return slices;
 }
 
-async function captureElementFullImage(element, captureConfig, bgColor, ignoredSelectors = []) {
+async function captureElementImage(element, captureConfig, bgColor, ignoredSelectors = []) {
   const widthPx = Math.max(1, element.offsetWidth);
   const heightPx = Math.max(1, element.scrollHeight, element.offsetHeight);
 
@@ -188,6 +188,25 @@ async function captureElementFullImage(element, captureConfig, bgColor, ignoredS
   }
 }
 
+async function captureGeneralViewSegments(view, captureConfig, bgColor, ignoredSelectors = []) {
+  const segments = [];
+  const cards = Array.from(view.querySelectorAll('#general-ex-list .ex-item'));
+
+  for (const card of cards) {
+    if (!card.offsetWidth || !card.offsetHeight) continue;
+    const captured = await captureElementImage(card, captureConfig, bgColor, ignoredSelectors);
+    if (captured) segments.push(captured);
+  }
+
+  const utilsSection = view.querySelector('#utils-section');
+  if (utilsSection && utilsSection.offsetWidth && utilsSection.offsetHeight) {
+    const capturedUtils = await captureElementImage(utilsSection, captureConfig, bgColor, ignoredSelectors);
+    if (capturedUtils) segments.push(capturedUtils);
+  }
+
+  return segments;
+}
+
 async function ensureImagesReady(root) {
   const images = Array.from(root.querySelectorAll('img'));
   if (!images.length) return;
@@ -214,9 +233,9 @@ async function ensureImagesReady(root) {
   }));
 }
 
-function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, paddingMm, aspectRatio, bgColor) {
-  const maxWidth = pageWidthMm - (paddingMm * 2);
-  const maxHeight = pageHeightMm - (paddingMm * 2);
+function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, horizontalPaddingMm, verticalPaddingMm, aspectRatio, bgColor) {
+  const maxWidth = pageWidthMm - (horizontalPaddingMm * 2);
+  const maxHeight = pageHeightMm - (verticalPaddingMm * 2);
 
   let renderWidth = maxWidth;
   let renderHeight = renderWidth * aspectRatio;
@@ -233,18 +252,84 @@ function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, paddingMm, a
   pdf.addImage(dataUrl, 'JPEG', x, y, renderWidth, renderHeight);
 }
 
-function drawSlicesOnSinglePage(pdf, slices, pageWidthMm, pageHeightMm, paddingMm, bgColor) {
-  const contentWidthMm = pageWidthMm - 2 * paddingMm;
-  let cursorY = paddingMm;
+async function drawImagesAcrossPages(pdf, images, pageWidthMm, pageHeightMm, horizontalPaddingMm, verticalPaddingMm, bgColor, imageQuality) {
+  const contentWidthMm = pageWidthMm - 2 * horizontalPaddingMm;
+  const contentHeightMm = pageHeightMm - 2 * verticalPaddingMm;
 
-  pdf.setFillColor(bgColor);
-  pdf.rect(0, 0, pageWidthMm, pageHeightMm, 'F');
+  const fillPage = () => {
+    pdf.setFillColor(bgColor);
+    pdf.rect(0, 0, pageWidthMm, pageHeightMm, 'F');
+  };
 
-  slices.forEach(slice => {
-    const imgHeightMm = contentWidthMm * (slice.heightPx / Math.max(slice.widthPx, 1));
-    pdf.addImage(slice.dataUrl, 'JPEG', paddingMm, cursorY, contentWidthMm, imgHeightMm);
-    cursorY += imgHeightMm;
+  const loadImage = (dataUrl) => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Failed to load image for PDF paging'));
+    image.src = dataUrl;
   });
+
+  const addPage = () => {
+    pdf.addPage([pageWidthMm, pageHeightMm], 'portrait');
+    fillPage();
+  };
+
+  let cursorY = verticalPaddingMm;
+
+  fillPage();
+
+  for (const item of images) {
+    const image = await loadImage(item.dataUrl);
+    const widthPx = Math.max(1, item.widthPx || image.naturalWidth || image.width || 1);
+    const heightPx = Math.max(1, item.heightPx || image.naturalHeight || image.height || 1);
+    const mmPerPx = contentWidthMm / widthPx;
+    const totalHeightMm = heightPx * mmPerPx;
+    const remainingHeightMm = (verticalPaddingMm + contentHeightMm) - cursorY;
+
+    if (totalHeightMm <= contentHeightMm && totalHeightMm > remainingHeightMm && cursorY > verticalPaddingMm) {
+      addPage();
+      cursorY = verticalPaddingMm;
+    }
+
+    if (totalHeightMm <= contentHeightMm) {
+      pdf.addImage(item.dataUrl, 'JPEG', horizontalPaddingMm, cursorY, contentWidthMm, totalHeightMm);
+      cursorY += totalHeightMm;
+      continue;
+    }
+
+    let sourceY = 0;
+    let remainingPx = heightPx;
+
+    while (remainingPx > 0) {
+      const remainingOnPageMm = (verticalPaddingMm + contentHeightMm) - cursorY;
+      if (remainingOnPageMm <= 0) {
+        addPage();
+        cursorY = verticalPaddingMm;
+        continue;
+      }
+
+      const chunkPx = Math.max(1, Math.min(remainingPx, Math.floor(remainingOnPageMm / mmPerPx)));
+      const chunkHeightMm = chunkPx * mmPerPx;
+
+      const chunkCanvas = document.createElement('canvas');
+      chunkCanvas.width = widthPx;
+      chunkCanvas.height = chunkPx;
+      const ctx = chunkCanvas.getContext('2d');
+      if (!ctx) throw new Error('Unable to create PDF chunk canvas');
+      ctx.drawImage(image, 0, sourceY, widthPx, chunkPx, 0, 0, widthPx, chunkPx);
+
+      const chunkDataUrl = chunkCanvas.toDataURL('image/jpeg', imageQuality);
+      pdf.addImage(chunkDataUrl, 'JPEG', horizontalPaddingMm, cursorY, contentWidthMm, chunkHeightMm);
+
+      sourceY += chunkPx;
+      remainingPx -= chunkPx;
+      cursorY += chunkHeightMm;
+
+      if (remainingPx > 0) {
+        addPage();
+        cursorY = verticalPaddingMm;
+      }
+    }
+  }
 }
 
 export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig, coverImageDataUrl = '', coverElementId = '') {
@@ -264,7 +349,8 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     captureScale: Math.max(1, Number(captureConfig?.captureScale) || 2),
     imageQuality: Math.min(1, Math.max(0.1, Number(captureConfig?.imageQuality) || 0.95)),
     viewportWidthPx: Number(captureConfig?.viewportWidthPx) || Number(CFG.pdf.safeViewportWidthPx) || 1100,
-    pagePaddingMm: Number(captureConfig?.pagePaddingMm) || 8,
+    pageHorizontalPaddingMm: Number(captureConfig?.pageHorizontalPaddingMm) || Number(captureConfig?.pagePaddingMm) || 8,
+    pageVerticalPaddingMm: Number(captureConfig?.pageVerticalPaddingMm ?? 0),
     pageWidthMm: Number(captureConfig?.pageWidthMm) || 210,
     pageHeightMm: Number(captureConfig?.pageHeightMm) || 297
   };
@@ -279,28 +365,34 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     await ensureImagesReady(view);
 
     const { jsPDF } = window.jspdf;
-    const pad = safeConfig.pagePaddingMm;
+    const padX = safeConfig.pageHorizontalPaddingMm;
+    const padY = safeConfig.pageVerticalPaddingMm;
     const width = safeConfig.pageWidthMm;
     const pageHeight = safeConfig.pageHeightMm;
-    const contentWidthMm = width - 2 * pad;
-    const contentHeightMm = pageHeight - 2 * pad;
+    const contentWidthMm = width - 2 * padX;
+    const contentHeightMm = pageHeight - 2 * padY;
     const ignoredSelectors = viewId === 'view-general'
       ? CFG.pdf.generalIgnoreSelectors
       : [];
 
-    let slices;
+    let captures;
     try {
-      const fullCapture = await captureElementFullImage(view, safeConfig, bgColor, ignoredSelectors);
-      slices = [fullCapture];
+      if (viewId === 'view-general') {
+        captures = await captureGeneralViewSegments(view, safeConfig, bgColor, ignoredSelectors);
+      }
+      if (!captures?.length) {
+        const fullCapture = await captureElementImage(view, safeConfig, bgColor, ignoredSelectors);
+        captures = [fullCapture];
+      }
     } catch {
       const targetSliceHeightPx = Math.max(
         512,
         Math.floor(view.offsetWidth * (contentHeightMm / Math.max(contentWidthMm, 1)))
       );
-      slices = await captureElementSlices(view, safeConfig, bgColor, targetSliceHeightPx, ignoredSelectors);
+      captures = await captureElementSlices(view, safeConfig, bgColor, targetSliceHeightPx, ignoredSelectors);
     }
 
-    if (!slices.length) throw new Error('No capture slices were generated.');
+    if (!captures.length) throw new Error('No capture slices were generated.');
 
     let coverSource = null;
     if (coverImageDataUrl) {
@@ -314,21 +406,15 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
 
     const hasCover = Boolean(coverSource?.dataUrl);
 
-    const contentTotalHeightMm = slices.reduce(
-      (sum, slice) => sum + (contentWidthMm * (slice.heightPx / Math.max(slice.widthPx, 1))),
-      0
-    );
-    const longPageHeightMm = Math.max(pageHeight, (2 * pad) + contentTotalHeightMm);
-
     if (hasCover) {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, pageHeight] });
-      drawImageCentered(pdf, coverSource.dataUrl, width, pageHeight, pad, coverSource.aspectRatio, bgColor);
-      pdf.addPage([width, longPageHeightMm], 'portrait');
-      drawSlicesOnSinglePage(pdf, slices, width, longPageHeightMm, pad, bgColor);
+      drawImageCentered(pdf, coverSource.dataUrl, width, pageHeight, padX, padY, coverSource.aspectRatio, bgColor);
+      pdf.addPage([width, pageHeight], 'portrait');
+      await drawImagesAcrossPages(pdf, captures, width, pageHeight, padX, padY, bgColor, safeConfig.imageQuality);
       pdf.save(`${fileName}-report.pdf`);
     } else {
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, longPageHeightMm] });
-      drawSlicesOnSinglePage(pdf, slices, width, longPageHeightMm, pad, bgColor);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, pageHeight] });
+      await drawImagesAcrossPages(pdf, captures, width, pageHeight, padX, padY, bgColor, safeConfig.imageQuality);
       pdf.save(`${fileName}-report.pdf`);
     }
   } catch (error) {
