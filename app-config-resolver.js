@@ -89,6 +89,7 @@ const DEFAULT_APP_CONFIG = {
     sliceWindowMinHeightPx: 512,
     minSliceHeightPx: 256,
     safeViewportWidthPx: 1100,
+    exerciseStartTopPaddingMm: 8,
     generalIgnoreSelectors: ['#utils-banner', '#utils-info-notice'],
     messages: {
       librariesMissing: 'PDF libraries not loaded. Please refresh.',

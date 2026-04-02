@@ -366,7 +366,7 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     pageHorizontalPaddingMm: Number(captureConfig?.pageHorizontalPaddingMm) || Number(captureConfig?.pagePaddingMm) || 8,
     pageVerticalPaddingMm: Number(captureConfig?.pageVerticalPaddingMm ?? 0),
     blockVerticalPaddingMm: Math.max(0, Number(captureConfig?.blockVerticalPaddingMm ?? 4)),
-    exerciseStartTopPaddingMm: Math.max(0, Number(captureConfig?.exerciseStartTopPaddingMm ?? 4)),
+    exerciseStartTopPaddingMm: Math.max(0, Number(captureConfig?.exerciseStartTopPaddingMm ?? CFG.pdf.exerciseStartTopPaddingMm ?? 8)),
     pageWidthMm: Number(captureConfig?.pageWidthMm) || 210,
     pageHeightMm: Number(captureConfig?.pageHeightMm) || 297
   };
