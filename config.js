@@ -115,13 +115,16 @@ window.APP_CONFIG = {
     pageWidthMm: 210,
     pageHeightMm: 297,
     pagePaddingMm: 8,
+    pageHorizontalPaddingMm: 8,   // left/right margin in mm
+    pageVerticalPaddingMm: 0,     // top/bottom page edge margin in mm (0 = bleed to edge)
+    blockVerticalPaddingMm: 4,    // space above/below each block within a page
+    exerciseStartTopPaddingMm: 8, // padding at top of each exercise's fresh page
     imageQuality: 0.95,
     fallbackAspectRatio: 297 / 210,
     elementWindowMinHeightPx: 900,
     sliceWindowMinHeightPx: 512,
     minSliceHeightPx: 256,
     safeViewportWidthPx: 1100,
-    exerciseStartTopPaddingMm: 8,
     generalIgnoreSelectors: ['#utils-banner', '#utils-info-notice'],
     messages: {
       librariesMissing: 'PDF libraries not loaded. Please refresh.',
