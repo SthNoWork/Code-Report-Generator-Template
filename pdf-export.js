@@ -252,9 +252,11 @@ function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, horizontalPa
   pdf.addImage(dataUrl, 'JPEG', x, y, renderWidth, renderHeight);
 }
 
-async function drawImagesAcrossPages(pdf, images, pageWidthMm, pageHeightMm, horizontalPaddingMm, verticalPaddingMm, bgColor, imageQuality) {
+async function drawImagesAcrossPages(pdf, images, pageWidthMm, pageHeightMm, horizontalPaddingMm, verticalPaddingMm, blockVerticalPaddingMm, exerciseStartTopPaddingMm, bgColor, imageQuality) {
   const contentWidthMm = pageWidthMm - 2 * horizontalPaddingMm;
   const contentHeightMm = pageHeightMm - 2 * verticalPaddingMm;
+  const contentTopMm = verticalPaddingMm;
+  const contentBottomMm = pageHeightMm - verticalPaddingMm;
 
   const fillPage = () => {
     pdf.setFillColor(bgColor);
@@ -273,26 +275,38 @@ async function drawImagesAcrossPages(pdf, images, pageWidthMm, pageHeightMm, hor
     fillPage();
   };
 
-  let cursorY = verticalPaddingMm;
+  let cursorY = contentTopMm + exerciseStartTopPaddingMm;
 
   fillPage();
 
-  for (const item of images) {
+  for (let index = 0; index < images.length; index += 1) {
+    const item = images[index];
+
+    if (index > 0) {
+      addPage();
+      cursorY = contentTopMm + exerciseStartTopPaddingMm;
+    }
+
     const image = await loadImage(item.dataUrl);
     const widthPx = Math.max(1, item.widthPx || image.naturalWidth || image.width || 1);
     const heightPx = Math.max(1, item.heightPx || image.naturalHeight || image.height || 1);
     const mmPerPx = contentWidthMm / widthPx;
     const totalHeightMm = heightPx * mmPerPx;
-    const remainingHeightMm = (verticalPaddingMm + contentHeightMm) - cursorY;
+    const canUseBlockPadding = totalHeightMm + (2 * blockVerticalPaddingMm) <= contentHeightMm;
+    const topBlockPadMm = canUseBlockPadding ? blockVerticalPaddingMm : 0;
+    const bottomBlockPadMm = canUseBlockPadding ? blockVerticalPaddingMm : 0;
+    const singleBlockNeededMm = totalHeightMm + topBlockPadMm + bottomBlockPadMm;
+    const remainingHeightMm = contentBottomMm - cursorY;
 
-    if (totalHeightMm <= contentHeightMm && totalHeightMm > remainingHeightMm && cursorY > verticalPaddingMm) {
+    if (totalHeightMm <= contentHeightMm && singleBlockNeededMm > remainingHeightMm && cursorY > contentTopMm) {
       addPage();
-      cursorY = verticalPaddingMm;
+      cursorY = contentTopMm;
     }
 
     if (totalHeightMm <= contentHeightMm) {
+      cursorY += topBlockPadMm;
       pdf.addImage(item.dataUrl, 'JPEG', horizontalPaddingMm, cursorY, contentWidthMm, totalHeightMm);
-      cursorY += totalHeightMm;
+      cursorY += totalHeightMm + bottomBlockPadMm;
       continue;
     }
 
@@ -300,10 +314,10 @@ async function drawImagesAcrossPages(pdf, images, pageWidthMm, pageHeightMm, hor
     let remainingPx = heightPx;
 
     while (remainingPx > 0) {
-      const remainingOnPageMm = (verticalPaddingMm + contentHeightMm) - cursorY;
+      const remainingOnPageMm = contentBottomMm - cursorY;
       if (remainingOnPageMm <= 0) {
         addPage();
-        cursorY = verticalPaddingMm;
+        cursorY = contentTopMm;
         continue;
       }
 
@@ -326,7 +340,7 @@ async function drawImagesAcrossPages(pdf, images, pageWidthMm, pageHeightMm, hor
 
       if (remainingPx > 0) {
         addPage();
-        cursorY = verticalPaddingMm;
+        cursorY = contentTopMm;
       }
     }
   }
@@ -351,6 +365,8 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     viewportWidthPx: Number(captureConfig?.viewportWidthPx) || Number(CFG.pdf.safeViewportWidthPx) || 1100,
     pageHorizontalPaddingMm: Number(captureConfig?.pageHorizontalPaddingMm) || Number(captureConfig?.pagePaddingMm) || 8,
     pageVerticalPaddingMm: Number(captureConfig?.pageVerticalPaddingMm ?? 0),
+    blockVerticalPaddingMm: Math.max(0, Number(captureConfig?.blockVerticalPaddingMm ?? 4)),
+    exerciseStartTopPaddingMm: Math.max(0, Number(captureConfig?.exerciseStartTopPaddingMm ?? 4)),
     pageWidthMm: Number(captureConfig?.pageWidthMm) || 210,
     pageHeightMm: Number(captureConfig?.pageHeightMm) || 297
   };
@@ -410,11 +426,11 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, pageHeight] });
       drawImageCentered(pdf, coverSource.dataUrl, width, pageHeight, padX, padY, coverSource.aspectRatio, bgColor);
       pdf.addPage([width, pageHeight], 'portrait');
-      await drawImagesAcrossPages(pdf, captures, width, pageHeight, padX, padY, bgColor, safeConfig.imageQuality);
+      await drawImagesAcrossPages(pdf, captures, width, pageHeight, padX, padY, safeConfig.blockVerticalPaddingMm, safeConfig.exerciseStartTopPaddingMm, bgColor, safeConfig.imageQuality);
       pdf.save(`${fileName}-report.pdf`);
     } else {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [width, pageHeight] });
-      await drawImagesAcrossPages(pdf, captures, width, pageHeight, padX, padY, bgColor, safeConfig.imageQuality);
+      await drawImagesAcrossPages(pdf, captures, width, pageHeight, padX, padY, safeConfig.blockVerticalPaddingMm, safeConfig.exerciseStartTopPaddingMm, bgColor, safeConfig.imageQuality);
       pdf.save(`${fileName}-report.pdf`);
     }
   } catch (error) {
