@@ -43,22 +43,22 @@ ATTACHMENT_SUPPORTS.forEach(support => {
 });
 
 export function escapeHtml(v) {
-  return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export function languageClass(ext) {
   const MAP = {
-    cpp:'language-cpp',cc:'language-cpp',cxx:'language-cpp',c:'language-c',
-    h:'language-cpp',hpp:'language-cpp',java:'language-java',kt:'language-kotlin',
-    scala:'language-scala',cs:'language-csharp',py:'language-python',rb:'language-ruby',
-    php:'language-php',sh:'language-bash',bash:'language-bash',ps1:'language-powershell',
-    js:'language-javascript',jsx:'language-javascript',mjs:'language-javascript',
-    ts:'language-typescript',tsx:'language-typescript',
-    json:'language-json',html:'language-xml',htm:'language-xml',
-    css:'language-css',scss:'language-scss',go:'language-go',rs:'language-rust',
-    swift:'language-swift',sql:'language-sql',r:'language-r',lua:'language-lua',
-    yaml:'language-yaml',yml:'language-yaml',toml:'language-ini',ini:'language-ini',
-    xml:'language-xml',md:'language-markdown',txt:'language-plaintext',
+    cpp: 'language-cpp', cc: 'language-cpp', cxx: 'language-cpp', c: 'language-c',
+    h: 'language-cpp', hpp: 'language-cpp', java: 'language-java', kt: 'language-kotlin',
+    scala: 'language-scala', cs: 'language-csharp', py: 'language-python', rb: 'language-ruby',
+    php: 'language-php', sh: 'language-bash', bash: 'language-bash', ps1: 'language-powershell',
+    js: 'language-javascript', jsx: 'language-javascript', mjs: 'language-javascript',
+    ts: 'language-typescript', tsx: 'language-typescript',
+    json: 'language-json', html: 'language-xml', htm: 'language-xml',
+    css: 'language-css', scss: 'language-scss', go: 'language-go', rs: 'language-rust',
+    swift: 'language-swift', sql: 'language-sql', r: 'language-r', lua: 'language-lua',
+    yaml: 'language-yaml', yml: 'language-yaml', toml: 'language-ini', ini: 'language-ini',
+    xml: 'language-xml', md: 'language-markdown', txt: 'language-plaintext',
   };
   return MAP[(ext || '').toLowerCase()] || 'language-plaintext';
 }
@@ -68,17 +68,17 @@ export function languageClass(ext) {
 // Fields:  headerClass, dotClass, label, labelClass, draggable, crossDraggable
 
 const BLOCK_TYPE_CONFIG = {
-  'code':         { headerClass:'code-header',  dotClass:'code-dot',   label: null,     labelClass: null,          draggable:true, crossDraggable:true  },
-  'output':       { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:true  },
-  'empty-output': { headerClass:'out-header',   dotClass:'out-dot',    label:'OUTPUT',  labelClass:'out-label',    draggable:true, crossDraggable:true  },
-  'desc-text':    { headerClass:'code-header',  dotClass:'image-dot',  label:'DESC',    labelClass:'image-label',  draggable:true, crossDraggable:true  },
+  'code': { headerClass: 'code-header', dotClass: 'code-dot', label: null, labelClass: null, draggable: true, crossDraggable: true },
+  'output': { headerClass: 'out-header', dotClass: 'out-dot', label: 'OUTPUT', labelClass: 'out-label', draggable: true, crossDraggable: true },
+  'empty-output': { headerClass: 'out-header', dotClass: 'out-dot', label: 'OUTPUT', labelClass: 'out-label', draggable: true, crossDraggable: true },
+  'desc-text': { headerClass: 'code-header', dotClass: 'image-dot', label: 'DESC', labelClass: 'image-label', draggable: true, crossDraggable: true },
 };
 ATTACHMENT_SUPPORTS.forEach(support => {
   BLOCK_TYPE_CONFIG[support.buildType] = {
-    headerClass:'image-header', dotClass:'image-dot', label:'', labelClass:'image-label', draggable:true, crossDraggable:true
+    headerClass: 'image-header', dotClass: 'image-dot', label: '', labelClass: 'image-label', draggable: true, crossDraggable: true
   };
   BLOCK_TYPE_CONFIG[support.descBuildType] = {
-    headerClass:'code-header', dotClass:'image-dot', label:'DESC', labelClass:'image-label', draggable:true, crossDraggable:true
+    headerClass: 'code-header', dotClass: 'image-dot', label: 'DESC', labelClass: 'image-label', draggable: true, crossDraggable: true
   };
 });
 
@@ -121,46 +121,46 @@ async function renderPdfSurface(surface) {
   if (!src) return;
 
   const job = (async () => {
-  if (!window.pdfjsLib) {
-    surface.innerHTML = '<div class="pdf-preview-fallback">PDF preview unavailable in this browser.</div>';
-    surface.dataset.rendered = '0';
-    return;
-  }
-
-  ensurePdfJsConfigured();
-  surface.innerHTML = '';
-  surface.dataset.rendering = '1';
-
-  try {
-    const bytes = dataUrlToUint8Array(src);
-    const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
-    const pdfDoc = await loadingTask.promise;
-
-    const targetWidth = Math.max(320, surface.clientWidth || surface.parentElement?.clientWidth || 860);
-
-    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum += 1) {
-      const page = await pdfDoc.getPage(pageNum);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const scale = targetWidth / Math.max(baseViewport.width, 1);
-      const viewport = page.getViewport({ scale });
-
-      const canvas = document.createElement('canvas');
-      canvas.className = 'pdf-page-canvas';
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      canvas.setAttribute('draggable', 'false');
-
-      const ctx = canvas.getContext('2d', { alpha: false });
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      surface.appendChild(canvas);
+    if (!window.pdfjsLib) {
+      surface.innerHTML = '<div class="pdf-preview-fallback">PDF preview unavailable in this browser.</div>';
+      surface.dataset.rendered = '0';
+      return;
     }
-    surface.dataset.rendered = '1';
-  } catch {
-    surface.innerHTML = '<div class="pdf-preview-fallback">Unable to render PDF preview.</div>';
-    surface.dataset.rendered = '0';
-  } finally {
-    delete surface.dataset.rendering;
-  }
+
+    ensurePdfJsConfigured();
+    surface.innerHTML = '';
+    surface.dataset.rendering = '1';
+
+    try {
+      const bytes = dataUrlToUint8Array(src);
+      const loadingTask = window.pdfjsLib.getDocument({ data: bytes });
+      const pdfDoc = await loadingTask.promise;
+
+      const targetWidth = Math.max(320, surface.clientWidth || surface.parentElement?.clientWidth || 860);
+
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum += 1) {
+        const page = await pdfDoc.getPage(pageNum);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = targetWidth / Math.max(baseViewport.width, 1);
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pdf-page-canvas';
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        canvas.setAttribute('draggable', 'false');
+
+        const ctx = canvas.getContext('2d', { alpha: false });
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        surface.appendChild(canvas);
+      }
+      surface.dataset.rendered = '1';
+    } catch {
+      surface.innerHTML = '<div class="pdf-preview-fallback">Unable to render PDF preview.</div>';
+      surface.dataset.rendered = '0';
+    } finally {
+      delete surface.dataset.rendering;
+    }
   })();
 
   pdfRenderJobs.set(surface, job);
@@ -227,16 +227,16 @@ export function buildBlock(spec) {
 
   if (type === 'code') {
     const { file: f, ex, modeConfig } = spec;
-    const isProse   = modeConfig.renderAsProse(f);
-    displayContent  = f.content || '';
+    const isProse = modeConfig.renderAsProse(f);
+    displayContent = f.content || '';
 
-    blockClass  = isProse ? 'prose-block'  : 'code-block';
+    blockClass = isProse ? 'prose-block' : 'code-block';
     headerClass = isProse ? 'prose-header' : 'code-header';
     el.className = 'code-with-desc';
     el.dataset.fileName = f.name;
-    el.dataset.mode     = modeConfig.id;
+    el.dataset.mode = modeConfig.id;
     hasMarkMain = !!ex;
-    hasCopy     = true;
+    hasCopy = true;
     hasCollapse = true;
 
     // Inner block
@@ -247,13 +247,13 @@ export function buildBlock(spec) {
     // Header
     const header = _buildHeader({
       headerClass,
-      dotClass:  'code-dot' + (f.main ? ' main-dot' : ''),
-      fileName:  f.name,
-      tag:       f.main
-        ? { cls:'main-tag', attr:'data-maintag', text:'main' }
-        : { cls:'ext-tag',  attr:'data-exttag',  text:'.' + (f.ext || '') },
-      collapse:  hasCollapse,
-      copy:      hasCopy,
+      dotClass: 'code-dot' + (f.main ? ' main-dot' : ''),
+      fileName: f.name,
+      tag: f.main
+        ? { cls: 'main-tag', attr: 'data-maintag', text: 'main' }
+        : { cls: 'ext-tag', attr: 'data-exttag', text: '.' + (f.ext || '') },
+      collapse: hasCollapse,
+      copy: hasCopy,
       copyGetContent: () => displayContent,
     });
 
@@ -298,7 +298,7 @@ export function buildBlock(spec) {
 
   } else if (type === 'output') {
     const { fileName: fn, section, sectionIdx, sectionTotal, renderContent } = spec;
-    blockClass  = 'output-block';
+    blockClass = 'output-block';
     headerClass = 'out-header';
     el.className = blockClass;
     el.dataset.fileName = fn;
@@ -319,7 +319,7 @@ export function buildBlock(spec) {
     el.appendChild(contentEl);
 
   } else if (type === 'empty-output') {
-    blockClass  = 'output-block';
+    blockClass = 'output-block';
     el.className = blockClass;
     const header = _buildHeader({
       headerClass: 'out-header',
@@ -355,7 +355,7 @@ export function buildBlock(spec) {
         e.target.textContent = hidden ? '✕' : '↩';
       });
     } else {
-      blockClass  = 'image-block';
+      blockClass = 'image-block';
       el.className = blockClass;
       const header = _buildHeader({
         headerClass: 'image-header',
@@ -440,7 +440,7 @@ function _buildHeader(config) {
       navigator.clipboard.writeText(copyGetContent()).then(() => {
         btn.textContent = 'copied!'; btn.classList.add('copied');
         setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, COPY_FEEDBACK_MS);
-      }).catch(() => {});
+      }).catch(() => { });
     };
     h.appendChild(btn);
   }
@@ -450,8 +450,8 @@ function _buildHeader(config) {
 
 function _addMarkMainBtn(headerEl, f, wrapEl, ex, modeConfig) {
   const btn = document.createElement('button');
-  btn.className   = 'mark-main-btn' + (f.main ? ' is-main' : '');
-  btn.title       = f.main ? 'Unmark as main' : 'Mark as main';
+  btn.className = 'mark-main-btn' + (f.main ? ' is-main' : '');
+  btn.title = f.main ? 'Unmark as main' : 'Mark as main';
   btn.textContent = f.main ? '★ main' : '☆ main';
   btn.onclick = e => {
     e.stopPropagation();
@@ -480,17 +480,17 @@ function _addRemoveBtn(headerEl, blockEl, onRemove) {
 
 export function syncFileBlockUI(wrapEl, f, isMain, modeConfig) {
   f.main = isMain;
-  const inner   = wrapEl.querySelector('.code-block, .prose-block');
-  const dot     = inner?.querySelector('.code-dot');
-  const btn     = inner?.querySelector('.mark-main-btn');
+  const inner = wrapEl.querySelector('.code-block, .prose-block');
+  const dot = inner?.querySelector('.code-dot');
+  const btn = inner?.querySelector('.mark-main-btn');
   const mainTag = inner?.querySelector('[data-maintag]');
-  const extTag  = inner?.querySelector('[data-exttag]');
+  const extTag = inner?.querySelector('[data-exttag]');
 
   if (dot) dot.className = 'code-dot' + (isMain ? ' main-dot' : '');
   if (btn) {
     btn.textContent = isMain ? '★ main' : '☆ main';
-    btn.className   = 'mark-main-btn' + (isMain ? ' is-main' : '');
-    btn.title       = isMain ? 'Unmark as main' : 'Mark as main';
+    btn.className = 'mark-main-btn' + (isMain ? ' is-main' : '');
+    btn.title = isMain ? 'Unmark as main' : 'Mark as main';
   }
   if (isMain && !mainTag && extTag) {
     extTag.removeAttribute('data-exttag'); extTag.className = 'main-tag';

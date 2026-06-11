@@ -35,7 +35,7 @@ async function ensureImagesReady(root) {
     if (image.complete && image.naturalWidth > 0) return;
     try {
       if (typeof image.decode === 'function') { await image.decode(); return; }
-    } catch {}
+    } catch { }
     await new Promise(resolve => {
       image.addEventListener('load', resolve, { once: true });
       image.addEventListener('error', resolve, { once: true });
@@ -47,8 +47,8 @@ async function ensureImagesReady(root) {
 
 function copyCanvasPixels(sourceRoot, cloneRoot) {
   const sources = Array.from(sourceRoot.querySelectorAll('canvas'));
-  const clones  = Array.from(cloneRoot.querySelectorAll('canvas'));
-  const count   = Math.min(sources.length, clones.length);
+  const clones = Array.from(cloneRoot.querySelectorAll('canvas'));
+  const count = Math.min(sources.length, clones.length);
   for (let i = 0; i < count; i++) {
     const src = sources[i]; const dst = clones[i];
     if (!src || !dst) continue;
@@ -65,7 +65,7 @@ function copyCanvasPixels(sourceRoot, cloneRoot) {
  * Returns { dataUrl, widthPx, heightPx }
  */
 async function captureElementImage(element, captureConfig, bgColor, ignoredSelectors = []) {
-  const widthPx  = Math.max(1, element.offsetWidth);
+  const widthPx = Math.max(1, element.offsetWidth);
   const heightPx = Math.max(1, element.scrollHeight, element.offsetHeight);
 
   const wrapper = document.createElement('div');
@@ -92,6 +92,8 @@ async function captureElementImage(element, captureConfig, bgColor, ignoredSelec
       backgroundColor: bgColor,
       useCORS: true,
       logging: false,
+      scrollX: 0,
+      scrollY: 0,
       width: widthPx,
       height: heightPx,
       windowWidth: widthPx,
@@ -151,17 +153,17 @@ async function captureGeneralViewSegments(view, captureConfig, bgColor, ignoredS
 // ── Cover page ─────────────────────────────────────────────────────────────
 
 function drawImageCentered(pdf, dataUrl, pageWidthMm, pageHeightMm, horizontalPaddingMm, verticalPaddingMm, aspectRatio, bgColor) {
-  const maxWidth  = pageWidthMm  - (horizontalPaddingMm * 2);
+  const maxWidth = pageWidthMm - (horizontalPaddingMm * 2);
   const maxHeight = pageHeightMm - (verticalPaddingMm * 2);
 
-  let renderWidth  = maxWidth;
+  let renderWidth = maxWidth;
   let renderHeight = renderWidth * aspectRatio;
   if (renderHeight > maxHeight) {
     renderHeight = maxHeight;
-    renderWidth  = renderHeight / aspectRatio;
+    renderWidth = renderHeight / aspectRatio;
   }
 
-  const x = (pageWidthMm  - renderWidth)  / 2;
+  const x = (pageWidthMm - renderWidth) / 2;
   const y = (pageHeightMm - renderHeight) / 2;
   pdf.setFillColor(bgColor);
   pdf.rect(0, 0, pageWidthMm, pageHeightMm, 'F');
@@ -193,12 +195,12 @@ async function drawSegmentsAcrossPages(
   bgColor,
   imageQuality
 ) {
-  const contentWidthMm  = pageWidthMm  - 2 * horizontalPaddingMm;
-  const contentTopMm    = verticalPaddingMm;
+  const contentWidthMm = pageWidthMm - 2 * horizontalPaddingMm;
+  const contentTopMm = verticalPaddingMm;
   const contentBottomMm = pageHeightMm - verticalPaddingMm;
   const contentHeightMm = contentBottomMm - contentTopMm;
 
-  let isFirstPage  = true;
+  let isFirstPage = true;
   let isFirstBlock = true; // first block on current page
 
   const fillPage = () => {
@@ -222,7 +224,7 @@ async function drawSegmentsAcrossPages(
     // which already has a page from cover or initial page)
     if (isExStart && !isFirstPage) {
       addPage();
-      cursorY  = contentTopMm;
+      cursorY = contentTopMm;
       isFirstBlock = true;
     }
 
@@ -232,9 +234,9 @@ async function drawSegmentsAcrossPages(
       : (isFirstBlock ? 0 : blockVerticalPaddingMm);
 
     const image = await loadImageElement(segment.dataUrl);
-    const widthPx    = Math.max(1, segment.widthPx  || image.naturalWidth  || 1);
-    const heightPx   = Math.max(1, segment.heightPx || image.naturalHeight || 1);
-    const mmPerPx    = contentWidthMm / widthPx;
+    const widthPx = Math.max(1, segment.widthPx || image.naturalWidth || 1);
+    const heightPx = Math.max(1, segment.heightPx || image.naturalHeight || 1);
+    const mmPerPx = contentWidthMm / widthPx;
     const totalHeightMm = heightPx * mmPerPx;
 
     const fitsInOnePage = totalHeightMm <= contentHeightMm;
@@ -255,7 +257,7 @@ async function drawSegmentsAcrossPages(
       }
 
       const actualTop = isFirstBlock ? cursorY + (isExStart ? exerciseStartTopPaddingMm : 0)
-                                     : cursorY + topPadding;
+        : cursorY + topPadding;
       pdf.addImage(segment.dataUrl, 'JPEG', horizontalPaddingMm, actualTop, contentWidthMm, totalHeightMm);
       cursorY = actualTop + totalHeightMm + blockVerticalPaddingMm;
 
@@ -264,9 +266,9 @@ async function drawSegmentsAcrossPages(
       // No top/bottom padding on continuation slices.
       cursorY += (isFirstBlock ? (isExStart ? exerciseStartTopPaddingMm : 0) : topPadding);
 
-      let sourceY     = 0;
+      let sourceY = 0;
       let remainingPx = heightPx;
-      let firstSlice  = true;
+      let firstSlice = true;
 
       while (remainingPx > 0) {
         const remainingOnPageMm = contentBottomMm - cursorY;
@@ -278,11 +280,11 @@ async function drawSegmentsAcrossPages(
           continue;
         }
 
-        const slicePx       = Math.max(1, Math.min(remainingPx, Math.floor(remainingOnPageMm / mmPerPx)));
+        const slicePx = Math.max(1, Math.min(remainingPx, Math.floor(remainingOnPageMm / mmPerPx)));
         const sliceHeightMm = slicePx * mmPerPx;
 
         const chunkCanvas = document.createElement('canvas');
-        chunkCanvas.width  = widthPx;
+        chunkCanvas.width = widthPx;
         chunkCanvas.height = slicePx;
         const ctx = chunkCanvas.getContext('2d');
         if (!ctx) throw new Error('Unable to create PDF chunk canvas');
@@ -291,10 +293,10 @@ async function drawSegmentsAcrossPages(
         const chunkDataUrl = chunkCanvas.toDataURL('image/jpeg', imageQuality);
         pdf.addImage(chunkDataUrl, 'JPEG', horizontalPaddingMm, cursorY, contentWidthMm, sliceHeightMm);
 
-        sourceY     += slicePx;
+        sourceY += slicePx;
         remainingPx -= slicePx;
-        cursorY     += sliceHeightMm;
-        firstSlice   = false;
+        cursorY += sliceHeightMm;
+        firstSlice = false;
 
         if (remainingPx > 0) {
           addPage();
@@ -306,7 +308,7 @@ async function drawSegmentsAcrossPages(
       // (cursorY already at contentBottomMm or beyond)
     }
 
-    isFirstPage  = false;
+    isFirstPage = false;
     isFirstBlock = false;
   }
 }
@@ -319,7 +321,7 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
     return;
   }
 
-  const view   = document.getElementById(viewId);
+  const view = document.getElementById(viewId);
   const button = document.getElementById(buttonId);
   if (!view) {
     alert(CFG.pdf.messages.contentViewMissing);
@@ -328,24 +330,24 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
 
   // Resolve all config values from CFG, with captureConfig overrides
   const safeConfig = {
-    captureScale:              Math.max(1, Number(captureConfig?.captureScale)              || CFG.pdf.captureScale              || 2),
-    imageQuality:              Math.min(1, Math.max(0.1, Number(captureConfig?.imageQuality) || CFG.pdf.imageQuality              || 0.95)),
-    viewportWidthPx:           Number(captureConfig?.viewportWidthPx)                        || CFG.pdf.safeViewportWidthPx        || 1100,
-    pageHorizontalPaddingMm:   Number(captureConfig?.pageHorizontalPaddingMm
-                                   ?? captureConfig?.pagePaddingMm
-                                   ?? CFG.pdf.pageHorizontalPaddingMm
-                                   ?? CFG.pdf.pagePaddingMm                                  ?? 8),
-    pageVerticalPaddingMm:     Number(captureConfig?.pageVerticalPaddingMm
-                                   ?? CFG.pdf.pageVerticalPaddingMm                          ?? 0),
-    blockVerticalPaddingMm:    Math.max(0, Number(captureConfig?.blockVerticalPaddingMm
-                                   ?? CFG.pdf.blockVerticalPaddingMm                         ?? 4)),
+    captureScale: Math.max(1, Number(captureConfig?.captureScale) || CFG.pdf.captureScale || 2),
+    imageQuality: Math.min(1, Math.max(0.1, Number(captureConfig?.imageQuality) || CFG.pdf.imageQuality || 0.95)),
+    viewportWidthPx: Number(captureConfig?.viewportWidthPx) || CFG.pdf.safeViewportWidthPx || 1100,
+    pageHorizontalPaddingMm: Number(captureConfig?.pageHorizontalPaddingMm
+      ?? captureConfig?.pagePaddingMm
+      ?? CFG.pdf.pageHorizontalPaddingMm
+      ?? CFG.pdf.pagePaddingMm ?? 8),
+    pageVerticalPaddingMm: Number(captureConfig?.pageVerticalPaddingMm
+      ?? CFG.pdf.pageVerticalPaddingMm ?? 0),
+    blockVerticalPaddingMm: Math.max(0, Number(captureConfig?.blockVerticalPaddingMm
+      ?? CFG.pdf.blockVerticalPaddingMm ?? 4)),
     exerciseStartTopPaddingMm: Math.max(0, Number(captureConfig?.exerciseStartTopPaddingMm
-                                   ?? CFG.pdf.exerciseStartTopPaddingMm                      ?? 8)),
-    pageWidthMm:               Number(captureConfig?.pageWidthMm)                            || CFG.pdf.pageWidthMm               || 210,
-    pageHeightMm:              Number(captureConfig?.pageHeightMm)                           || CFG.pdf.pageHeightMm              || 297,
+      ?? CFG.pdf.exerciseStartTopPaddingMm ?? 8)),
+    pageWidthMm: Number(captureConfig?.pageWidthMm) || CFG.pdf.pageWidthMm || 210,
+    pageHeightMm: Number(captureConfig?.pageHeightMm) || CFG.pdf.pageHeightMm || 297,
   };
 
-  const bgColor          = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0d1117';
+  const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0d1117';
   const ignoredSelectors = viewId === 'view-general' ? (CFG.pdf.generalIgnoreSelectors || []) : [];
 
   document.body.classList.add('exporting-pdf');
@@ -353,7 +355,7 @@ export async function captureViewToPdf(viewId, fileName, buttonId, captureConfig
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
   try {
-    await ensureImagesReady(view);
+    await ensureImagesReady(document.body);
 
     // Capture segments — one per exercise card for precise page control
     let segments = [];
@@ -440,7 +442,7 @@ export async function exportExerciseListPdf(options) {
     items.forEach(item => {
       item.classList.add('open');
       const body = item.querySelector('.ex-body');
-      const ex   = resolveExercise(item);
+      const ex = resolveExercise(item);
       if (ex && body) {
         const maybePromise = ensureBodyLoaded(body, ex);
         if (maybePromise && typeof maybePromise.then === 'function') pending.push(maybePromise);

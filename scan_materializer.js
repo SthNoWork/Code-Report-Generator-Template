@@ -165,7 +165,7 @@ export async function materializeScanEntries(scanEntries, modeConfig) {
     outputEntries.map(async ({ entry, name, path }) => {
       const raw = await readTextFromHandle(entry);
       const sections = extractOutputSections(raw);
-      return sections.length ? { fileName: name, path, sections } : null;
+      return { fileName: name, path, sections: sections.length ? sections : [raw || ''] };
     })
   );
 

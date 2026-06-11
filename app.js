@@ -5,17 +5,22 @@
  * Delegates to: mode-config.js (what), scanner.js (read), renderer.js (draw).
  */
 
-import { CODE_MODE, getModeById, ALL_MODES } from './mode-config.js';
-import { scanFolder, scanUtilsFolder, readTextFromHandle,
-         getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, getExt } from './file-scanner.js';
-import { buildFileBlock, buildImageBlock, renderBodyContents,
-         buildImageDescNote, buildAttachmentBlock, escapeHtml, updateExerciseBlockStates,
-         renderPdfPreviewSurfaces } from './renderer.js';
+import { PDF_MODE, getModeById, ALL_MODES } from './mode-config.js';
+import {
+  scanFolder, scanUtilsFolder, readTextFromHandle,
+  getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, getExt
+} from './file-scanner.js';
+import {
+  buildFileBlock, buildImageBlock, renderBodyContents,
+  buildImageDescNote, buildAttachmentBlock, escapeHtml, updateExerciseBlockStates,
+  renderPdfPreviewSurfaces
+} from './renderer.js';
 import { getAppConfig } from './app-config-resolver.js';
 
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
-import { exportExerciseListPdf } from './pdf-export.js';
+import { exportExerciseListPdf, captureViewToPdf } from './pdf-export.js';
+import { exportExerciseListMarkdown, triggerDownload } from './markdown-export.js';
 
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 1: APP CONFIG
@@ -66,12 +71,12 @@ function ensureAttachmentCollections(ex) {
 // SECTION 2: APP STATE
 // ══════════════════════════════════════════════════════════════════════════
 
-let activeMode     = CODE_MODE;   // current ModeConfig
-let exercises      = [];          // loaded exercise cards
+let activeMode = PDF_MODE;   // current ModeConfig
+let exercises = [];          // loaded exercise cards
 let exerciseIdSeed = 1;
 const exerciseIndex = new Map();
-let folderHandle   = null;        // last opened FileSystemDirectoryHandle
-let folderName     = '';          // display name of opened folder
+let folderHandle = null;        // last opened FileSystemDirectoryHandle
+let folderName = '';          // display name of opened folder
 let activeSubtitle = '';
 
 function ensureExerciseId(ex) {
@@ -101,18 +106,18 @@ function findExerciseIdByName(name) {
 }
 
 // Utils folder state
-let utilsFiles    = [];          // flat array of FileObject loaded from utils folder
+let utilsFiles = [];          // flat array of FileObject loaded from utils folder
 let utilsFolderName = '';        // display name of utils folder
-let showUtils     = true;        // controlled by Display Options toggle
+let showUtils = true;        // controlled by Display Options toggle
 
 // Cover page state
 let coverImageDataUrl = '';
-let coverLogoDataUrl  = CFG.cover.defaultLogoPath;
-let coverLogoSize     = Number(CFG.cover.logoSize) || 120;
-let coverTitleSize    = Number(CFG.cover.titleSize) || 28;
+let coverLogoDataUrl = CFG.cover.defaultLogoPath;
+let coverLogoSize = Number(CFG.cover.logoSize) || 120;
+let coverTitleSize = Number(CFG.cover.titleSize) || 28;
 let includeCoverInPdf = CFG.cover.includeInPdfByDefault !== false;
 const coverInfo = {
-  title:    CFG.cover.defaultTitle,
+  title: CFG.cover.defaultTitle,
   subtitle: CFG.cover.defaultSubtitle,
 };
 
@@ -150,15 +155,6 @@ let coverSections = (Array.isArray(CFG.cover.detailRows) ? CFG.cover.detailRows 
 // SECTION 3: MODE PICKER
 // ══════════════════════════════════════════════════════════════════════════
 
-async function selectMode(modeId) {
-  activeMode = getModeById(modeId);
-  ALL_MODES.forEach(m => {
-    document.getElementById(`mode-${m.id}-btn`)?.classList.toggle('active', m.id === modeId);
-  });
-  syncModeUi();
-  if (folderHandle) await loadFolder(folderHandle);
-}
-
 function syncModeUi() {
   const utilsEnabled = activeMode.utilsEnabled !== false;
 
@@ -170,18 +166,6 @@ function syncModeUi() {
 
   const txtRow = document.getElementById('tog-main-txt-row');
   if (txtRow) txtRow.style.display = 'none';
-
-  if (!utilsEnabled) {
-    utilsFiles = [];
-    utilsFolderName = '';
-    document.querySelectorAll('.ex-utils-tag, .ex-utils-footer').forEach(el => el.remove());
-    const banner = document.getElementById('utils-banner');
-    const section = document.getElementById('utils-section');
-    const notice = document.getElementById('utils-info-notice');
-    if (banner) banner.style.display = 'none';
-    if (section) section.style.display = 'none';
-    if (notice) notice.style.display = 'none';
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -193,7 +177,7 @@ async function openFolder() {
   try {
     const handle = await window.showDirectoryPicker();
     folderHandle = handle;
-    folderName   = handle.name || '';
+    folderName = handle.name || '';
     await loadFolder(handle);
   } catch (err) {
     if (err?.name !== 'AbortError') alert(`Cannot open folder: ${err?.message || err}`);
@@ -257,21 +241,16 @@ async function loadFolder(handle) {
   reindexExercises();
   setLoading(100); setTimeout(() => setLoading(0), CFG.runtime.loadingResetDelayMs);
 
-  // Update mode badge
-  const badge = document.getElementById('mode-badge');
-  if (badge) {
-    badge.textContent = `${activeMode.icon} ${activeMode.label}`;
-    badge.className   = `mode-badge mode-badge--${activeMode.id}`;
-  }
+
 
   // Always reset cover fields on new folder load
-  coverInfo.title    = CFG.cover.defaultTitle;
+  coverInfo.title = CFG.cover.defaultTitle;
   coverInfo.subtitle = buildLabSubtitle(folderName);
 
   const titleInp = document.getElementById('cover-title-input');
-  const subInp   = document.getElementById('cover-subtitle-input');
+  const subInp = document.getElementById('cover-subtitle-input');
   if (titleInp) titleInp.value = coverInfo.title;
-  if (subInp)   subInp.value   = coverInfo.subtitle;
+  if (subInp) subInp.value = coverInfo.subtitle;
   syncCoverPreview();
 
   loadReadmeHowTo(handle);
@@ -288,13 +267,13 @@ async function loadFolder(handle) {
 
 function renderUtilsSection() {
   const container = document.getElementById('utils-section');
-  const banner    = document.getElementById('utils-banner');
-  const notice    = document.getElementById('utils-info-notice');
+  const banner = document.getElementById('utils-banner');
+  const notice = document.getElementById('utils-info-notice');
   if (!container || !banner) return;
 
   if (activeMode.utilsEnabled === false) {
     container.style.display = 'none';
-    banner.style.display    = 'none';
+    banner.style.display = 'none';
     if (notice) notice.style.display = 'none';
     document.querySelectorAll('.ex-utils-tag, .ex-utils-footer').forEach(el => el.remove());
     return;
@@ -305,7 +284,7 @@ function renderUtilsSection() {
 
   if (!utilsFiles.length) {
     container.style.display = 'none';
-    banner.style.display    = 'none';
+    banner.style.display = 'none';
     if (notice) notice.style.display = 'none';
     document.querySelectorAll('.ex-utils-footer').forEach(el => el.remove());
     document.querySelectorAll('#general-ex-list .ex-item').forEach(item => updateUtilsRestoreButton(item));
@@ -321,7 +300,7 @@ function renderUtilsSection() {
 
   // Show/hide based on toggle
   const visible = showUtils && document.getElementById('tog-main-utils')?.checked !== false;
-  banner.style.display    = visible ? '' : 'none';
+  banner.style.display = visible ? '' : 'none';
   container.style.display = (visible && !utilsSectionCollapsed) ? '' : 'none';
   if (!visible) {
     document.querySelectorAll('.ex-utils-footer').forEach(el => el.remove());
@@ -550,6 +529,8 @@ function renderExercises() {
 
   const pdBtn = document.getElementById('export-general-pdf-btn');
   if (pdBtn) pdBtn.style.display = exercises.length ? '' : 'none';
+  const mdBtn = document.getElementById('export-general-md-btn');
+  if (mdBtn) mdBtn.style.display = exercises.length ? '' : 'none';
 
   if (!exercises.length) {
     list.innerHTML = `<div class="empty-card"><div class="big">📂</div>${escapeHtml(CFG.ui.text.emptyFolderMessage)}</div>`;
@@ -575,7 +556,7 @@ function renderExercises() {
 }
 
 function buildExerciseItem(ex, idx) {
-  const num  = (ex.name.replace(/\D/g,'') || String(idx + 1));
+  const num = (ex.name.replace(/\D/g, '') || String(idx + 1));
   const meta = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
   const item = document.createElement('div');
   item.className = 'ex-item'; item.draggable = true; item.dataset.exName = ex.name; item.dataset.exId = ensureExerciseId(ex);
@@ -621,7 +602,7 @@ function populateExerciseBody(body, ex) {
   const mc = getModeById(ex._mode || activeMode.id);
 
   renderBodyContents(body, ex, mc, renderOutputContent, {
-    codeMode: mc.id === 'code',
+    codeMode: mc.id === 'code' || mc.id === 'pdf',
     utilsTag: utilsFiles.length > 0,
     includeEmptyOutputBlock: false,
     state: {
@@ -682,12 +663,12 @@ function applyToggles() {
   const list = document.getElementById('general-ex-list');
   if (!list) return;
 
-  const showOut   = document.getElementById(p+'-output')?.checked ?? true;
-  const showImg   = document.getElementById(p+'-images')?.checked ?? true;
-  const showImgDesc = document.getElementById(p+'-image-desc')?.checked ?? true;
-  const showEmpty = document.getElementById(p+'-empty-output')?.checked ?? true;
-  const showDesc  = document.getElementById(p+'-desc')?.checked ?? true;
-  const showNotes = document.getElementById(p+'-notes')?.checked ?? true;
+  const showOut = document.getElementById(p + '-output')?.checked ?? true;
+  const showImg = document.getElementById(p + '-images')?.checked ?? true;
+  const showImgDesc = document.getElementById(p + '-image-desc')?.checked ?? true;
+  const showEmpty = document.getElementById(p + '-empty-output')?.checked ?? true;
+  const showDesc = document.getElementById(p + '-desc')?.checked ?? true;
+  const showNotes = document.getElementById(p + '-notes')?.checked ?? true;
   list.querySelectorAll('.ex-body[data-loaded="1"]').forEach(body => {
     updateExerciseBlockStates(body, {
       output: showOut,
@@ -745,7 +726,7 @@ function pickAndAddFiles(body, ex, modeConfig, addRow) {
       let content;
       try { content = await file.text(); } catch { content = '[binary]'; }
       const ext = getExt(file.name);
-      const f = { name:file.name, ext, main:false, content, proseMode:modeConfig.renderAsProse({ext}) };
+      const f = { name: file.name, ext, main: false, content, proseMode: modeConfig.renderAsProse({ ext }) };
       ex.files.push(f);
       const wrap = buildFileBlock(f, ex, modeConfig);
       wrap.dataset.ownerExId = ensureExerciseId(ex);
@@ -770,7 +751,7 @@ function pickAndAddImages(body, ex, addRow) {
       if (!dataUrl) continue;
 
       // Classify as description or regular image
-      if (isDescriptionImage(file.name)) {
+      if (isDescriptionBaseName(file.name)) {
         ex.descImages = ex.descImages || [];
         ex.descImages.push({ fileName: file.name, dataUrl });
         const imgDescNote = buildImageDescNote(dataUrl, file.name);
@@ -801,8 +782,8 @@ async function readFileAsDataUrl(file) {
 }
 
 function addNewCard() {
-  const mc  = activeMode;
-  const ex  = { name:'New Card', files:[], ...createAttachmentState(), outputSectionsCache:[], _notes:'', _mode: mc.id };
+  const mc = activeMode;
+  const ex = { name: 'New Card', files: [], ...createAttachmentState(), outputSectionsCache: [], _notes: '', _mode: mc.id };
   exercises.push(ex);
   registerExercise(ex);
   const list = document.getElementById('general-ex-list');
@@ -818,7 +799,7 @@ function addNewCard() {
   const ti = item.querySelector('.ex-title-input');
   if (ti) { ti.select(); setTimeout(() => ti.focus(), CFG.runtime.newCardFocusDelayMs); }
   updateCountTag();
-  item.scrollIntoView({ behavior:'smooth', block:'center' });
+  item.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function addFilesToNewCard() {
@@ -827,7 +808,7 @@ function addFilesToNewCard() {
   input.onchange = async () => {
     if (!input.files.length) return;
     const mc = activeMode;
-    const ex = { name:'Files', files:[], ...createAttachmentState(), outputSectionsCache:[], _notes:'', _mode: mc.id };
+    const ex = { name: 'Files', files: [], ...createAttachmentState(), outputSectionsCache: [], _notes: '', _mode: mc.id };
     exercises.push(ex);
     registerExercise(ex);
     for (const file of Array.from(input.files)) {
@@ -837,12 +818,12 @@ function addFilesToNewCard() {
         if (dataUrl) {
           const isDescription = isDescriptionBaseName(file.name);
           const targetKey = isDescription ? attachmentSupport.descExerciseKey : attachmentSupport.exerciseKey;
-          ex[targetKey].push({ fileName:file.name, dataUrl });
+          ex[targetKey].push({ fileName: file.name, dataUrl });
         }
       } else {
         let content; try { content = await file.text(); } catch { content = '[binary]'; }
         const ext = getExt(file.name);
-        ex.files.push({ name:file.name, ext, main:false, content, proseMode:mc.renderAsProse({ext}) });
+        ex.files.push({ name: file.name, ext, main: false, content, proseMode: mc.renderAsProse({ ext }) });
       }
     }
     if (ex.files.length === 1) ex.name = ex.files[0].name;
@@ -860,7 +841,7 @@ function addFilesToNewCard() {
     item.classList.add('open');
     populateExerciseBody(item.querySelector('.ex-body'), ex);
     updateCountTag();
-    item.scrollIntoView({ behavior:'smooth', block:'center' });
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   input.click();
 }
@@ -883,7 +864,7 @@ function initGenDropzone() {
     const files = Array.from(e.dataTransfer.files);
     if (!files.length) return;
     const mc = activeMode;
-    const ex = { name:'Dropped Files', files:[], ...createAttachmentState(), outputSectionsCache:[], _notes:'', _mode: mc.id };
+    const ex = { name: 'Dropped Files', files: [], ...createAttachmentState(), outputSectionsCache: [], _notes: '', _mode: mc.id };
     exercises.push(ex);
     registerExercise(ex);
     for (const file of files) {
@@ -893,12 +874,12 @@ function initGenDropzone() {
         if (dataUrl) {
           const isDescription = isDescriptionBaseName(file.name);
           const targetKey = isDescription ? attachmentSupport.descExerciseKey : attachmentSupport.exerciseKey;
-          ex[targetKey].push({ fileName:file.name, dataUrl });
+          ex[targetKey].push({ fileName: file.name, dataUrl });
         }
       } else {
         let content; try { content = await file.text(); } catch { content = '[binary]'; }
         const ext = getExt(file.name);
-        ex.files.push({ name:file.name, ext, main:false, content, proseMode:mc.renderAsProse({ext}) });
+        ex.files.push({ name: file.name, ext, main: false, content, proseMode: mc.renderAsProse({ ext }) });
       }
     }
     if (ex.files.length === 1) ex.name = ex.files[0].name;
@@ -915,7 +896,7 @@ function initGenDropzone() {
     list.appendChild(item); item.classList.add('open');
     populateExerciseBody(item.querySelector('.ex-body'), ex);
     updateCountTag();
-    item.scrollIntoView({ behavior:'smooth', block:'center' });
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 }
 
@@ -1000,15 +981,17 @@ function renderOutputContent(container, fileName, sectionText) {
 }
 
 function parseCsv(text) {
-  const src=String(text||'').replace(/^\uFEFF/,''); if(!src.trim())return[];
-  const rows=[];let row=[],cell='',i=0,inQ=false;
-  while(i<src.length){const ch=src[i];
-    if(inQ){if(ch==='"'){if(src[i+1]==='"'){cell+='"';i+=2;continue;}inQ=false;i++;continue;}cell+=ch;i++;continue;}
-    if(ch==='"'){inQ=true;i++;continue;}
-    if(ch===','){row.push(cell);cell='';i++;continue;}
-    if(ch==='\n'||ch==='\r'){if(ch==='\r'&&src[i+1]==='\n')i++;row.push(cell);if(row.some(v=>String(v).trim()))rows.push(row);row=[];cell='';i++;continue;}
-    cell+=ch;i++;}
-  row.push(cell);if(row.some(v=>String(v).trim()))rows.push(row);return rows;
+  const src = String(text || '').replace(/^\uFEFF/, ''); if (!src.trim()) return [];
+  const rows = []; let row = [], cell = '', i = 0, inQ = false;
+  while (i < src.length) {
+    const ch = src[i];
+    if (inQ) { if (ch === '"') { if (src[i + 1] === '"') { cell += '"'; i += 2; continue; } inQ = false; i++; continue; } cell += ch; i++; continue; }
+    if (ch === '"') { inQ = true; i++; continue; }
+    if (ch === ',') { row.push(cell); cell = ''; i++; continue; }
+    if (ch === '\n' || ch === '\r') { if (ch === '\r' && src[i + 1] === '\n') i++; row.push(cell); if (row.some(v => String(v).trim())) rows.push(row); row = []; cell = ''; i++; continue; }
+    cell += ch; i++;
+  }
+  row.push(cell); if (row.some(v => String(v).trim())) rows.push(row); return rows;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1016,27 +999,27 @@ function parseCsv(text) {
 // ══════════════════════════════════════════════════════════════════════════
 
 function collapseAll() {
-  document.querySelectorAll('#general-ex-list .ex-item').forEach(i=>i.classList.remove('open'));
+  document.querySelectorAll('#general-ex-list .ex-item').forEach(i => i.classList.remove('open'));
 }
 function expandAll() {
-  document.querySelectorAll('#general-ex-list .ex-item').forEach(item=>{
+  document.querySelectorAll('#general-ex-list .ex-item').forEach(item => {
     item.classList.add('open');
-    const body=item.querySelector('.ex-body');
-    const ex=exerciseIndex.get(item.dataset.exId || '');
-    if(ex) populateExerciseBody(body,ex);
+    const body = item.querySelector('.ex-body');
+    const ex = exerciseIndex.get(item.dataset.exId || '');
+    if (ex) populateExerciseBody(body, ex);
   });
 }
 
 function initDragSort(list) {
   if (list.dataset.dragSortInit === '1') return;
   list.dataset.dragSortInit = '1';
-  let src=null;
-  let over=null;
-  list.addEventListener('dragstart',e=>{const item=e.target.closest('.ex-item');if(!item)return;src=item;item.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-  list.addEventListener('dragend',()=>{if (over) over.classList.remove('drag-over'); list.querySelectorAll('.dragging').forEach(i=>i.classList.remove('dragging')); src=null; over=null;});
-  list.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';const t=e.target.closest('.ex-item');if(!t||t===src)return; if (over && over!==t) over.classList.remove('drag-over'); over=t; t.classList.add('drag-over');});
-  list.addEventListener('dragleave',e=>{const t=e.target.closest('.ex-item');if(t&&t===over){t.classList.remove('drag-over'); over=null;}});
-  list.addEventListener('drop',e=>{e.preventDefault();const t=e.target.closest('.ex-item');if(!t||t===src||!src)return;t.classList.remove('drag-over');const items=Array.from(list.querySelectorAll('.ex-item'));const si=items.indexOf(src),ti=items.indexOf(t);list.insertBefore(src,si<ti?t.nextSibling:t);Array.from(list.querySelectorAll('.ex-item')).forEach((el,i)=>{const b=el.querySelector('.ex-num');if(b)b.textContent=String(i+1);});src=null;});
+  let src = null;
+  let over = null;
+  list.addEventListener('dragstart', e => { const item = e.target.closest('.ex-item'); if (!item) return; src = item; item.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+  list.addEventListener('dragend', () => { if (over) over.classList.remove('drag-over'); list.querySelectorAll('.dragging').forEach(i => i.classList.remove('dragging')); src = null; over = null; });
+  list.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; const t = e.target.closest('.ex-item'); if (!t || t === src) return; if (over && over !== t) over.classList.remove('drag-over'); over = t; t.classList.add('drag-over'); });
+  list.addEventListener('dragleave', e => { const t = e.target.closest('.ex-item'); if (t && t === over) { t.classList.remove('drag-over'); over = null; } });
+  list.addEventListener('drop', e => { e.preventDefault(); const t = e.target.closest('.ex-item'); if (!t || t === src || !src) return; t.classList.remove('drag-over'); const items = Array.from(list.querySelectorAll('.ex-item')); const si = items.indexOf(src), ti = items.indexOf(t); list.insertBefore(src, si < ti ? t.nextSibling : t); Array.from(list.querySelectorAll('.ex-item')).forEach((el, i) => { const b = el.querySelector('.ex-num'); if (b) b.textContent = String(i + 1); }); src = null; });
 }
 
 /**
@@ -1071,7 +1054,7 @@ function initBlockDragSort(list) {
     if (!src) return;
     e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
     const nextHoverBlock = e.target.closest(BLOCK_SEL);
-    const nextHoverBody  = e.target.closest('.ex-body');
+    const nextHoverBody = e.target.closest('.ex-body');
     if (hoverBlock && hoverBlock !== nextHoverBlock) hoverBlock.classList.remove('file-drag-over');
     if (hoverBody && hoverBody !== nextHoverBody) hoverBody.classList.remove('cross-drag-over');
     hoverBlock = null;
@@ -1102,7 +1085,7 @@ function initBlockDragSort(list) {
     if (!src) return;
     e.preventDefault(); e.stopPropagation();
     const dropBlock = e.target.closest(BLOCK_SEL);
-    const dropBody  = e.target.closest('.ex-body');
+    const dropBody = e.target.closest('.ex-body');
     if (!dropBody && !dropBlock) return;
     const targetBody = dropBody || dropBlock?.closest('.ex-body');
     if (!targetBody) return;
@@ -1146,17 +1129,17 @@ function initBlockDragSort(list) {
       const blockType = src.dataset.blockType;
       if (srcEx && blockType === 'code') {
         const fname = src.dataset.fileName;
-        const fi = (srcEx.files||[]).findIndex(f => f.name === fname);
-        if (fi > -1) { const [f] = srcEx.files.splice(fi,1); (tgtEx.files=tgtEx.files||[]).push(f); }
+        const fi = (srcEx.files || []).findIndex(f => f.name === fname);
+        if (fi > -1) { const [f] = srcEx.files.splice(fi, 1); (tgtEx.files = tgtEx.files || []).push(f); }
       } else if (srcEx && blockType === 'output') {
         const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent.split('·')[0].trim();
-        const oi = (srcEx.outputSectionsCache||[]).findIndex(o=>o.fileName===fname);
-        if (oi > -1) { const [o]=srcEx.outputSectionsCache.splice(oi,1); (tgtEx.outputSectionsCache=tgtEx.outputSectionsCache||[]).push(o); }
+        const oi = (srcEx.outputSectionsCache || []).findIndex(o => o.fileName === fname);
+        if (oi > -1) { const [o] = srcEx.outputSectionsCache.splice(oi, 1); (tgtEx.outputSectionsCache = tgtEx.outputSectionsCache || []).push(o); }
       } else if (srcEx && ATTACHMENT_BLOCK_TYPE_MAP.has(blockType)) {
         const { support, isDescription } = ATTACHMENT_BLOCK_TYPE_MAP.get(blockType);
         const sourceKey = isDescription ? support.descExerciseKey : support.exerciseKey;
         const fname = src.dataset.fileName || src.querySelector('.fname')?.textContent;
-        const idx = (srcEx[sourceKey]||[]).findIndex(item => item.fileName === fname);
+        const idx = (srcEx[sourceKey] || []).findIndex(item => item.fileName === fname);
         if (idx > -1) {
           const [item] = srcEx[sourceKey].splice(idx, 1);
           tgtEx[sourceKey] = tgtEx[sourceKey] || [];
@@ -1171,7 +1154,7 @@ function initBlockDragSort(list) {
           }
         } else {
           const fname = src.dataset.fileName;
-          const di = (srcEx.descTexts||[]).findIndex(d => d.fileName === fname);
+          const di = (srcEx.descTexts || []).findIndex(d => d.fileName === fname);
           if (di > -1) {
             const [desc] = srcEx.descTexts.splice(di, 1);
             (tgtEx.descTexts = tgtEx.descTexts || []).push(desc);
@@ -1194,7 +1177,7 @@ function initBlockDragSort(list) {
 }
 
 // Legacy shim — populateExerciseBody still calls this; unified system is at list level.
-function initFileDragSort(body) {}
+function initFileDragSort(body) { }
 
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 9b: STORAGE PANEL
@@ -1203,9 +1186,9 @@ function initFileDragSort(body) {}
 // ══════════════════════════════════════════════════════════════════════════
 
 function initStoragePanel() {
-  const panel  = document.getElementById('storage-panel');
+  const panel = document.getElementById('storage-panel');
   const toggle = document.getElementById('storage-toggle-btn');
-  const drop   = document.getElementById('storage-drop-zone');
+  const drop = document.getElementById('storage-drop-zone');
   if (!panel || !drop) return;
   if (panel.dataset.storageInit === '1') return;
   panel.dataset.storageInit = '1';
@@ -1266,11 +1249,11 @@ async function exportPdf() {
     ensureBodyLoaded: (body, ex) => { populateExerciseBody(body, ex); },
     notesSelector: '#general-ex-list .ex-notes-area',
     viewId: 'view-general',
-    fileName: (folderName || 'report').toLowerCase().replace(/\s+/g,'-'),
+    fileName: (folderName || 'report').toLowerCase().replace(/\s+/g, '-'),
     buttonId: 'export-general-pdf-btn',
     captureConfig: CFG.pdf,
     coverImageDataUrl: includeCoverInPdf ? (coverImageDataUrl || '') : '',
-    coverElementId:    (includeCoverInPdf && !coverImageDataUrl) ? 'cover-card-export' : '',
+    coverElementId: (includeCoverInPdf && !coverImageDataUrl) ? 'cover-card-export' : '',
     beforeCapture: async () => {
       const view = document.getElementById('view-general');
       if (view) await renderPdfPreviewSurfaces(view);
@@ -1278,16 +1261,291 @@ async function exportPdf() {
   });
 }
 
+async function exportMarkdown() {
+  const md = await exportExerciseListMarkdown({
+    listSelector: '#general-ex-list',
+    resolveExercise: item => exerciseIndex.get(item.dataset.exId || ''),
+    ensureBodyLoaded: (body, ex) => { populateExerciseBody(body, ex); },
+    viewId: 'view-general',
+    fileName: (folderName || 'report').toLowerCase().replace(/\s+/g, '-'),
+    coverImageDataUrl: includeCoverInPdf ? (coverImageDataUrl || '') : '',
+    includeCover: includeCoverInPdf,
+    coverInfo: {
+      title: coverInfo.title,
+      subtitle: coverInfo.subtitle,
+    },
+    coverSections: coverSections,
+    coverLogoDataUrl: coverLogoDataUrl,
+    coverLogoSize: coverLogoSize,
+    waitMs: Number(CFG.runtime?.loadingResetDelayMs) || 100,
+  });
+  if (md) {
+    const defaultFilename = (folderName || 'report').toLowerCase().replace(/\s+/g, '-') + '.md';
+    showMarkdownEditor(md, defaultFilename);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SECTION 10b: INTERACTIVE MARKDOWN LIVE EDITOR
+// ══════════════════════════════════════════════════════════════════════════
+
+let loadedMarkdownFileName = '';
+
+function showMarkdownEditor(initialText, fileNameHint) {
+  activate('view-md-editor');
+  setCoverPanelVisible(false);
+
+  // Close stash panel
+  const panel = document.getElementById('storage-panel');
+  if (panel) panel.classList.remove('open');
+  const tabIcon = document.querySelector('#storage-toggle-btn .tab-icon');
+  if (tabIcon) tabIcon.textContent = '⬡';
+
+  const textarea = document.getElementById('md-editor-text');
+  if (textarea) {
+    textarea.value = initialText || '';
+  }
+  loadedMarkdownFileName = fileNameHint || 'report.md';
+
+  // Update filename UI
+  const filenameEl = document.getElementById('md-editor-filename');
+  if (filenameEl) filenameEl.textContent = loadedMarkdownFileName;
+
+  updateLiveMarkdownPreview();
+  setEditorTab('preview'); // Default to Preview tab
+
+  const crumbs = [
+    { label: 'Home', onClick: 'showLanding()', active: false }
+  ];
+  if (folderName) {
+    crumbs.push({ label: folderName, onClick: 'showMain()', active: false });
+  }
+  crumbs.push({ label: 'Markdown Editor', active: true });
+  renderBreadcrumb(crumbs);
+
+  // Adjust scroll of both editor and preview to top
+  const textareaScroll = document.getElementById('md-editor-text');
+  if (textareaScroll) textareaScroll.scrollTop = 0;
+  const previewScroll = document.getElementById('md-editor-preview-scroll');
+  if (previewScroll) previewScroll.scrollTop = 0;
+
+  if (history.state?.view !== 'md-editor') {
+    history.pushState({ view: 'md-editor' }, '', '');
+  }
+}
+
+function setEditorTab(tab) {
+  const workspace = document.getElementById('md-editor-workspace');
+  if (!workspace) return;
+
+  const editTabBtn = document.getElementById('md-tab-edit');
+  const previewTabBtn = document.getElementById('md-tab-preview');
+
+  if (tab === 'edit') {
+    workspace.classList.remove('tab-preview');
+    workspace.classList.add('tab-edit');
+    if (editTabBtn) editTabBtn.classList.add('active');
+    if (previewTabBtn) previewTabBtn.classList.remove('active');
+
+    // Focus textarea
+    setTimeout(() => {
+      const ta = document.getElementById('md-editor-text');
+      if (ta) ta.focus();
+    }, 50);
+  } else {
+    workspace.classList.remove('tab-edit');
+    workspace.classList.add('tab-preview');
+    if (editTabBtn) editTabBtn.classList.remove('active');
+    if (previewTabBtn) previewTabBtn.classList.add('active');
+  }
+}
+
+function updateLiveMarkdownPreview() {
+  const textarea = document.getElementById('md-editor-text');
+  const preview = document.getElementById('md-editor-preview-content');
+  if (!textarea || !preview) return;
+
+  const html = renderMarkdownHtml(textarea.value);
+
+  // Swap clean image filenames back to base64 data URLs for rendering in the preview
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  const imageMap = window.__mdImageMap || {};
+
+  tempDiv.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') || '';
+    if (imageMap[src]) {
+      img.src = imageMap[src];
+    }
+  });
+
+  preview.innerHTML = tempDiv.innerHTML;
+
+  // Highlight any code blocks in the rendered markdown
+  preview.querySelectorAll('pre code').forEach(codeNode => {
+    if (window.hljs) window.hljs.highlightElement(codeNode);
+  });
+}
+
+function downloadEditorMarkdown() {
+  const textarea = document.getElementById('md-editor-text');
+  if (!textarea) return;
+  const content = textarea.value;
+  let filename = loadedMarkdownFileName || 'report.md';
+  if (!filename.endsWith('.md')) filename += '.md';
+  triggerDownload(content, filename);
+}
+
+async function exportEditorPdf() {
+  const exportBtn = document.getElementById('export-editor-pdf-btn');
+  const originalBtnText = exportBtn ? exportBtn.textContent : '';
+  if (exportBtn) {
+    exportBtn.disabled = true;
+    exportBtn.textContent = 'Exporting...';
+  }
+
+  document.body.classList.add('exporting-pdf');
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  try {
+    const filename = (loadedMarkdownFileName || 'report').replace(/\.md$/i, '');
+    await captureViewToPdf(
+      'md-editor-preview-content',
+      filename,
+      'export-editor-pdf-btn',
+      CFG.pdf
+    );
+  } catch (error) {
+    console.error('Markdown PDF export error:', error);
+    alert('PDF export failed: ' + (error?.message || 'Unknown error'));
+  } finally {
+    document.body.classList.remove('exporting-pdf');
+    if (exportBtn) {
+      exportBtn.disabled = false;
+      exportBtn.textContent = originalBtnText;
+    }
+  }
+}
+
+function pickAndLoadMarkdownToEditor() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.md';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (file) await loadMarkdownToEditor(file);
+  };
+  input.click();
+}
+
+async function loadMarkdownToEditor(file) {
+  try {
+    const text = await file.text();
+    showMarkdownEditor(text, file.name);
+  } catch (err) {
+    alert('Failed to read markdown file: ' + err.message);
+  }
+}
+
+function initMdDropzone() {
+  const zone = document.getElementById('md-dropzone');
+  const view = document.getElementById('view-md-editor');
+  if (!zone || !view) return;
+  view.addEventListener('dragover', e => {
+    if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); zone.classList.add('drag-over'); }
+  });
+  view.addEventListener('dragleave', e => { if (!view.contains(e.relatedTarget)) zone.classList.remove('drag-over'); });
+  view.addEventListener('drop', async e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const files = Array.from(e.dataTransfer.files);
+    const mdFile = files.find(f => f.name.endsWith('.md'));
+    if (!mdFile) { alert('Please drop a .md file.'); return; }
+    await loadMarkdownToEditor(mdFile);
+  });
+
+  // Wire up double click scroll-sync & edit toggle on preview content
+  const previewContent = document.getElementById('md-editor-preview-content');
+  const textarea = document.getElementById('md-editor-text');
+  if (previewContent && textarea) {
+    previewContent.addEventListener('dblclick', e => {
+      const workspace = document.getElementById('md-editor-workspace');
+      if (!workspace || !workspace.classList.contains('tab-preview')) return;
+
+      // Toggle to edit tab first
+      setEditorTab('edit');
+
+      const selection = window.getSelection();
+      const selectionText = selection ? selection.toString().trim() : '';
+
+      // Find parent block element
+      let target = e.target;
+      while (target && target !== previewContent && !['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'PRE', 'CODE', 'IMG', 'TR', 'BLOCKQUOTE'].includes(target.tagName)) {
+        target = target.parentElement;
+      }
+
+      const textVal = textarea.value;
+      let matchIdx = -1;
+      let matchLen = 0;
+
+      if (target && target !== previewContent) {
+        const blockText = target.textContent.trim();
+
+        // Find block start index in textarea
+        let blockStartIdx = textVal.indexOf(blockText);
+        if (blockStartIdx === -1 && blockText.length > 20) {
+          // Try matching first line/prefix
+          const lines = blockText.split('\n').map(l => l.trim()).filter(Boolean);
+          if (lines.length > 0) {
+            blockStartIdx = textVal.indexOf(lines[0]);
+          }
+        }
+
+        if (selectionText) {
+          // Search for selection text starting from the block
+          if (blockStartIdx !== -1) {
+            matchIdx = textVal.indexOf(selectionText, blockStartIdx);
+          }
+          // Fallback to global search if not found in block
+          if (matchIdx === -1) {
+            matchIdx = textVal.indexOf(selectionText);
+          }
+          matchLen = selectionText.length;
+        } else {
+          // No selection, just select the block or line
+          matchIdx = blockStartIdx;
+          matchLen = Math.min(blockText.length, 50);
+        }
+      } else if (selectionText) {
+        // Fallback: search for selection text globally
+        matchIdx = textVal.indexOf(selectionText);
+        matchLen = selectionText.length;
+      }
+
+      if (matchIdx !== -1) {
+        textarea.focus();
+        textarea.setSelectionRange(matchIdx, matchIdx + matchLen);
+
+        // Scroll calculate
+        const textBefore = textVal.substring(0, matchIdx);
+        const lineNum = textBefore.split('\n').length - 1;
+        const lineHeight = 22.4; // 14px * 1.6
+        textarea.scrollTop = Math.max(0, lineNum * lineHeight - textarea.clientHeight / 3);
+      } else {
+        textarea.focus();
+      }
+    });
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 11: NAVIGATION
 // ══════════════════════════════════════════════════════════════════════════
 
 function setLoading(pct) {
-  const bar=document.getElementById('loading-bar');
-  if(bar){bar.style.width=pct+'%';bar.style.opacity=(pct>0&&pct<=100)?'1':'0';}
+  const bar = document.getElementById('loading-bar');
+  if (bar) { bar.style.width = pct + '%'; bar.style.opacity = (pct > 0 && pct <= 100) ? '1' : '0'; }
 }
 function activate(id) {
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById(id)?.classList.add('active');
 }
 function toggleSettings(panelId) {
@@ -1297,35 +1555,35 @@ function toggleSettings(panelId) {
 function showLanding() {
   activate('view-landing');
   setCoverPanelVisible(false);
-  document.getElementById('export-general-pdf-btn')?.style?.setProperty('display','none');
+  document.getElementById('export-general-pdf-btn')?.style?.setProperty('display', 'none');
+  document.getElementById('export-general-md-btn')?.style?.setProperty('display', 'none');
   // Close stash panel when going back to landing
   const panel = document.getElementById('storage-panel');
   if (panel) panel.classList.remove('open');
-  document.getElementById('storage-panel')?.classList.remove('open');
   const tabIcon = document.querySelector('#storage-toggle-btn .tab-icon');
   if (tabIcon) tabIcon.textContent = '⬡';
-  renderBreadcrumb([{ label:'Home', active:true }]);
+  renderBreadcrumb([{ label: 'Home', active: true }]);
 }
 function showMain() {
   activate('view-general');
   setCoverPanelVisible(true);
   renderBreadcrumb([
-    { label:'Home', onClick:'showLanding()', active:false },
-    { label: folderName || 'Folder', active:true }
+    { label: 'Home', onClick: 'showLanding()', active: false },
+    { label: folderName || 'Folder', active: true }
   ]);
-  window.scrollTo({ top:0, behavior:'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   // Push history so browser back button works
   if (history.state?.view !== 'main') {
-    history.pushState({ view:'main' }, '', '');
+    history.pushState({ view: 'main' }, '', '');
   }
 }
 
 function renderBreadcrumb(items) {
-  const c=document.getElementById('breadcrumb'); if(!c)return;
-  c.innerHTML=items.map((item,i)=>{
-    const lbl=escapeHtml(item.label);
-    const crumb=item.active?`<span class="crumb active">${lbl}</span>`:`<span class="crumb" onclick="${item.onClick}">${lbl}</span>`;
-    return i===0?crumb:`<span class="sep"> › </span>${crumb}`;
+  const c = document.getElementById('breadcrumb'); if (!c) return;
+  c.innerHTML = items.map((item, i) => {
+    const lbl = escapeHtml(item.label);
+    const crumb = item.active ? `<span class="crumb active">${lbl}</span>` : `<span class="crumb" onclick="${item.onClick}">${lbl}</span>`;
+    return i === 0 ? crumb : `<span class="sep"> › </span>${crumb}`;
   }).join('');
 }
 function setCoverPanelVisible(show) {
@@ -1350,68 +1608,83 @@ function toggleCoverPanel() {
 // ══════════════════════════════════════════════════════════════════════════
 
 function syncCoverPreview() {
-  const setText=(id,v,fb='')=>{const n=document.getElementById(id);if(n)n.textContent=String(v||fb);};
-  setText('cover-title-text',  coverInfo.title,     'Title');
-  setText('cover-subtitle-text',coverInfo.subtitle, 'Subtitle');
-  const card=document.getElementById('cover-card-export');
-  if(card){card.style.setProperty('--cover-logo-size',`${coverLogoSize}px`);card.style.setProperty('--cover-title-size',`${coverTitleSize}px`);}
-  const slot=document.getElementById('cover-logo-slot');
-  const ph=document.getElementById('cover-logo-placeholder');
-  if(slot){slot.querySelectorAll('img').forEach(n=>n.remove());if(coverLogoDataUrl){const img=document.createElement('img');img.src=coverLogoDataUrl;img.alt='Logo';slot.appendChild(img);if(ph)ph.style.display='none';}else if(ph){ph.style.display='';}}
+  const setText = (id, v, fb = '') => { const n = document.getElementById(id); if (n) n.textContent = String(v || fb); };
+  setText('cover-title-text', coverInfo.title, 'Title');
+  setText('cover-subtitle-text', coverInfo.subtitle, 'Subtitle');
+  const card = document.getElementById('cover-card-export');
+  if (card) { card.style.setProperty('--cover-logo-size', `${coverLogoSize}px`); card.style.setProperty('--cover-title-size', `${coverTitleSize}px`); }
+  const slot = document.getElementById('cover-logo-slot');
+  const ph = document.getElementById('cover-logo-placeholder');
+  if (slot) {
+    slot.querySelectorAll('img').forEach(n => n.remove());
+    if (coverLogoDataUrl) {
+      slot.style.display = '';
+      const img = document.createElement('img');
+      img.src = coverLogoDataUrl;
+      img.alt = 'Logo';
+      slot.appendChild(img);
+      if (ph) ph.style.display = 'none';
+    } else {
+      slot.style.display = 'none';
+      if (ph) ph.style.display = '';
+    }
+  }
   // Toggle class so CSS can strip the decorative box when a logo image is present
-  if(slot) slot.classList.toggle('has-logo-img', !!coverLogoDataUrl);
-  const prev=document.getElementById('cover-sections-preview');
-  if(!prev)return;
-  prev.innerHTML='';
-  const visible=coverSections.filter(r=>String(r.label||'').trim()||String(r.value||'').trim());
-  if(!visible.length){const e=document.createElement('div');e.className='cover-foot-row';e.textContent='Add detail rows from the editor.';prev.appendChild(e);return;}
-  visible.forEach(r=>{const line=document.createElement('div');line.className='cover-foot-row';const l=String(r.label||'').trim(),v=String(r.value||'').trim();line.textContent=l&&v?`${l}: ${v}`:(l||v);prev.appendChild(line);});
+  if (slot) slot.classList.toggle('has-logo-img', !!coverLogoDataUrl);
+  const prev = document.getElementById('cover-sections-preview');
+  if (!prev) return;
+  prev.innerHTML = '';
+  const visible = coverSections.filter(r => String(r.label || '').trim() || String(r.value || '').trim());
+  if (!visible.length) { const e = document.createElement('div'); e.className = 'cover-foot-row'; e.textContent = 'Add detail rows from the editor.'; prev.appendChild(e); return; }
+  visible.forEach(r => { const line = document.createElement('div'); line.className = 'cover-foot-row'; const l = String(r.label || '').trim(), v = String(r.value || '').trim(); line.textContent = l && v ? `${l}: ${v}` : (l || v); prev.appendChild(line); });
 }
 
 function renderCoverEditor() {
-  const c=document.getElementById('cover-sections-editor');if(!c)return;c.innerHTML='';
-  coverSections.forEach((row,i)=>{
-    const wrap=document.createElement('div');wrap.className='cover-field-row';
-    const li=document.createElement('input');li.type='text';li.placeholder='Label';li.value=row.label;li.addEventListener('input',()=>{coverSections[i].label=li.value;syncCoverPreview();});
-    const vi=document.createElement('input');vi.type='text';vi.placeholder='Value';vi.value=row.value;vi.addEventListener('input',()=>{coverSections[i].value=vi.value;syncCoverPreview();});
-    const rb=document.createElement('button');rb.type='button';rb.className='remove-btn';rb.textContent='x';rb.addEventListener('click',()=>{coverSections.splice(i,1);renderCoverEditor();syncCoverPreview();});
-    wrap.appendChild(li);wrap.appendChild(vi);wrap.appendChild(rb);c.appendChild(wrap);
+  const c = document.getElementById('cover-sections-editor'); if (!c) return; c.innerHTML = '';
+  coverSections.forEach((row, i) => {
+    const wrap = document.createElement('div'); wrap.className = 'cover-field-row';
+    const li = document.createElement('input'); li.type = 'text'; li.placeholder = 'Label'; li.value = row.label; li.addEventListener('input', () => { coverSections[i].label = li.value; syncCoverPreview(); });
+    const vi = document.createElement('input'); vi.type = 'text'; vi.placeholder = 'Value'; vi.value = row.value; vi.addEventListener('input', () => { coverSections[i].value = vi.value; syncCoverPreview(); });
+    const rb = document.createElement('button'); rb.type = 'button'; rb.className = 'remove-btn'; rb.textContent = 'x'; rb.addEventListener('click', () => { coverSections.splice(i, 1); renderCoverEditor(); syncCoverPreview(); });
+    wrap.appendChild(li); wrap.appendChild(vi); wrap.appendChild(rb); c.appendChild(wrap);
   });
-  if(!coverSections.length){const n=document.createElement('div');n.style.cssText='font-family:var(--mono);font-size:11px;color:var(--muted)';n.textContent='No rows yet. Click Add Detail Row.';c.appendChild(n);}
+  if (!coverSections.length) { const n = document.createElement('div'); n.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--muted)'; n.textContent = 'No rows yet. Click Add Detail Row.'; c.appendChild(n); }
 }
 
-function addCoverSection() { coverSections.push({label:'Label',value:'Value'}); renderCoverEditor(); syncCoverPreview(); }
+function addCoverSection() { coverSections.push({ label: 'Label', value: 'Value' }); renderCoverEditor(); syncCoverPreview(); }
 
 async function pickCoverLogo() {
-  const input=document.createElement('input');input.type='file';input.accept='image/*';
-  input.onchange=async()=>{const file=input.files?.[0];if(!file)return;const url=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result||'');r.onerror=()=>res('');r.readAsDataURL(file);});if(!url)return;coverLogoDataUrl=url;syncCoverPreview();};input.click();
+  const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+  input.onchange = async () => { const file = input.files?.[0]; if (!file) return; const url = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result || ''); r.onerror = () => res(''); r.readAsDataURL(file); }); if (!url) return; coverLogoDataUrl = url; syncCoverPreview(); }; input.click();
 }
-function clearCoverLogo() { coverLogoDataUrl=''; syncCoverPreview(); }
+function clearCoverLogo() { coverLogoDataUrl = ''; syncCoverPreview(); }
 
 async function pickCoverImage() {
-  const input=document.createElement('input');input.type='file';input.accept='image/*';
-  input.onchange=async()=>{const file=input.files?.[0];if(!file)return;const url=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result||'');r.onerror=()=>res('');r.readAsDataURL(file);});if(!url)return;coverImageDataUrl=url;includeCoverInPdf=true;updateCoverControls();};input.click();
+  const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+  input.onchange = async () => { const file = input.files?.[0]; if (!file) return; const url = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result || ''); r.onerror = () => res(''); r.readAsDataURL(file); }); if (!url) return; coverImageDataUrl = url; includeCoverInPdf = true; updateCoverControls(); }; input.click();
 }
-function toggleCoverInPdf() { includeCoverInPdf=!includeCoverInPdf; updateCoverControls(); }
+function toggleCoverInPdf() { includeCoverInPdf = !includeCoverInPdf; updateCoverControls(); }
 function updateCoverControls() {
-  const tb=document.getElementById('toggle-cover-pdf-btn');
-  const ab=document.getElementById('add-cover-image-btn');
-  if(tb){tb.disabled=false;tb.textContent=`Cover: ${includeCoverInPdf?'On':'Off'} (${coverImageDataUrl?'Image':'Default'})`;}
-  if(ab)ab.textContent=coverImageDataUrl?'Replace Cover':'Add Cover';
-  // Show Export PDF only when there are exercises
-  const pdfBtn=document.getElementById('export-pdf-btn');
-  if(pdfBtn)pdfBtn.style.display=exercises.length?'':'none';
+  const tb = document.getElementById('toggle-cover-pdf-btn');
+  const ab = document.getElementById('add-cover-image-btn');
+  if (tb) { tb.disabled = false; tb.textContent = `Cover: ${includeCoverInPdf ? 'On' : 'Off'} (${coverImageDataUrl ? 'Image' : 'Default'})`; }
+  if (ab) ab.textContent = coverImageDataUrl ? 'Replace Cover' : 'Add Cover';
+  // Show Export PDF / Markdown only when there are exercises
+  const pdfBtn = document.getElementById('export-pdf-btn');
+  if (pdfBtn) pdfBtn.style.display = exercises.length ? '' : 'none';
+  const mdBtn = document.getElementById('export-md-btn');
+  if (mdBtn) mdBtn.style.display = exercises.length ? '' : 'none';
 }
 
 function initCoverEditor() {
-  [['cover-title-input','title'],['cover-subtitle-input','subtitle']].forEach(([id,k])=>{
-    const el=document.getElementById(id);if(!el)return;el.value=coverInfo[k]||'';el.addEventListener('input',()=>{coverInfo[k]=el.value;syncCoverPreview();});
+  [['cover-title-input', 'title'], ['cover-subtitle-input', 'subtitle']].forEach(([id, k]) => {
+    const el = document.getElementById(id); if (!el) return; el.value = coverInfo[k] || ''; el.addEventListener('input', () => { coverInfo[k] = el.value; syncCoverPreview(); });
   });
-  const lb=document.getElementById('cover-logo-btn');if(lb)lb.onclick=pickCoverLogo;
-  const cb=document.getElementById('cover-logo-clear-btn');if(cb)cb.onclick=clearCoverLogo;
-  const ls=document.getElementById('cover-logo-size-input');if(ls){ls.value=String(coverLogoSize);ls.addEventListener('input',()=>{coverLogoSize=Number(ls.value)||72;syncCoverPreview();});}
-  const ts=document.getElementById('cover-title-size-input');if(ts){ts.value=String(coverTitleSize);ts.addEventListener('input',()=>{coverTitleSize=Number(ts.value)||28;syncCoverPreview();});}
-  const as=document.getElementById('cover-add-section-btn');if(as)as.onclick=addCoverSection;
+  const lb = document.getElementById('cover-logo-btn'); if (lb) lb.onclick = pickCoverLogo;
+  const cb = document.getElementById('cover-logo-clear-btn'); if (cb) cb.onclick = clearCoverLogo;
+  const ls = document.getElementById('cover-logo-size-input'); if (ls) { ls.value = String(coverLogoSize); ls.addEventListener('input', () => { coverLogoSize = Number(ls.value) || 72; syncCoverPreview(); }); }
+  const ts = document.getElementById('cover-title-size-input'); if (ts) { ts.value = String(coverTitleSize); ts.addEventListener('input', () => { coverTitleSize = Number(ts.value) || 28; syncCoverPreview(); }); }
+  const as = document.getElementById('cover-add-section-btn'); if (as) as.onclick = addCoverSection;
   renderCoverEditor(); syncCoverPreview();
 }
 
@@ -1459,7 +1732,7 @@ function applyTheme(name) {
 
   try {
     localStorage.setItem(CFG.themes.storageKey || 'rg-theme', selected);
-  } catch {}
+  } catch { }
 }
 
 function initThemePicker() {
@@ -1481,7 +1754,7 @@ function initThemePicker() {
       applyTheme(saved);
       return;
     }
-  } catch {}
+  } catch { }
 
   applyTheme(getThemeOptions()[0]?.className || '');
 }
@@ -1495,7 +1768,7 @@ function renderMarkdownHtml(rawText) {
   // If marked library loaded, use it; otherwise fallback to escaped plain text
   if (window.marked && typeof window.marked.parse === 'function') {
     try {
-      let html = window.marked.parse(text, { breaks: true, gfm: true, mangle: false, headerIds: false });
+      let html = window.marked.parse(text, { breaks: true, gfm: true });
       // Sanitize with DOMPurify if available
       if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
         html = window.DOMPurify.sanitize(html, {
@@ -1515,28 +1788,28 @@ function renderMarkdownHtml(rawText) {
 
 async function loadReadmeHowTo(handle) {
   const panel = document.getElementById('landing-howto-panel');
-  const div   = document.getElementById('howto-content');
+  const div = document.getElementById('howto-content');
   if (panel) panel.style.display = 'none';
   try {
-    const raceText = (p) => Promise.race([p, new Promise(r=>setTimeout(()=>r(''), CFG.runtime.readmeFetchTimeoutMs))]);
+    const raceText = (p) => Promise.race([p, new Promise(r => setTimeout(() => r(''), CFG.runtime.readmeFetchTimeoutMs))]);
     let text = '';
     if (handle) {
-      for (const name of ['README.md','readme.md','Readme.md']) {
-        try { const h=await handle.getFileHandle(name); text=await raceText(readTextFromHandle(h)); break; } catch {}
+      for (const name of ['README.md', 'readme.md', 'Readme.md']) {
+        try { const h = await handle.getFileHandle(name); text = await raceText(readTextFromHandle(h)); break; } catch { }
       }
     } else {
-      for (const name of ['README.md','readme.md','Readme.md']) {
+      for (const name of ['README.md', 'readme.md', 'Readme.md']) {
         try {
-          const t = await raceText(fetch(`./${name}`, { cache:'no-store' }).then(r => r.ok ? r.text() : ''));
+          const t = await raceText(fetch(`./${name}`, { cache: 'no-store' }).then(r => r.ok ? r.text() : ''));
           if (t && String(t).trim()) { text = String(t); break; }
-        } catch {}
+        } catch { }
       }
     }
     if (text && text.trim()) {
       if (div) div.innerHTML = renderMarkdownHtml(text);
       if (panel) panel.style.display = '';
     }
-  } catch {}
+  } catch { }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -1546,10 +1819,10 @@ async function loadReadmeHowTo(handle) {
 function updateStaticUiText() {
   document.title = CFG.ui.pageTitle || 'Report Generator';
   const t = CFG.ui.text;
-  const set=(id,v)=>{const n=document.getElementById(id);if(n&&typeof v==='string')n.textContent=v;};
-  set('landing-label',    t.landingLabel);
+  const set = (id, v) => { const n = document.getElementById(id); if (n && typeof v === 'string') n.textContent = v; };
+  set('landing-label', t.landingLabel);
   set('browser-support-note', t.browserSupportNote);
-  set('app-footer',       t.footer);
+  set('app-footer', t.footer);
   const lt = document.getElementById('landing-title');
   if (lt && t.landingTitle) lt.innerHTML = t.landingTitle.split(/\r?\n/).map(escapeHtml).join('<br/>');
   set('landing-description', t.landingDescription);
@@ -1564,6 +1837,11 @@ function updateStaticUiText() {
 window.addEventListener('popstate', e => {
   if (!e.state || e.state.view === 'landing') {
     showLanding();
+  } else if (e.state.view === 'main') {
+    showMain();
+  } else if (e.state.view === 'md-editor') {
+    const text = document.getElementById('md-editor-text')?.value || '';
+    showMarkdownEditor(text, loadedMarkdownFileName);
   }
 });
 
@@ -1578,17 +1856,36 @@ window.addEventListener('DOMContentLoaded', () => {
   updateCoverControls();
   showLanding();
   loadReadmeHowTo(null);  // try HTTP README, hide if absent
+  initMdDropzone();
+
+  // Preload default logo as base64 for PDF / Markdown export embedding
+  if (CFG.cover.defaultLogoPath) {
+    fetch(CFG.cover.defaultLogoPath)
+      .then(r => r.blob())
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (coverLogoDataUrl === CFG.cover.defaultLogoPath) {
+            coverLogoDataUrl = reader.result;
+            syncCoverPreview();
+          }
+        };
+        reader.readAsDataURL(blob);
+      })
+      .catch(err => console.log('Could not preload default logo as base64:', err));
+  }
 });
 
 Object.assign(window, {
-  openFolder, openLabFolder: openFolder, openGeneralFolder: openFolder, rescan, selectMode,
+  openFolder, openLabFolder: openFolder, openGeneralFolder: openFolder, rescan,
   dismissUtilsNotice,
   toggleCoverPanel, toggleUtilsSection,
   loadUtilsFolder, clearUtilsFolder,
-  exportPdf,
+  exportPdf, exportMarkdown,
   collapseAll, expandAll,
   toggleSettings, applyToggles,
   showLanding, showMain,
   pickCoverImage, toggleCoverInPdf,
   addNewCard, addFilesToNewCard,
+  showMarkdownEditor, downloadEditorMarkdown, exportEditorPdf, pickAndLoadMarkdownToEditor, updateLiveMarkdownPreview, setEditorTab,
 });

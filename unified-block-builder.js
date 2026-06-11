@@ -87,6 +87,26 @@ function normalizeBuildConfig(buildConfig = {}) {
   return next;
 }
 
+function getBaseName(fileName) {
+  const idx = String(fileName || '').lastIndexOf('.');
+  return idx > 0 ? String(fileName).slice(0, idx) : String(fileName || '');
+}
+
+function isOutputFileName(name, ext) {
+  const normalizedExt = String(ext || '').toLowerCase();
+  const normalizedName = String(name || '').toLowerCase();
+  if (normalizedExt === 'csv' || normalizedExt === 'json') {
+    return true;
+  }
+  if (normalizedExt === 'txt') {
+    return normalizedName.includes('output') ||
+           normalizedName.includes('result') ||
+           normalizedName.startsWith('out') ||
+           normalizedName === 'output.txt';
+  }
+  return false;
+}
+
 function normalizeGroupedData(inputEx = {}, cfg) {
   const genericFiles = Array.isArray(inputEx.files) ? inputEx.files : [];
 
@@ -184,18 +204,33 @@ function normalizeGroupedData(inputEx = {}, cfg) {
     ATTACHMENT_SUPPORTS.some(support => Array.isArray(inputEx[support.exerciseKey]) || Array.isArray(inputEx[support.descExerciseKey]));
 
   if (alreadyGrouped) {
-    return {
-      files: inputEx.files || [],
-      outputSectionsCache: inputEx.outputSectionsCache || [],
-      descTexts: inputEx.descTexts || [],
+    const nextGrouped = {
+      files: [],
+      outputSectionsCache: [...(inputEx.outputSectionsCache || [])],
+      descTexts: [...(inputEx.descTexts || [])],
       ...Object.fromEntries(
         ATTACHMENT_SUPPORTS.flatMap(support => [
-          [support.exerciseKey, inputEx[support.exerciseKey] || []],
-          [support.descExerciseKey, inputEx[support.descExerciseKey] || []],
+          [support.exerciseKey, [...(inputEx[support.exerciseKey] || [])]],
+          [support.descExerciseKey, [...(inputEx[support.descExerciseKey] || [])]],
         ])
       ),
       descFromComment: inputEx.descFromComment || ''
     };
+
+    // Re-check files in inputEx.files to see if any are output files or descriptions
+    (inputEx.files || []).forEach(item => {
+      const name = item.name;
+      const ext = String(item.ext || getExt(name)).toLowerCase();
+
+      if (isOutputFileName(name, ext)) {
+        const sections = item.sections || splitOutputSections(item.content || '', cfg.outputSectionMarkers);
+        nextGrouped.outputSectionsCache.push({ fileName: name, sections: sections.length ? sections : [item.content || ''] });
+      } else {
+        nextGrouped.files.push(item);
+      }
+    });
+
+    return nextGrouped;
   }
 
   const grouped = {
@@ -232,9 +267,9 @@ function normalizeGroupedData(inputEx = {}, cfg) {
       return;
     }
 
-    if (ext === 'txt' && item?.content && (name.toLowerCase().includes('output') || name.toLowerCase() === 'output.txt')) {
-      const sections = splitOutputSections(item.content, cfg.outputSectionMarkers);
-      if (sections.length) grouped.outputSectionsCache.push({ fileName: name, sections });
+    if (isOutputFileName(name, ext)) {
+      const sections = splitOutputSections(item.content || '', cfg.outputSectionMarkers);
+      grouped.outputSectionsCache.push({ fileName: name, sections: sections.length ? sections : [item.content || ''] });
       return;
     }
 
@@ -282,11 +317,12 @@ export function buildUnifiedBlocks({
   });
 
   const fragment = document.createDocumentFragment();
+  const blocksToAppend = [];
 
-  const appendBlock = (block, type) => {
+  const appendBlock = (block, type, metadata = {}) => {
     if (!block) return;
     registry[type].push(block);
-    fragment.appendChild(block);
+    blocksToAppend.push({ block, type, metadata });
   };
 
   const allNamedItems = [];
@@ -301,18 +337,38 @@ export function buildUnifiedBlocks({
   const hasNumberedItems = allNamedItems.some(name => extractFileNumber(name) !== null);
 
   const appendDescText = (fileName, text, sourceType) => {
-    appendBlock(buildBlock({ type: 'desc-text', fileName, text, source: sourceType }), 'descText');
+    appendBlock(buildBlock({ type: 'desc-text', fileName, text, source: sourceType }), 'descText', {
+      name: fileName,
+      isCode: false,
+      isMain: sourceType === 'comment',
+      isDesc: true,
+      isMedia: false
+    });
   };
 
   const appendAttachment = (support, item, isDescription) => {
     const type = isDescription ? support.descBuildType : support.buildType;
     const registryKey = isDescription ? `attachment-desc:${support.id}` : `attachment:${support.id}`;
-    appendBlock(buildBlock({ type, fileName: item.fileName, dataUrl: item.dataUrl }), registryKey);
+    const block = buildBlock({ type, fileName: item.fileName, dataUrl: item.dataUrl });
+    appendBlock(block, registryKey, {
+      name: item.fileName,
+      isCode: false,
+      isMain: false,
+      isDesc: isDescription,
+      isMedia: !isDescription
+    });
   };
 
   const appendCode = (file) => {
     if (!cfg.codeMode) return;
-    appendBlock(buildBlock({ type: 'code', file, ex: source, modeConfig }), 'code');
+    const block = buildBlock({ type: 'code', file, ex: source, modeConfig });
+    appendBlock(block, 'code', {
+      name: file.name,
+      isCode: true,
+      isMain: file.main,
+      isDesc: false,
+      isMedia: false
+    });
   };
 
   const appendOutputEntry = (entry) => {
@@ -326,14 +382,27 @@ export function buildUnifiedBlocks({
           sectionTotal: entry.sections.length,
           renderContent: renderOutputContent
         }),
-        'output'
+        'output',
+        {
+          name: entry.fileName,
+          isCode: false,
+          isMain: false,
+          isDesc: false,
+          isMedia: false
+        }
       );
     });
   };
 
   const maybeAppendEmptyOutput = () => {
     if (!outputs.length && cfg.includeEmptyOutputBlock) {
-      appendBlock(buildBlock({ type: 'empty-output' }), 'emptyOutput');
+      appendBlock(buildBlock({ type: 'empty-output' }), 'emptyOutput', {
+        name: 'output',
+        isCode: false,
+        isMain: false,
+        isDesc: false,
+        isMedia: false
+      });
     }
   };
 
@@ -414,6 +483,44 @@ export function buildUnifiedBlocks({
     maybeAppendEmptyOutput();
   }
 
+  function getPriorityScore(item) {
+    const meta = item.metadata;
+    const name = String(meta.name || '').toLowerCase();
+    const base = getBaseName(meta.name).toLowerCase();
+
+    // 1. desc would be first of the block (regardless of file type except the code ones)
+    const isDesc = meta.isDesc || (isDescriptionBaseName(meta.name) && !meta.isCode);
+    if (isDesc) return 1;
+
+    // 2. code file named main if its code files
+    if (meta.isCode) {
+      if (meta.isMain || base === 'main') return 2;
+      // 3. middle is just code files
+      return 3;
+    }
+
+    // 5. last place would be the medias
+    if (meta.isMedia) return 5;
+
+    // 4. Otherwise it would be any
+    return 4;
+  }
+
+  // Sort collected blocks by priority score
+  blocksToAppend.sort((a, b) => {
+    const scoreA = getPriorityScore(a);
+    const scoreB = getPriorityScore(b);
+    if (scoreA !== scoreB) {
+      return scoreA - scoreB;
+    }
+    return compareByFileName(a.metadata.name, b.metadata.name);
+  });
+
+  // Append blocks to fragment in sorted order
+  blocksToAppend.forEach(item => {
+    fragment.appendChild(item.block);
+  });
+
   const currentState = { ...cfg.state };
 
   const updateState = (patch = {}) => {
@@ -444,3 +551,4 @@ export function buildUnifiedBlocks({
 export function applyBlockStatePatch(body, statePatch) {
   body?.__exerciseBlocks?.updateState?.(statePatch);
 }
+
