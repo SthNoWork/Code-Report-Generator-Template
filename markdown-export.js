@@ -37,6 +37,81 @@ async function fetchAsDataUrl(url) {
   }
 }
 
+export function embedImagesInMarkdown(markdownText, imageMap) {
+  if (!imageMap || Object.keys(imageMap).length === 0) {
+    return markdownText;
+  }
+
+  let result = markdownText;
+  const escapeRegExp = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  };
+
+  const keys = Object.keys(imageMap).sort((a, b) => b.length - a.length);
+
+  for (const key of keys) {
+    const base64Val = imageMap[key];
+    if (!base64Val) continue;
+    const escapedKey = escapeRegExp(key);
+
+    const mdRegex = new RegExp('!\\[([^\\]]*)\\]\\(\\s*' + escapedKey + '\\s*\\)', 'g');
+    result = result.replace(mdRegex, (match, alt) => `![${alt}](${base64Val})`);
+
+    const htmlRegex = new RegExp('src=["\']\\s*' + escapedKey + '\\s*["\']', 'g');
+    result = result.replace(htmlRegex, `src="${base64Val}"`);
+  }
+
+  return result;
+}
+
+export function extractImagesFromMarkdown(markdownText) {
+  let result = markdownText;
+  const imageMap = {};
+  let counter = 1;
+
+  const registerBase64 = (base64, suggestedName) => {
+    let ext = 'png';
+    const match = base64.match(/^data:image\/([a-zA-Z0-9+]+);base64,/);
+    if (match && match[1]) {
+      ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+    }
+
+    let name = suggestedName ? suggestedName.trim().replace(/[^a-zA-Z0-9_.-]/g, '_') : '';
+    if (!name || name.startsWith('data:')) {
+      name = `image_${counter++}`;
+    }
+    if (!name.includes('.')) {
+      name = `${name}.${ext}`;
+    }
+
+    let finalName = name;
+    let dupCounter = 1;
+    while (imageMap[finalName]) {
+      const parts = name.split('.');
+      const base = parts.slice(0, -1).join('.');
+      const fileExt = parts[parts.length - 1];
+      finalName = `${base}_${dupCounter++}.${fileExt}`;
+    }
+
+    imageMap[finalName] = base64;
+    return finalName;
+  };
+
+  const htmlBase64Regex = /src=["'](data:image\/[^"';]+;base64,[^"']+)["']/g;
+  result = result.replace(htmlBase64Regex, (match, base64) => {
+    const filename = registerBase64(base64, 'embedded_image');
+    return `src="${filename}"`;
+  });
+
+  const mdBase64Regex = /!\[([^\]]*)\]\(\s*(data:image\/[^);]+;base64,[^)]+)\s*\)/g;
+  result = result.replace(mdBase64Regex, (match, alt, base64) => {
+    const filename = registerBase64(base64, alt || 'embedded_image');
+    return `![${alt}](${filename})`;
+  });
+
+  return { cleanMarkdown: result, imageMap };
+}
+
 // Download trigger
 export function triggerDownload(content, filename) {
   const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
@@ -198,7 +273,7 @@ export async function exportExerciseListMarkdown(options) {
           const fn = block.dataset.fileName || block.querySelector('.fname')?.textContent?.trim() || 'Code';
           const isProse = block.querySelector('.prose-block') !== null;
           const ext = fn.split('.').pop().toLowerCase();
-          
+
           if (isProse) {
             const content = block.querySelector('.prose-text')?.textContent || '';
             const codeLang = ext === 'md' ? 'markdown' : (ext === 'txt' ? 'text' : ext);
@@ -218,7 +293,7 @@ export async function exportExerciseListMarkdown(options) {
 
           const fn = block.dataset.fileName || block.querySelector('.fname')?.textContent?.trim() || 'Output';
           const tableEl = block.querySelector('.output-table');
-          
+
           if (tableEl) {
             md += `#### Output: \`${fn}\`\n\n${tableToMarkdown(tableEl)}`;
           } else {

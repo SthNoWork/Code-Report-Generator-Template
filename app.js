@@ -20,7 +20,7 @@ import { getAppConfig } from './app-config-resolver.js';
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
 import { exportExerciseListPdf, captureViewToPdf } from './pdf-export.js';
-import { exportExerciseListMarkdown, triggerDownload } from './markdown-export.js';
+import { exportExerciseListMarkdown, triggerDownload, embedImagesInMarkdown, extractImagesFromMarkdown } from './markdown-export.js';
 
 // ══════════════════════════════════════════════════════════════════════════
 // SECTION 1: APP CONFIG
@@ -1301,9 +1301,15 @@ function showMarkdownEditor(initialText, fileNameHint) {
   const tabIcon = document.querySelector('#storage-toggle-btn .tab-icon');
   if (tabIcon) tabIcon.textContent = '⬡';
 
+  const { cleanMarkdown, imageMap } = extractImagesFromMarkdown(initialText || '');
+  if (!window.__mdImageMap) {
+    window.__mdImageMap = {};
+  }
+  Object.assign(window.__mdImageMap, imageMap);
+
   const textarea = document.getElementById('md-editor-text');
   if (textarea) {
-    textarea.value = initialText || '';
+    textarea.value = cleanMarkdown || '';
   }
   loadedMarkdownFileName = fileNameHint || 'report.md';
 
@@ -1391,9 +1397,10 @@ function downloadEditorMarkdown() {
   const textarea = document.getElementById('md-editor-text');
   if (!textarea) return;
   const content = textarea.value;
+  const embeddedContent = embedImagesInMarkdown(content, window.__mdImageMap);
   let filename = loadedMarkdownFileName || 'report.md';
   if (!filename.endsWith('.md')) filename += '.md';
-  triggerDownload(content, filename);
+  triggerDownload(embeddedContent, filename);
 }
 
 async function exportEditorPdf() {
