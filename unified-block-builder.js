@@ -1,5 +1,5 @@
 import { getAppConfig } from './app-config-resolver.js';
-import { getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName } from './scan_file-classifier.js';
+import { getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, extractExerciseNumber } from './scan_file-classifier.js';
 
 const CFG = getAppConfig();
 const MAIN_COMMENT_NAME = CFG.labels.mainCommentName || 'main comment';
@@ -28,16 +28,13 @@ function createAttachmentBuckets() {
 }
 
 function extractFileNumber(fileName) {
-  const matches = String(fileName || '').match(/\d+/g);
-  if (!matches || !matches.length) return null;
-  const value = Number.parseInt(matches[matches.length - 1], 10);
-  return Number.isFinite(value) ? value : null;
+  return extractExerciseNumber(fileName);
 }
 
 function compareByFileName(a, b) {
-  const an = String(a || '').toLowerCase();
-  const bn = String(b || '').toLowerCase();
-  return an.localeCompare(bn, undefined, { numeric: true });
+  const an = String(a || '');
+  const bn = String(b || '');
+  return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
 }
 
 function setVisibilityForBlocks(blocks, visible) {
@@ -484,30 +481,44 @@ export function buildUnifiedBlocks({
   }
 
   function getPriorityScore(item) {
-    const meta = item.metadata;
-    const name = String(meta.name || '').toLowerCase();
+    const priorities = CFG.ordering?.priorities || {};
+    const meta = item.metadata || {};
     const base = getBaseName(meta.name).toLowerCase();
+    const mainBases = CFG.fileDiscovery?.preferredMainFileBases || ['main'];
 
-    // 1. desc would be first of the block (regardless of file type except the code ones)
+    // 1. Description
     const isDesc = meta.isDesc || (isDescriptionBaseName(meta.name) && !meta.isCode);
-    if (isDesc) return 1;
+    if (isDesc) return Number(priorities.description ?? 1);
 
-    // 2. code file named main if its code files
+    // 2. Main code file
     if (meta.isCode) {
-      if (meta.isMain || base === 'main') return 2;
-      // 3. middle is just code files
-      return 3;
+      if (meta.isMain || mainBases.includes(base)) return Number(priorities.mainCode ?? 2);
+      // 3. Other code files
+      return Number(priorities.code ?? 3);
     }
 
-    // 5. last place would be the medias
-    if (meta.isMedia) return 5;
+    // 5. Media attachments / images
+    if (meta.isMedia) return Number(priorities.media ?? 5);
 
-    // 4. Otherwise it would be any
-    return 4;
+    // 4. Output files
+    if (item.type === 'output' || item.type === 'emptyOutput') {
+      return Number(priorities.output ?? 4);
+    }
+
+    return Number(priorities.code ?? 3);
   }
 
-  // Sort collected blocks by priority score
+  // Sort collected blocks by exercise group number (if present), then by priority score, then natural filename
   blocksToAppend.sort((a, b) => {
+    const numA = extractExerciseNumber(a.metadata?.name);
+    const numB = extractExerciseNumber(b.metadata?.name);
+
+    if (numA !== null && numB !== null && numA !== numB) {
+      return numA - numB;
+    }
+    if (numA !== null && numB === null) return -1;
+    if (numA === null && numB !== null) return 1;
+
     const scoreA = getPriorityScore(a);
     const scoreB = getPriorityScore(b);
     if (scoreA !== scoreB) {

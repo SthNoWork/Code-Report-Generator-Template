@@ -127,6 +127,7 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
 
   if (numFolders.length > 0) {
     let processed = 0;
+    const totalDirs = numFolders.length + unNumFolders.length;
     for (const { entry: dirHandle, name: dirName } of numFolders) {
       const allFiles = await readFilesRecursively(dirHandle, modeConfig);
       const loaded = await materializeScanEntries(allFiles, modeConfig);
@@ -140,7 +141,21 @@ export async function scanFolder(rootHandle, rootName, modeConfig, onProgress) {
         });
       }
       processed++;
-      onProgress?.(20 + Math.round((processed / numFolders.length) * 70));
+      onProgress?.(20 + Math.round((processed / totalDirs) * 70));
+    }
+    for (const { entry: dirHandle, name: dirName } of unNumFolders) {
+      const allFiles = await readFilesRecursively(dirHandle, modeConfig);
+      const loaded = await materializeScanEntries(allFiles, modeConfig);
+      if (hasMaterializedContent(loaded)) {
+        cards.push({
+          name: dirName,
+          _mode: modeConfig.id,
+          _notes: '',
+          ...loaded,
+        });
+      }
+      processed++;
+      onProgress?.(20 + Math.round((processed / totalDirs) * 70));
     }
   } else if (unNumFolders.length > 0) {
     const allCollected = createCollectedEntries();

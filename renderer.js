@@ -16,7 +16,7 @@
  */
 
 import { getAppConfig } from './app-config-resolver.js';
-import { buildUnifiedBlocks, applyBlockStatePatch } from './block-builder.js';
+import { buildUnifiedBlocks, applyBlockStatePatch } from './unified-block-builder.js';
 import { getAttachmentSupports } from './scan_file-classifier.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -98,6 +98,22 @@ function dataUrlToUint8Array(dataUrl) {
 let pdfJsConfigured = false;
 const pdfRenderJobs = new WeakMap();
 
+function setPdfFallback(surface, message) {
+  surface.innerHTML = '';
+  const tmpl = document.getElementById('tmpl-pdf-fallback');
+  if (tmpl) {
+    const clone = tmpl.content.cloneNode(true);
+    const fb = clone.querySelector('.pdf-preview-fallback');
+    if (fb) fb.textContent = message;
+    surface.appendChild(clone);
+  } else {
+    const fb = document.createElement('div');
+    fb.className = 'pdf-preview-fallback';
+    fb.textContent = message;
+    surface.appendChild(fb);
+  }
+}
+
 function ensurePdfJsConfigured() {
   if (pdfJsConfigured || !window.pdfjsLib) return;
   try {
@@ -122,7 +138,7 @@ async function renderPdfSurface(surface) {
 
   const job = (async () => {
     if (!window.pdfjsLib) {
-      surface.innerHTML = '<div class="pdf-preview-fallback">PDF preview unavailable in this browser.</div>';
+      setPdfFallback(surface, 'PDF preview unavailable in this browser.');
       surface.dataset.rendered = '0';
       return;
     }
@@ -156,7 +172,7 @@ async function renderPdfSurface(surface) {
       }
       surface.dataset.rendered = '1';
     } catch {
-      surface.innerHTML = '<div class="pdf-preview-fallback">Unable to render PDF preview.</div>';
+      setPdfFallback(surface, 'Unable to render PDF preview.');
       surface.dataset.rendered = '0';
     } finally {
       delete surface.dataset.rendering;
@@ -342,10 +358,18 @@ export function buildBlock(spec) {
     if (isDescription) {
       el.className = 'exercise-note image-description-note';
       el.dataset.attachmentDesc = support.id;
-      el.innerHTML =
-        `<div class="exercise-note-head">${RENDERER_LABELS.description} ` +
-        '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
-        '<div class="exercise-note-attachment"></div>';
+      const tmpl = document.getElementById('tmpl-desc-note-image');
+      if (tmpl) {
+        el.innerHTML = '';
+        el.appendChild(tmpl.content.cloneNode(true));
+        const lbl = el.querySelector('.note-label');
+        if (lbl) lbl.textContent = RENDERER_LABELS.description;
+      } else {
+        el.innerHTML =
+          `<div class="exercise-note-head">${escapeHtml(RENDERER_LABELS.description)} ` +
+          '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
+          '<div class="exercise-note-attachment"></div>';
+      }
       el.querySelector('.exercise-note-attachment').innerHTML = renderAttachmentContentMarkup(support.id, dataUrl, fn, true);
       el.querySelector('.desc-toggle-btn').addEventListener('click', e => {
         e.stopPropagation();
@@ -376,10 +400,18 @@ export function buildBlock(spec) {
     el.dataset.autoDesc = '1';
     el.dataset.descSource = source;
     el.dataset.fileName = fn || '';
-    el.innerHTML =
-      `<div class="exercise-note-head">${RENDERER_LABELS.description} ` +
-      '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
-      '<pre class="exercise-note-text"></pre>';
+    const tmpl = document.getElementById('tmpl-desc-note-text');
+    if (tmpl) {
+      el.innerHTML = '';
+      el.appendChild(tmpl.content.cloneNode(true));
+      const lbl = el.querySelector('.note-label');
+      if (lbl) lbl.textContent = RENDERER_LABELS.description;
+    } else {
+      el.innerHTML =
+        `<div class="exercise-note-head">${escapeHtml(RENDERER_LABELS.description)} ` +
+        '<button class="desc-toggle-btn" title="Hide">✕</button></div>' +
+        '<pre class="exercise-note-text"></pre>';
+    }
     el.querySelector('.exercise-note-text').textContent = (text || '').trim() || '[empty description]';
     el.querySelector('.desc-toggle-btn').addEventListener('click', e => {
       e.stopPropagation();

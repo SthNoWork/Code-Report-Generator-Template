@@ -9,13 +9,13 @@ import { PDF_MODE, getModeById, ALL_MODES } from './mode-config.js';
 import {
   scanFolder, scanUtilsFolder, readTextFromHandle,
   getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, getExt
-} from './file-scanner.js';
+} from './scanner.js';
 import {
   buildFileBlock, buildImageBlock, renderBodyContents,
   buildImageDescNote, buildAttachmentBlock, escapeHtml, updateExerciseBlockStates,
   renderPdfPreviewSurfaces
 } from './renderer.js';
-import { getAppConfig } from './app-config-resolver.js';
+import { getAppConfig, loadExternalConfig } from './app-config-resolver.js';
 
 // Make buildFileBlock accessible to renderUtilsSection without circular import
 window.__renderer__ = { buildFileBlock };
@@ -310,12 +310,23 @@ function renderUtilsSection() {
 
   // Build utils section
   container.innerHTML = '';
-  const heading = document.createElement('div');
-  heading.className = 'utils-heading';
-  heading.innerHTML =
-    `<span class="utils-title">📦 ${escapeHtml(utilsFolderName)} — ${escapeHtml(CFG.labels.utilsSectionTitle)}</span>` +
-    `<span class="utils-meta">${utilsFiles.length} file${utilsFiles.length !== 1 ? 's' : ''}</span>` +
-    `<button class="small-btn danger" onclick="clearUtilsFolder()" title="Remove utils folder">✕ Remove</button>`;
+  const tmplUtils = document.getElementById('tmpl-utils-heading');
+  let heading;
+  if (tmplUtils) {
+    const clone = tmplUtils.content.cloneNode(true);
+    heading = clone.firstElementChild;
+    const titleEl = heading.querySelector('.utils-title');
+    if (titleEl) titleEl.textContent = `📦 ${utilsFolderName} — ${CFG.labels.utilsSectionTitle}`;
+    const metaEl = heading.querySelector('.utils-meta');
+    if (metaEl) metaEl.textContent = `${utilsFiles.length} file${utilsFiles.length !== 1 ? 's' : ''}`;
+  } else {
+    heading = document.createElement('div');
+    heading.className = 'utils-heading';
+    heading.innerHTML =
+      `<span class="utils-title">📦 ${escapeHtml(utilsFolderName)} — ${escapeHtml(CFG.labels.utilsSectionTitle)}</span>` +
+      `<span class="utils-meta">${utilsFiles.length} file${utilsFiles.length !== 1 ? 's' : ''}</span>` +
+      `<button class="small-btn danger" onclick="clearUtilsFolder()" title="Remove utils folder">✕ Remove</button>`;
+  }
   container.appendChild(heading);
 
   const mc = activeMode;
@@ -371,7 +382,10 @@ function insertUtilsTag(item) {
 
   const tag = document.createElement('span');
   tag.className = 'ex-utils-tag';
-  tag.innerHTML = '<span class="label">📦 utils</span>';
+  const label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = '📦 utils';
+  tag.appendChild(label);
 
   const removeBtn = document.createElement('button');
   removeBtn.className = 'ex-utils-tag-remove';
@@ -439,7 +453,9 @@ function buildUtilsFooter(fileNames) {
 
   const title = document.createElement('div');
   title.className = 'ex-utils-footer-title';
-  title.innerHTML = '<span>📦 Utils used</span>';
+  const titleText = document.createElement('span');
+  titleText.textContent = '📦 Utils used';
+  title.appendChild(titleText);
 
   // Add button — opens a small inline picker of all available utils files
   const addBtn = document.createElement('button');
@@ -527,13 +543,23 @@ function renderExercises() {
   document.getElementById('general-tag').textContent =
     `${exercises.length} card${exercises.length !== 1 ? 's' : ''}`;
 
+  const printBtn = document.getElementById('print-general-pdf-btn');
+  if (printBtn) printBtn.style.display = exercises.length ? '' : 'none';
   const pdBtn = document.getElementById('export-general-pdf-btn');
   if (pdBtn) pdBtn.style.display = exercises.length ? '' : 'none';
   const mdBtn = document.getElementById('export-general-md-btn');
   if (mdBtn) mdBtn.style.display = exercises.length ? '' : 'none';
 
   if (!exercises.length) {
-    list.innerHTML = `<div class="empty-card"><div class="big">📂</div>${escapeHtml(CFG.ui.text.emptyFolderMessage)}</div>`;
+    const tmplEmpty = document.getElementById('tmpl-empty-card');
+    if (tmplEmpty) {
+      const clone = tmplEmpty.content.cloneNode(true);
+      const msg = clone.querySelector('.empty-card-msg');
+      if (msg) msg.textContent = CFG.ui.text.emptyFolderMessage;
+      list.appendChild(clone);
+    } else {
+      list.innerHTML = `<div class="empty-card"><div class="big">📂</div>${escapeHtml(CFG.ui.text.emptyFolderMessage)}</div>`;
+    }
     return;
   }
 
@@ -557,36 +583,56 @@ function renderExercises() {
 
 function buildExerciseItem(ex, idx) {
   const num = (ex.name.replace(/\D/g, '') || String(idx + 1));
-  const meta = `${ex.files.length} file${ex.files.length !== 1 ? 's' : ''}`;
-  const item = document.createElement('div');
-  item.className = 'ex-item'; item.draggable = true; item.dataset.exName = ex.name; item.dataset.exId = ensureExerciseId(ex);
-  item.innerHTML = `
+  const tmpl = document.getElementById('tmpl-exercise-card');
+  let item;
+
+  if (tmpl) {
+    const clone = tmpl.content.cloneNode(true);
+    item = clone.firstElementChild;
+  } else {
+    item = document.createElement('div');
+    item.className = 'ex-item';
+    item.innerHTML = `
     <div class="ex-header">
       <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <div class="ex-num">${escapeHtml(num)}</div>
-      <input class="ex-title-input" type="text" value="${escapeHtml(ex.name)}" title="Click to rename"/>
+      <div class="ex-num"></div>
+      <input class="ex-title-input" type="text" title="Click to rename"/>
       <button class="ex-delete-btn" title="Remove this card">✕</button>
       <span class="ex-chevron">▶</span>
     </div>
     <div class="ex-body"></div>`;
+  }
+
+  item.draggable = true;
+  item.dataset.exName = ex.name;
+  item.dataset.exId = ensureExerciseId(ex);
+
+  const numEl = item.querySelector('.ex-num');
+  if (numEl) numEl.textContent = num;
 
   const ti = item.querySelector('.ex-title-input');
-  ti.addEventListener('click', e => e.stopPropagation());
-  ti.addEventListener('keydown', e => { if (e.key === 'Enter') ti.blur(); });
-  ti.addEventListener('change', () => {
-    const v = ti.value.trim();
-    if (v) { ex.name = v; item.dataset.exName = v; } else ti.value = ex.name;
-  });
+  if (ti) {
+    ti.value = ex.name;
+    ti.addEventListener('click', e => e.stopPropagation());
+    ti.addEventListener('keydown', e => { if (e.key === 'Enter') ti.blur(); });
+    ti.addEventListener('change', () => {
+      const v = ti.value.trim();
+      if (v) { ex.name = v; item.dataset.exName = v; } else ti.value = ex.name;
+    });
+  }
 
-  item.querySelector('.ex-delete-btn').addEventListener('click', e => {
-    e.stopPropagation();
-    if (confirm(`Remove "${ex.name}"?`)) {
-      const i = exercises.indexOf(ex);
-      if (i > -1) exercises.splice(i, 1);
-      unregisterExercise(ex);
-      item.remove();
-    }
-  });
+  const delBtn = item.querySelector('.ex-delete-btn');
+  if (delBtn) {
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (confirm(`Remove "${ex.name}"?`)) {
+        const i = exercises.indexOf(ex);
+        if (i > -1) exercises.splice(i, 1);
+        unregisterExercise(ex);
+        item.remove();
+      }
+    });
+  }
 
   ensureUtilsRestoreButton(item);
   insertUtilsTag(item);
@@ -629,10 +675,10 @@ function populateExerciseBody(body, ex) {
   const addRow = document.createElement('div');
   addRow.className = 'ex-add-row';
   const af = document.createElement('button');
-  af.className = 'add-file-btn'; af.innerHTML = '＋ Add File';
+  af.className = 'add-file-btn'; af.textContent = '＋ Add File';
   af.onclick = e => { e.stopPropagation(); pickAndAddFiles(body, ex, mc, addRow); };
   const ai = document.createElement('button');
-  ai.className = 'add-image-btn'; ai.innerHTML = '＋ Add Image';
+  ai.className = 'add-image-btn'; ai.textContent = '＋ Add Image';
   ai.onclick = e => { e.stopPropagation(); pickAndAddImages(body, ex, addRow); };
   addRow.appendChild(af); addRow.appendChild(ai);
 
@@ -1242,6 +1288,71 @@ function initStoragePanel() {
 // SECTION 10: PDF EXPORT
 // ══════════════════════════════════════════════════════════════════════════
 
+async function printPdf() {
+  const printBtn = document.getElementById('export-general-pdf-btn');
+  const origText = printBtn ? printBtn.textContent : '';
+  if (printBtn) {
+    printBtn.disabled = true;
+    printBtn.textContent = 'Preparing Print...';
+  }
+
+  try {
+    // 1. Ensure all exercise card bodies are expanded and populated
+    const items = Array.from(document.querySelectorAll('#general-ex-list .ex-item'));
+    const pending = [];
+
+    items.forEach(item => {
+      item.classList.add('open');
+      const body = item.querySelector('.ex-body');
+      const ex = exerciseIndex.get(item.dataset.exId || '');
+      if (ex && body) {
+        const maybePromise = populateExerciseBody(body, ex);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          pending.push(maybePromise);
+        }
+      }
+    });
+
+    await Promise.all(pending);
+
+    // 2. Render any PDF preview surfaces
+    const view = document.getElementById('view-general');
+    if (view) {
+      await renderPdfPreviewSurfaces(view);
+    }
+
+    // 3. Mark notes that have text
+    document.querySelectorAll('#general-ex-list .ex-notes-area').forEach(textArea => {
+      if (textArea.value.trim()) {
+        textArea.closest('.ex-notes-row')?.classList.add('has-notes');
+      }
+    });
+
+    // 4. Configure cover page print class on body
+    if (includeCoverInPdf) {
+      document.body.classList.add('print-include-cover');
+    } else {
+      document.body.classList.remove('print-include-cover');
+    }
+
+    // Wait for DOM layout and rendering to stabilize
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // 5. Open native browser print dialog (produces 100% vector, selectable text, working links)
+    window.print();
+  } catch (err) {
+    console.error('Print error:', err);
+    alert('Failed to prepare print dialog: ' + (err?.message || 'Unknown error'));
+  } finally {
+    document.body.classList.remove('print-include-cover');
+    document.querySelectorAll('.ex-notes-row.has-notes').forEach(row => row.classList.remove('has-notes'));
+    if (printBtn) {
+      printBtn.disabled = false;
+      printBtn.textContent = origText;
+    }
+  }
+}
+
 async function exportPdf() {
   await exportExerciseListPdf({
     listSelector: '#general-ex-list',
@@ -1562,6 +1673,7 @@ function toggleSettings(panelId) {
 function showLanding() {
   activate('view-landing');
   setCoverPanelVisible(false);
+  document.getElementById('print-general-pdf-btn')?.style?.setProperty('display', 'none');
   document.getElementById('export-general-pdf-btn')?.style?.setProperty('display', 'none');
   document.getElementById('export-general-md-btn')?.style?.setProperty('display', 'none');
   // Close stash panel when going back to landing
@@ -1852,7 +1964,8 @@ window.addEventListener('popstate', e => {
   }
 });
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadExternalConfig();
   document.documentElement.style.setProperty('--pdf-content-width', `${CFG.pdf.contentWidthPx}px`);
   updateStaticUiText();
   initCoverEditor();
@@ -1888,7 +2001,7 @@ Object.assign(window, {
   dismissUtilsNotice,
   toggleCoverPanel, toggleUtilsSection,
   loadUtilsFolder, clearUtilsFolder,
-  exportPdf, exportMarkdown,
+  exportPdf, printPdf, exportMarkdown,
   collapseAll, expandAll,
   toggleSettings, applyToggles,
   showLanding, showMain,

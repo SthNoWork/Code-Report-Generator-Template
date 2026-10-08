@@ -1,3 +1,5 @@
+import { getAppConfig } from './app-config-resolver.js';
+
 const ATTACHMENT_SUPPORTS = [
   {
     id: 'image',
@@ -49,7 +51,12 @@ export function getAttachmentSupports() {
 
 export function isDescriptionBaseName(fileName) {
   const base = getBaseName(fileName).toLowerCase();
-  return base === 'desc' || /^desc\d+$/.test(base);
+  const cfg = getAppConfig();
+  const keywords = cfg.fileDiscovery?.descriptionKeywords || [
+    'desc', 'description', 'readme', 'instruction', 'instructions', 'prompt'
+  ];
+  const pattern = new RegExp(`(?:^|[_\s-])(?:${keywords.join('|')})(?:[_\s-]*\\d+)?$`, 'i');
+  return pattern.test(base);
 }
 
 export function getAttachmentSupport(fileName) {
@@ -63,10 +70,28 @@ export function isAttachmentFile(fileName) {
 }
 
 export function extractExerciseNumber(fileName) {
-  const matches = getBaseName(fileName).match(/\d+/g);
+  if (!fileName) return null;
+  const base = getBaseName(fileName);
+
+  // 1. Explicit keyword: ex1, exercise_2, task3, prob04, q5
+  const kwMatch = base.match(/(?:ex(?:ercise)?|task|prob(?:lem)?|q(?:uestion)?)[_\s-]*(\d+)/i);
+  if (kwMatch) {
+    const val = Number.parseInt(kwMatch[1], 10);
+    if (Number.isFinite(val)) return val;
+  }
+
+  // 2. Starts with a number: "01_main.cpp", "2.cpp", "03-solution.py"
+  const leadMatch = base.match(/^(\d+)/);
+  if (leadMatch) {
+    const val = Number.parseInt(leadMatch[1], 10);
+    if (Number.isFinite(val)) return val;
+  }
+
+  // 3. Fallback: FIRST standalone number sequence (avoids version numbers or years)
+  const matches = base.match(/\d+/g);
   if (!matches || !matches.length) return null;
-  const value = Number.parseInt(matches[matches.length - 1], 10);
-  return Number.isFinite(value) ? value : null;
+  const val = Number.parseInt(matches[0], 10);
+  return Number.isFinite(val) ? val : null;
 }
 
 export function isImageFile(fileName) {
@@ -118,5 +143,7 @@ export function isViewableFile(fileName, modeConfig) {
 export function isPrimarySourceFile(fileName, modeConfig) {
   const dot = String(fileName || '').indexOf('.');
   const base = (dot > 0 ? String(fileName).slice(0, dot) : String(fileName || '')).toLowerCase();
-  return (modeConfig.preferredMainBases || ['main']).includes(base);
+  const cfg = getAppConfig();
+  const preferred = modeConfig?.preferredMainBases || cfg.fileDiscovery?.preferredMainFileBases || ['main'];
+  return preferred.includes(base);
 }
