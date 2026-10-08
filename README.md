@@ -19,7 +19,7 @@ https://sthnowork.github.io/Code-Report-Generator-Template/
 - [block-builder.js](block-builder.js): canonical block builder API.
 - [unified-block-builder.js](unified-block-builder.js): implementation for building block fragments from scanner data.
 - [renderer.js](renderer.js): DOM block rendering primitives and body rendering integration.
-- [pdf-export.js](pdf-export.js): PDF capture/export pipeline.
+- [app.js](app.js): PDF export (vector & selectable text) and app orchestration.
 - [app-config-resolver.js](app-config-resolver.js): normalized config defaults + merge logic.
 
 ## How to use

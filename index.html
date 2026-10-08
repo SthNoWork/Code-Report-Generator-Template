@@ -29,14 +29,6 @@
       defer
       src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"
     ></script>
-    <script
-      defer
-      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
-    ></script>
-    <script
-      defer
-      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
-    ></script>
     <style>
       /* ════════════════════════════════════════════
        ROOT VARIABLES — default "dark" theme
@@ -2671,24 +2663,26 @@
       }
 
       /* ════════════════════════════════════════════
-       PRINT
+       PRINT — Vector & Selectable Text, matching canvas layout exactly
     ════════════════════════════════════════════ */
       @media print {
         @page {
-          margin: 10mm;
           size: A4 portrait;
+          margin: 0;
         }
 
         html,
         body {
-          background: var(--bg, #0d1117) !important;
-          color: var(--text, #e6edf3) !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: var(--bg) !important;
+          color: var(--text) !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-          font-size: 11pt;
+          font-family: var(--sans);
         }
 
-        /* Hide interactive chrome, buttons, sidebars and toolbars */
+        /* Hide interactive chrome, toolbars, buttons and drawers */
         .topbar,
         .loading-bar,
         footer,
@@ -2709,21 +2703,35 @@
         .desc-toggle-btn,
         .btn-del-file,
         .drag-handle,
+        .file-drag-handle,
+        .ex-add-row,
+        .new-card-btn,
+        .remove-block-btn,
         .landing-btn-row,
         .compat-note,
         .howto-panel,
         .settings-head,
         .cover-fields,
         .cover-panel-actions,
-        .cover-inline-actions {
+        .cover-inline-actions,
+        .utils-info-notice,
+        .utils-banner,
+        .utils-load-btn,
+        .mode-picker,
+        .mode-badge,
+        #view-general .section-head {
           display: none !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
         .main {
           max-width: none !important;
-          padding: 0 !important;
-          margin: 0 !important;
           width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          box-sizing: border-box !important;
         }
 
         .view {
@@ -2733,63 +2741,205 @@
         #view-general {
           display: block !important;
           width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
-        /* Cover Card formatting for print */
+        /* ── Cover Page: exactly like canvas export ── */
         body.print-include-cover #global-cover-panel {
-          display: block !important;
-          background: transparent !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 100% !important;
+          height: 297mm !important;
+          min-height: 297mm !important;
+          max-height: 297mm !important;
+          box-sizing: border-box !important;
+          padding: 20mm !important;
+          margin: 0 !important;
+          background: var(--bg) !important;
           border: none !important;
-          padding: 0 !important;
-          margin: 0 0 20mm 0 !important;
-          page-break-after: always;
-          break-after: page;
+          border-radius: 0 !important;
+          break-after: page !important;
+          page-break-after: always !important;
         }
 
         body.print-include-cover .cover-panel-body {
-          display: block !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 100% !important;
+          height: 100% !important;
           padding: 0 !important;
+          margin: 0 !important;
         }
 
         body.print-include-cover .cover-preview-wrap {
           display: flex !important;
+          align-items: center !important;
           justify-content: center !important;
           width: 100% !important;
+          height: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
         }
 
         body.print-include-cover .cover-card {
-          width: 170mm !important;
-          min-height: 240mm !important;
-          margin: 0 auto !important;
-          page-break-inside: avoid;
-          break-inside: avoid;
+          width: 165mm !important;
+          max-width: 165mm !important;
+          height: 235mm !important;
+          max-height: 235mm !important;
+          padding: 44px 38px !important;
+          margin: auto !important;
+          box-sizing: border-box !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
           box-shadow: none !important;
+        }
+
+        body.print-include-cover .cover-logo-slot {
+          width: calc(var(--cover-logo-size) * 1.85) !important;
+          height: calc(var(--cover-logo-size) * 1.85) !important;
+          margin-bottom: 24px !important;
+        }
+
+        body.print-include-cover .cover-mid h3 {
+          font-size: calc(var(--cover-title-size) * 1.8) !important;
+          margin-bottom: 18px !important;
+        }
+
+        body.print-include-cover .cover-mid p {
+          font-size: 15px !important;
+        }
+
+        body.print-include-cover .cover-divider {
+          width: 140px !important;
+          height: 4px !important;
+          margin: 24px auto 28px !important;
+        }
+
+        body.print-include-cover .cover-foot {
+          font-size: 13.5px !important;
+          gap: 8px !important;
+          padding-top: 18px !important;
         }
 
         body:not(.print-include-cover) #global-cover-panel {
           display: none !important;
         }
 
-        /* Always display all card bodies during print */
-        .ex-body {
-          display: flex !important;
-        }
-
-        .ex-chevron {
-          display: none !important;
+        /* ── Exercise List: 1 exercise per page, exactly like canvas export ── */
+        #general-ex-list {
+          display: block !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
         .ex-item {
-          break-inside: avoid;
-          page-break-inside: avoid;
-          margin-bottom: 16px !important;
+          break-before: page !important;
+          page-break-before: always !important;
+          break-inside: auto !important;
+          page-break-inside: auto !important;
+          margin: 14mm 12mm !important;
           box-shadow: none !important;
           border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+          background: var(--surface) !important;
+          box-sizing: border-box !important;
+          overflow: visible !important;
+        }
+
+        #general-ex-list .ex-item:first-child {
+          break-before: auto !important;
+          page-break-before: auto !important;
+        }
+
+        .ex-header {
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
+          padding: 16px 20px !important;
+          cursor: default !important;
+          break-after: avoid !important;
+          page-break-after: avoid !important;
+        }
+
+        .ex-title-input {
+          background: transparent !important;
+          border: none !important;
+          outline: none !important;
+          font-family: var(--sans) !important;
+          font-size: 15px !important;
+          font-weight: 600 !important;
+          color: var(--text) !important;
+          cursor: default !important;
+          padding: 0 !important;
+        }
+
+        .ex-chevron {
+          display: inline-block !important;
+          margin-left: auto !important;
+          color: var(--muted) !important;
+          font-size: 13px !important;
+          transform: rotate(90deg) !important;
+        }
+
+        .ex-body {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+          padding: 0 20px 20px !important;
+          overflow: visible !important;
+        }
+
+        .exercise-note {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          border: 1px solid rgba(88, 166, 255, 0.35) !important;
+          border-radius: 10px !important;
+          padding: 14px 16px !important;
+        }
+
+        .exercise-note-head {
+          display: block !important;
+          font-family: var(--mono) !important;
+          font-size: 11px !important;
+          letter-spacing: 0.08em !important;
+          color: var(--accent) !important;
+          text-transform: uppercase !important;
+          margin-bottom: 10px !important;
+          break-after: avoid !important;
+          page-break-after: avoid !important;
+        }
+
+        .exercise-note-text {
+          font-family: var(--mono) !important;
+          font-size: 12.5px !important;
+          line-height: 1.7 !important;
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+          color: var(--text) !important;
+          margin: 0 !important;
         }
 
         .code-block {
-          break-inside: avoid;
-          page-break-inside: avoid;
+          break-inside: auto !important;
+          page-break-inside: auto !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+          overflow: visible !important;
+          background: var(--dr-bg) !important;
+        }
+
+        .code-header {
+          display: flex !important;
+          align-items: center !important;
+          padding: 10px 16px !important;
+          border-bottom: 1px solid var(--border) !important;
+          break-after: avoid !important;
+          page-break-after: avoid !important;
         }
 
         .code-block pre {
@@ -2797,31 +2947,72 @@
           overflow: visible !important;
           white-space: pre-wrap !important;
           word-break: break-word !important;
+          padding: 16px !important;
+          margin: 0 !important;
+          font-family: var(--mono) !important;
           font-size: 9.5pt !important;
           line-height: 1.45 !important;
+          background: transparent !important;
         }
 
         .code-block code {
+          font-family: var(--mono) !important;
           font-size: 9.5pt !important;
+          white-space: pre-wrap !important;
+          background: transparent !important;
         }
 
         .output-table-wrap {
           overflow: visible !important;
         }
 
-        .exercise-note {
-          break-inside: avoid;
-          page-break-inside: avoid;
+        .ex-notes-row:not(.has-notes) {
+          display: none !important;
+        }
+
+        .ex-notes-row.has-notes {
+          display: block !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        .ex-notes-area {
+          border: 1px solid var(--border) !important;
+          background: transparent !important;
+          resize: none !important;
+          overflow: visible !important;
         }
 
         .attachment-surface img,
         .exercise-note-attachment img {
-          max-height: 160mm !important;
-          page-break-inside: avoid;
-          break-inside: avoid;
+          max-height: 140mm !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
         }
 
-        /* Make sure text is selectable and links are crisp */
+        /* Support printing from Markdown editor */
+        body.print-md-editor .view {
+          display: none !important;
+        }
+        body.print-md-editor #view-md-editor {
+          display: block !important;
+        }
+        body.print-md-editor .md-editor-header,
+        body.print-md-editor .md-editor-tabs,
+        body.print-md-editor .md-editor-pane-edit,
+        body.print-md-editor #md-dropzone {
+          display: none !important;
+        }
+        body.print-md-editor .md-editor-pane-preview {
+          display: block !important;
+          overflow: visible !important;
+        }
+        body.print-md-editor #md-editor-preview-scroll {
+          padding: 16mm 14mm !important;
+          background: transparent !important;
+        }
+
+        /* Make sure all text is selectable and copyable */
         * {
           -webkit-user-select: text !important;
           user-select: text !important;
@@ -4147,21 +4338,11 @@
             </button>
             <button
               class="report-btn"
-              id="print-pdf-btn"
-              style="display: none; margin-left: 4px"
-              onclick="printPdf()"
-              title="Print or save as PDF with crisp, selectable & copyable text"
-            >
-              Print / Vector PDF
-            </button>
-            <button
-              class="report-btn"
               id="export-pdf-btn"
-              style="display: none"
+              style="display: none; margin-left: 4px"
               onclick="exportPdf()"
-              title="Export canvas-rendered PDF"
             >
-              Export Canvas PDF
+              Export PDF
             </button>
             <button
               class="report-btn"
@@ -4314,21 +4495,11 @@
           >
           <button
             class="report-btn"
-            id="print-general-pdf-btn"
-            style="display: none; margin-left: 4px"
-            onclick="printPdf()"
-            title="Print or save as PDF with crisp, selectable & copyable text"
-          >
-            Print / Vector PDF
-          </button>
-          <button
-            class="report-btn"
             id="export-general-pdf-btn"
             style="display: none; margin-left: 4px"
             onclick="exportPdf()"
-            title="Export canvas-rendered PDF"
           >
-            Export Canvas PDF
+            Export PDF
           </button>
           <button
             class="report-btn"

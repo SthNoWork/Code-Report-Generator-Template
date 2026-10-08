@@ -1,16 +1,9 @@
 import { getAppConfig } from './app-config-resolver.js';
-import { getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, extractExerciseNumber } from './scan_file-classifier.js';
+import { getAttachmentSupports, getAttachmentSupport, isDescriptionBaseName, extractExerciseNumber, getExt } from './scan_file-classifier.js';
 
 const CFG = getAppConfig();
 const MAIN_COMMENT_NAME = CFG.labels.mainCommentName || 'main comment';
 const ATTACHMENT_SUPPORTS = getAttachmentSupports();
-
-function getExt(fileName) {
-  const idx = String(fileName || '').lastIndexOf('.');
-  return (idx > 0 && idx < String(fileName).length - 1)
-    ? String(fileName).slice(idx + 1).toLowerCase()
-    : '';
-}
 
 function getAttachmentSupportByExt(ext) {
   const normalized = String(ext || '').toLowerCase();

@@ -17,9 +17,6 @@ import {
 } from './renderer.js';
 import { getAppConfig, loadExternalConfig } from './app-config-resolver.js';
 
-// Make buildFileBlock accessible to renderUtilsSection without circular import
-window.__renderer__ = { buildFileBlock };
-import { exportExerciseListPdf, captureViewToPdf } from './pdf-export.js';
 import { exportExerciseListMarkdown, triggerDownload, embedImagesInMarkdown, extractImagesFromMarkdown } from './markdown-export.js';
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -331,8 +328,7 @@ function renderUtilsSection() {
 
   const mc = activeMode;
   utilsFiles.forEach(f => {
-    const { buildFileBlock } = window.__renderer__;
-    if (buildFileBlock) container.appendChild(buildFileBlock(f, null, mc));
+    container.appendChild(buildFileBlock(f, null, mc));
   });
 
   // Inject utils footer into any already-open exercise bodies (new load only)
@@ -543,8 +539,6 @@ function renderExercises() {
   document.getElementById('general-tag').textContent =
     `${exercises.length} card${exercises.length !== 1 ? 's' : ''}`;
 
-  const printBtn = document.getElementById('print-general-pdf-btn');
-  if (printBtn) printBtn.style.display = exercises.length ? '' : 'none';
   const pdBtn = document.getElementById('export-general-pdf-btn');
   if (pdBtn) pdBtn.style.display = exercises.length ? '' : 'none';
   const mdBtn = document.getElementById('export-general-md-btn');
@@ -1288,8 +1282,8 @@ function initStoragePanel() {
 // SECTION 10: PDF EXPORT
 // ══════════════════════════════════════════════════════════════════════════
 
-async function printPdf() {
-  const printBtn = document.getElementById('export-general-pdf-btn');
+async function exportPdf() {
+  const printBtn = document.getElementById('export-general-pdf-btn') || document.getElementById('export-pdf-btn');
   const origText = printBtn ? printBtn.textContent : '';
   if (printBtn) {
     printBtn.disabled = true;
@@ -1338,7 +1332,7 @@ async function printPdf() {
     // Wait for DOM layout and rendering to stabilize
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    // 5. Open native browser print dialog (produces 100% vector, selectable text, working links)
+    // 5. Open native browser print dialog (produces 100% vector, selectable text)
     window.print();
   } catch (err) {
     console.error('Print error:', err);
@@ -1351,25 +1345,6 @@ async function printPdf() {
       printBtn.textContent = origText;
     }
   }
-}
-
-async function exportPdf() {
-  await exportExerciseListPdf({
-    listSelector: '#general-ex-list',
-    resolveExercise: item => exerciseIndex.get(item.dataset.exId || ''),
-    ensureBodyLoaded: (body, ex) => { populateExerciseBody(body, ex); },
-    notesSelector: '#general-ex-list .ex-notes-area',
-    viewId: 'view-general',
-    fileName: (folderName || 'report').toLowerCase().replace(/\s+/g, '-'),
-    buttonId: 'export-general-pdf-btn',
-    captureConfig: CFG.pdf,
-    coverImageDataUrl: includeCoverInPdf ? (coverImageDataUrl || '') : '',
-    coverElementId: (includeCoverInPdf && !coverImageDataUrl) ? 'cover-card-export' : '',
-    beforeCapture: async () => {
-      const view = document.getElementById('view-general');
-      if (view) await renderPdfPreviewSurfaces(view);
-    },
-  });
 }
 
 async function exportMarkdown() {
@@ -1515,34 +1490,11 @@ function downloadEditorMarkdown() {
 }
 
 async function exportEditorPdf() {
-  const exportBtn = document.getElementById('export-editor-pdf-btn');
-  const originalBtnText = exportBtn ? exportBtn.textContent : '';
-  if (exportBtn) {
-    exportBtn.disabled = true;
-    exportBtn.textContent = 'Exporting...';
-  }
-
-  document.body.classList.add('exporting-pdf');
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-  try {
-    const filename = (loadedMarkdownFileName || 'report').replace(/\.md$/i, '');
-    await captureViewToPdf(
-      'md-editor-preview-content',
-      filename,
-      'export-editor-pdf-btn',
-      CFG.pdf
-    );
-  } catch (error) {
-    console.error('Markdown PDF export error:', error);
-    alert('PDF export failed: ' + (error?.message || 'Unknown error'));
-  } finally {
-    document.body.classList.remove('exporting-pdf');
-    if (exportBtn) {
-      exportBtn.disabled = false;
-      exportBtn.textContent = originalBtnText;
-    }
-  }
+  updateLiveMarkdownPreview();
+  document.body.classList.add('print-md-editor');
+  await new Promise(resolve => setTimeout(resolve, 150));
+  window.print();
+  document.body.classList.remove('print-md-editor');
 }
 
 function pickAndLoadMarkdownToEditor() {
@@ -1673,7 +1625,6 @@ function toggleSettings(panelId) {
 function showLanding() {
   activate('view-landing');
   setCoverPanelVisible(false);
-  document.getElementById('print-general-pdf-btn')?.style?.setProperty('display', 'none');
   document.getElementById('export-general-pdf-btn')?.style?.setProperty('display', 'none');
   document.getElementById('export-general-md-btn')?.style?.setProperty('display', 'none');
   // Close stash panel when going back to landing
@@ -2001,7 +1952,7 @@ Object.assign(window, {
   dismissUtilsNotice,
   toggleCoverPanel, toggleUtilsSection,
   loadUtilsFolder, clearUtilsFolder,
-  exportPdf, printPdf, exportMarkdown,
+  exportPdf, exportMarkdown,
   collapseAll, expandAll,
   toggleSettings, applyToggles,
   showLanding, showMain,
