@@ -1506,6 +1506,7 @@ async function exportEditorPdf() {
     }));
   }
 
+  document.body.classList.remove('print-include-cover');
   document.body.classList.add('print-md-editor');
   await new Promise(resolve => setTimeout(resolve, 300));
   window.print();
@@ -1928,6 +1929,19 @@ window.addEventListener('popstate', e => {
     const text = document.getElementById('md-editor-text')?.value || '';
     showMarkdownEditor(text, loadedMarkdownFileName);
   }
+});
+
+// Auto-configure print classes if native Ctrl+P / window.print is used
+window.addEventListener('beforeprint', () => {
+  const mdEditor = document.getElementById('view-md-editor');
+  if (mdEditor && mdEditor.classList.contains('active')) {
+    document.body.classList.remove('print-include-cover');
+    document.body.classList.add('print-md-editor');
+  }
+});
+
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('print-md-editor');
 });
 
 window.addEventListener('DOMContentLoaded', async () => {

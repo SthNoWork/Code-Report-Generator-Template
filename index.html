@@ -2738,7 +2738,8 @@
           display: none !important;
         }
 
-        #view-general {
+        /* Show #view-general only during general report printing, not during markdown editor print */
+        body:not(.print-md-editor) #view-general {
           display: block !important;
           width: 100% !important;
           margin: 0 !important;
@@ -2991,11 +2992,20 @@
         }
 
         /* Support printing from Markdown editor */
-        body.print-md-editor .view {
+        body.print-md-editor .view,
+        body.print-md-editor #view-general,
+        body.print-md-editor #view-landing,
+        body.print-md-editor #global-cover-panel,
+        body.print-md-editor #general-ex-list,
+        body.print-md-editor .ex-item {
           display: none !important;
-        }
-        body.print-md-editor #global-cover-panel {
-          display: none !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          border: none !important;
         }
         body.print-md-editor #view-md-editor {
           display: block !important;
