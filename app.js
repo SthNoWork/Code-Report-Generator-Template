@@ -1491,8 +1491,23 @@ function downloadEditorMarkdown() {
 
 async function exportEditorPdf() {
   updateLiveMarkdownPreview();
+
+  // Ensure all images in the preview are fully decoded before printing
+  const preview = document.getElementById('md-editor-preview-content');
+  if (preview) {
+    const imgs = Array.from(preview.querySelectorAll('img'));
+    await Promise.all(imgs.map(async img => {
+      if (img.complete && img.naturalWidth > 0) return;
+      try { if (typeof img.decode === 'function') { await img.decode(); return; } } catch {}
+      await new Promise(r => {
+        img.addEventListener('load', r, { once: true });
+        img.addEventListener('error', r, { once: true });
+      });
+    }));
+  }
+
   document.body.classList.add('print-md-editor');
-  await new Promise(resolve => setTimeout(resolve, 150));
+  await new Promise(resolve => setTimeout(resolve, 300));
   window.print();
   document.body.classList.remove('print-md-editor');
 }

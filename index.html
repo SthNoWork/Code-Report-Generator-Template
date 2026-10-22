@@ -2994,22 +2994,66 @@
         body.print-md-editor .view {
           display: none !important;
         }
+        body.print-md-editor #global-cover-panel {
+          display: none !important;
+        }
         body.print-md-editor #view-md-editor {
           display: block !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+          padding: 0 !important;
         }
         body.print-md-editor .md-editor-header,
         body.print-md-editor .md-editor-tabs,
         body.print-md-editor .md-editor-pane-edit,
-        body.print-md-editor #md-dropzone {
+        body.print-md-editor #md-dropzone,
+        body.print-md-editor #view-md-editor > .section-head {
           display: none !important;
+        }
+        body.print-md-editor .md-editor-workspace {
+          display: block !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+          border: none !important;
+          background: transparent !important;
         }
         body.print-md-editor .md-editor-pane-preview {
           display: block !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
           overflow: visible !important;
         }
         body.print-md-editor #md-editor-preview-scroll {
           padding: 16mm 14mm !important;
           background: transparent !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        /* Prevent the markdown-rendered cover section from splitting across pages */
+        body.print-md-editor .markdown-body > h1:first-child {
+          break-before: avoid !important;
+          page-break-before: avoid !important;
+        }
+        body.print-md-editor .markdown-body > table:first-of-type {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+        body.print-md-editor .markdown-body > hr {
+          break-before: avoid !important;
+          page-break-before: avoid !important;
+          break-after: page !important;
+          page-break-after: always !important;
+        }
+        body.print-md-editor .markdown-body img {
+          max-width: 100% !important;
+          max-height: 200mm !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
         }
 
         /* Make sure all text is selectable and copyable */
